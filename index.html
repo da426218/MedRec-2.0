@@ -68,7 +68,7 @@
       justify-content: center;
       gap: 10px;
     }
-    /* Loading Indicator for OCR Progress */
+    /* Loading Indicator */
     #loading {
       display: none;
       position: fixed;
@@ -176,7 +176,42 @@
   </div>
 
   <script>
-    // List of critical medications (all lowercase)
+    // --- Preprocessing: Convert image file to grayscale and threshold ---
+    function preprocessImage(file, callback) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          // Draw the image on the canvas.
+          ctx.drawImage(img, 0, 0);
+          // Convert to grayscale.
+          let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          let data = imageData.data;
+          for (let i = 0; i < data.length; i += 4) {
+            const gray = 0.2126 * data[i] + 0.7152 * data[i+1] + 0.0722 * data[i+2];
+            data[i] = data[i+1] = data[i+2] = gray;
+          }
+          ctx.putImageData(imageData, 0, 0);
+          // Apply simple thresholding.
+          for (let i = 0; i < data.length; i += 4) {
+            const threshold = 128;
+            const val = data[i] > threshold ? 255 : 0;
+            data[i] = data[i+1] = data[i+2] = val;
+          }
+          ctx.putImageData(imageData, 0, 0);
+          // Return the preprocessed image as a Data URL.
+          callback(canvas.toDataURL());
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // --- Order Parsing & Comparison Functions ---
     const criticalMeds = [
       'warfarin', 'apixaban', 'rivaroxaban', 'dabigatran', 'edoxaban', 'heparin', 'enoxaparin',
       'clopidogrel', 'ticagrelor', 'prasugrel', 'insulin regular', 'insulin glargine', 'insulin detemir',
@@ -207,204 +242,29 @@
       'atorvastatin', 'rosuvastatin', 'simvastatin'
     ];
 
-    // State: Each OCR-extracted order is stored as { original, parsed }
     let photo1, photo2, meds1, meds2;
 
-    /* 
-      Step 1: Acknowledge Disclaimer
-    */
-    function acknowledgeDisclaimer() {
-      showScreen('photo1-screen');
-    }
-
-    /* 
-      Handle Photo 1 Selection
-    */
-    function handlePhoto1(file) {
-      if (!file) return;
-      photo1 = file;
-      document.getElementById('photo1-status').textContent = 'Photo selected: ' + file.name;
-      document.getElementById('photo1-next').disabled = false;
-    }
-
-    /* 
-      Step 2: Process Photo 1 and go to Photo 2 Screen
-    */
-    function goToPhoto2() {
-      if (!photo1) {
-        showError('Please select a photo first.');
-        return;
-      }
-      showLoading('Processing first image...');
-      Tesseract.recognize(
-        photo1,
-        'eng',
-        { logger: m => {
-            console.log(m);
-            if (m.progress) {
-              document.getElementById('progress-bar').value = m.progress;
-            }
-          }
-        }
-      ).then(({ data: { text } }) => {
-        const lines = text
-          .split(/[\n,]+/)
-          .map(med => med.trim())
-          // Remove trailing punctuation or symbols like "~~", ">>", or "->"
-          .map(cleanLine)
-          // Filter out lines that look like noise
-          .filter(isLikelyOrderLine);
-
-        meds1 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
-        console.log('Medications from Photo 1:', meds1);
-        hideLoading();
-        showScreen('photo2-screen');
-      }).catch(err => {
-        console.error('OCR Error:', err);
-        hideLoading();
-        showError('Error extracting text from the first photo. Please try again.');
-      });
-    }
-
-    /* 
-      Handle Photo 2 Selection
-    */
-    function handlePhoto2(file) {
-      if (!file) return;
-      photo2 = file;
-      document.getElementById('photo2-status').textContent = 'Photo selected: ' + file.name;
-      document.getElementById('photo2-compare').disabled = false;
-    }
-
-    /* 
-      Step 3: Process Photo 2 and compare orders
-    */
-    function comparePhotos() {
-      if (!photo2) {
-        showError('Please select a photo first.');
-        return;
-      }
-      showLoading('Processing second image...');
-      Tesseract.recognize(
-        photo2,
-        'eng',
-        { logger: m => {
-            console.log(m);
-            if (m.progress) {
-              document.getElementById('progress-bar').value = m.progress;
-            }
-          }
-        }
-      ).then(({ data: { text } }) => {
-        const lines = text
-          .split(/[\n,]+/)
-          .map(med => med.trim())
-          .map(cleanLine)
-          .filter(isLikelyOrderLine);
-
-        meds2 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
-        console.log('Medications from Photo 2:', meds2);
-        hideLoading();
-        compareAndShowResults();
-      }).catch(err => {
-        console.error('OCR Error:', err);
-        hideLoading();
-        showError('Error extracting text from the second photo. Please try again.');
-      });
-    }
-
-    /* 
-      Step 4: Compare orders and show results
-    */
-    function compareAndShowResults() {
-      const { unchanged, removed, added } = compareOrders(meds1, meds2);
-      
-      let html = '';
-      if (removed.length > 0) {
-        html += '<h3>Removed:</h3><ul>';
-        removed.forEach(orderObj => {
-          const crit = isCriticalOrder(orderObj.parsed);
-          html += `<li class="${crit ? 'critical' : ''}">${orderObj.original}</li>`;
-        });
-        html += '</ul>';
-      }
-      if (added.length > 0) {
-        html += '<h3>Added:</h3><ul>';
-        added.forEach(orderObj => {
-          const crit = isCriticalOrder(orderObj.parsed);
-          html += `<li class="${crit ? 'critical' : ''}">${orderObj.original}</li>`;
-        });
-        html += '</ul>';
-      }
-      if (unchanged.length > 0) {
-        html += '<h3>Unchanged:</h3><ul>';
-        unchanged.forEach(orderObj => {
-          html += `<li>${orderObj.original}</li>`;
-        });
-        html += '</ul>';
-      }
-      
-      document.getElementById('results-content').innerHTML = html;
-      showScreen('results-screen');
-    }
-
-    /* 
-      Step 5: Start Over
-    */
-    function startOver() {
-      photo1 = null;
-      photo2 = null;
-      meds1 = null;
-      meds2 = null;
-      document.getElementById('photo1-capture').value = '';
-      document.getElementById('photo1-upload').value = '';
-      document.getElementById('photo2-capture').value = '';
-      document.getElementById('photo2-upload').value = '';
-      document.getElementById('photo1-status').textContent = 'No photo selected.';
-      document.getElementById('photo2-status').textContent = 'No photo selected.';
-      document.getElementById('photo1-next').disabled = true;
-      document.getElementById('photo2-compare').disabled = true;
-      document.getElementById('results-content').innerHTML = '';
-      showScreen('disclaimer-screen');
-    }
-
-    // ---------- Filtering & Cleanup Logic ----------
-
-    /*
-      cleanLine() removes trailing punctuation or symbols, such as "~", ">", or "->".
-      It uses a regex to remove all trailing non-alphanumeric characters.
-      Then it trims whitespace again.
-    */
+    // Aggressive filtering: clean trailing punctuation/symbols.
     function cleanLine(line) {
       return line.replace(/[^a-z0-9]+$/i, '').trim();
     }
 
-    /*
-      isLikelyOrderLine(line) is a stricter filter:
-        1) Must be at least 3 characters long
-        2) Must contain a decent proportion of letters/digits (to discard mostly symbols)
-        3) You can add additional logic (e.g., require 'mg' or 'po').
-    */
+    // Filter out lines that likely aren't orders.
     function isLikelyOrderLine(line) {
       if (line.length < 3) return false;
       let alphaNumCount = (line.match(/[a-z0-9]/gi) || []).length;
       let ratio = alphaNumCount / line.length;
+      // If less than 40% alphanumeric, reject.
       if (ratio < 0.4) return false;
       return true;
     }
 
-    /*
-      parseOrder() extracts the name, dose in mg, route (po), and frequency from the line.
-    */
+    // Parse an order into its components.
     function parseOrder(orderStr) {
-      orderStr = orderStr.toLowerCase().trim();
-      orderStr = orderStr.replace(/\s+/g, ' ');
-
+      orderStr = orderStr.toLowerCase().trim().replace(/\s+/g, ' ');
       let doseMatch = orderStr.match(/(\d+)\s*mg/);
       let dose = doseMatch ? parseInt(doseMatch[1]) : null;
-      
       let route = orderStr.includes("po") ? "po" : "";
-      
       const freqMapping = {
         "every other morning": "every other morning",
         "every other afternoon": "every other afternoon",
@@ -429,7 +289,6 @@
           break;
         }
       }
-      
       if (doseMatch) {
         orderStr = orderStr.replace(doseMatch[0], '');
       }
@@ -437,75 +296,48 @@
         orderStr = orderStr.replace(/\bpo\b/, '');
       }
       let name = orderStr.trim();
-      
       return { name, dose, route, frequency };
     }
 
-    /*
-      ordersAreEqual() compares two parsed orders (name, dose, route, frequency).
-    */
     function ordersAreEqual(a, b) {
       if (a.dose !== b.dose) return false;
       if (a.route !== b.route) return false;
       if (a.frequency !== b.frequency) return false;
-      if (a.name && b.name) {
-        if (a.name !== b.name) return false;
-      }
+      if (a.name && b.name && a.name !== b.name) return false;
       return true;
     }
 
-    /*
-      compareOrders() returns which orders are unchanged, removed, or added
-      by cross-checking the two lists.
-    */
     function compareOrders(list1, list2) {
       let unchanged = [];
       let removed = [];
       let added = [];
       let matched2 = new Array(list2.length).fill(false);
-      
       for (let orderObj1 of list1) {
         let found = false;
         for (let i = 0; i < list2.length; i++) {
           if (!matched2[i] && ordersAreEqual(orderObj1.parsed, list2[i].parsed)) {
-            found = true;
             matched2[i] = true;
             unchanged.push(orderObj1);
+            found = true;
             break;
           }
         }
-        if (!found) {
-          removed.push(orderObj1);
-        }
+        if (!found) removed.push(orderObj1);
       }
-      
       for (let i = 0; i < list2.length; i++) {
-        if (!matched2[i]) {
-          added.push(list2[i]);
-        }
+        if (!matched2[i]) added.push(list2[i]);
       }
-      
       return { unchanged, removed, added };
     }
 
-    /*
-      isCriticalOrder() checks if a medication name is in the list of critical meds.
-    */
     function isCriticalOrder(parsedOrder) {
-      if (parsedOrder.name && criticalMeds.includes(parsedOrder.name)) {
-        return true;
-      }
-      return false;
+      return parsedOrder.name && criticalMeds.includes(parsedOrder.name);
     }
 
-    /*
-      UI Initialization
-    */
+    // --- UI and OCR Flow ---
     function showScreen(screenId) {
       document.getElementById('error-message').textContent = '';
-      document.querySelectorAll('.screen').forEach(screen => {
-        screen.classList.remove('active');
-      });
+      document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
       document.getElementById(screenId).classList.add('active');
       updateProgress(screenId);
     }
@@ -515,17 +347,16 @@
       document.getElementById('step2').classList.remove('filled');
       document.getElementById('step3').classList.remove('filled');
       document.getElementById('step4').classList.remove('filled');
-      
-      if(screenId === 'disclaimer-screen'){
+      if (screenId === 'disclaimer-screen') {
         document.getElementById('step1').classList.add('filled');
-      } else if(screenId === 'photo1-screen'){
+      } else if (screenId === 'photo1-screen') {
         document.getElementById('step1').classList.add('filled');
         document.getElementById('step2').classList.add('filled');
-      } else if(screenId === 'photo2-screen'){
+      } else if (screenId === 'photo2-screen') {
         document.getElementById('step1').classList.add('filled');
         document.getElementById('step2').classList.add('filled');
         document.getElementById('step3').classList.add('filled');
-      } else if(screenId === 'results-screen'){
+      } else if (screenId === 'results-screen') {
         document.getElementById('step1').classList.add('filled');
         document.getElementById('step2').classList.add('filled');
         document.getElementById('step3').classList.add('filled');
@@ -534,12 +365,13 @@
     }
 
     function showLoading(msg) {
-      const ld = document.getElementById('loading');
-      const lt = document.getElementById('loading-text');
+      const ld = document.getElementById('loading'),
+            lt = document.getElementById('loading-text');
       ld.style.display = 'block';
       lt.textContent = msg;
       document.getElementById('progress-bar').value = 0;
     }
+
     function hideLoading() {
       document.getElementById('loading').style.display = 'none';
     }
@@ -548,8 +380,137 @@
       document.getElementById('error-message').textContent = msg;
     }
 
-    // Set the initial progress indicator.
+    function acknowledgeDisclaimer() {
+      showScreen('photo1-screen');
+    }
+
+    function handlePhoto1(file) {
+      if (!file) return;
+      photo1 = file;
+      document.getElementById('photo1-status').textContent = 'Photo selected: ' + file.name;
+      document.getElementById('photo1-next').disabled = false;
+    }
+
+    // Preprocess image then OCR Photo 1.
+    function goToPhoto2() {
+      if (!photo1) {
+        showError('Please select a photo first.');
+        return;
+      }
+      showLoading('Processing first image...');
+      preprocessImage(photo1, function(dataURL) {
+        Tesseract.recognize(
+          dataURL,
+          'eng',
+          { logger: m => {
+              console.log(m);
+              if (m.progress) document.getElementById('progress-bar').value = m.progress;
+            },
+            tessedit_pageseg_mode: 6
+          }
+        ).then(({ data: { text } }) => {
+          const lines = text.split(/[\n,]+/)
+                            .map(line => cleanLine(line))
+                            .filter(isLikelyOrderLine);
+          meds1 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
+          console.log('Medications from Photo 1:', meds1);
+          hideLoading();
+          showScreen('photo2-screen');
+        }).catch(err => {
+          console.error('OCR Error:', err);
+          hideLoading();
+          showError('Error extracting text from the first photo. Please try again.');
+        });
+      });
+    }
+
+    function handlePhoto2(file) {
+      if (!file) return;
+      photo2 = file;
+      document.getElementById('photo2-status').textContent = 'Photo selected: ' + file.name;
+      document.getElementById('photo2-compare').disabled = false;
+    }
+
+    // Preprocess image then OCR Photo 2.
+    function comparePhotos() {
+      if (!photo2) {
+        showError('Please select a photo first.');
+        return;
+      }
+      showLoading('Processing second image...');
+      preprocessImage(photo2, function(dataURL) {
+        Tesseract.recognize(
+          dataURL,
+          'eng',
+          { logger: m => {
+              console.log(m);
+              if (m.progress) document.getElementById('progress-bar').value = m.progress;
+            },
+            tessedit_pageseg_mode: 6
+          }
+        ).then(({ data: { text } }) => {
+          const lines = text.split(/[\n,]+/)
+                            .map(line => cleanLine(line))
+                            .filter(isLikelyOrderLine);
+          meds2 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
+          console.log('Medications from Photo 2:', meds2);
+          hideLoading();
+          compareAndShowResults();
+        }).catch(err => {
+          console.error('OCR Error:', err);
+          hideLoading();
+          showError('Error extracting text from the second photo. Please try again.');
+        });
+      });
+    }
+
+    function compareAndShowResults() {
+      const { unchanged, removed, added } = compareOrders(meds1, meds2);
+      let html = '';
+      if (removed.length > 0) {
+        html += '<h3>Removed:</h3><ul>';
+        removed.forEach(orderObj => {
+          const crit = isCriticalOrder(orderObj.parsed);
+          html += `<li class="${crit ? 'critical' : ''}">${orderObj.original}</li>`;
+        });
+        html += '</ul>';
+      }
+      if (added.length > 0) {
+        html += '<h3>Added:</h3><ul>';
+        added.forEach(orderObj => {
+          const crit = isCriticalOrder(orderObj.parsed);
+          html += `<li class="${crit ? 'critical' : ''}">${orderObj.original}</li>`;
+        });
+        html += '</ul>';
+      }
+      if (unchanged.length > 0) {
+        html += '<h3>Unchanged:</h3><ul>';
+        unchanged.forEach(orderObj => {
+          html += `<li>${orderObj.original}</li>`;
+        });
+        html += '</ul>';
+      }
+      document.getElementById('results-content').innerHTML = html;
+      showScreen('results-screen');
+    }
+
+    function startOver() {
+      photo1 = photo2 = meds1 = meds2 = null;
+      document.getElementById('photo1-capture').value = '';
+      document.getElementById('photo1-upload').value = '';
+      document.getElementById('photo2-capture').value = '';
+      document.getElementById('photo2-upload').value = '';
+      document.getElementById('photo1-status').textContent = 'No photo selected.';
+      document.getElementById('photo2-status').textContent = 'No photo selected.';
+      document.getElementById('photo1-next').disabled = true;
+      document.getElementById('photo2-compare').disabled = true;
+      document.getElementById('results-content').innerHTML = '';
+      showScreen('disclaimer-screen');
+    }
+
+    // Set initial progress.
     updateProgress('disclaimer-screen');
   </script>
 </body>
 </html>
+
