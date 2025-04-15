@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MedRec 2.0</title>
   <style>
     body {
@@ -214,7 +214,7 @@
       'atorvastatin', 'rosuvastatin', 'simvastatin'
     ];
     let photo1, photo2, meds1, meds2;
-    // Aggressive filtering: clean trailing punctuation/symbols.
+    // Clean trailing punctuation/symbols.
     function cleanLine(line) {
       return line.replace(/[^a-z0-9]+$/i, '').trim();
     }
@@ -457,7 +457,6 @@
       document.getElementById('results-content').innerHTML = '';
       showScreen('disclaimer-screen');
     }
-    // Set initial progress.
     updateProgress('disclaimer-screen');
   </script>
 </body>
