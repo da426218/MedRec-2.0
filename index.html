@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MedRec 2.0</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      background-color: #f0f0f0;
+      text-align: center;
+    }
+    .screen {
+      display: none;
+      max-width: 600px;
+      width: 100%;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      position: relative;
+      margin-bottom: 20px;
+    }
+    .screen.active {
+      display: block;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    input[type="file"] {
+      margin: 10px 0;
+      display: block;
+      width: 100%;
+    }
+    #results-screen ul {
+      list-style: none;
+      padding: 0;
+    }
+    #results-screen li {
+      margin: 5px 0;
+    }
+    .critical {
+      color: red;
+      font-weight: bold;
+    }
+    .photo-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+    /* Loading Indicator for OCR Progress */
+    #loading {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      text-align: center;
+      z-index: 1000;
+      font-size: 16px;
+    }
+    #progress-bar {
+      width: 100%;
+    }
+    /* Inline Error Message */
+    #error-message {
+      color: red;
+      margin-top: 10px;
+    }
+    /* Step Indicator */
+    #progress-steps {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .dash {
+      font-size: 32px;
+      margin: 0 10px;
+      color: #cccccc;
+    }
+    .dash.filled {
+      color: #007bff;
+      font-weight: bold;
+    }
+    /* Mobile Responsive */
+    @media screen and (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+      .screen {
+        margin: 0 10px 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Indicator -->
+  <div id="loading">
+    <span id="loading-text">Loading...</span>
+    <br>
+    <progress id="progress-bar" value="0" max="1"></progress>
+  </div>
+  <!-- Inline Error Message -->
+  <div id="error-message"></div>
+  
+  <!-- Disclaimer Screen -->
+  <div id="disclaimer-screen" class="screen active">
+    <h2>Disclaimer</h2>
+    <p><strong>***HIPAA Warning***:</strong> DO NOT UPLOAD IMAGES CONTAINING IDENTIFIABLE INFORMATION. This app is intended for use by personnel authorized to handle Protected Health Information (PHI). Users are responsible for ensuring compliance with HIPAA regulations, including safeguarding resident/patient data and restricting access to authorized personnel only. Unauthorized disclosure of PHI may result in disciplinary action and legal consequences.</p>
+    <button onclick="acknowledgeDisclaimer()">Acknowledge</button>
+  </div>
+
+  <!-- Photo 1 Screen -->
+  <div id="photo1-screen" class="screen">
+    <h2>First Medication List</h2>
+    <p>Please take a photo of the first medication list or upload an image.</p>
+    <div class="photo-buttons">
+      <button onclick="document.getElementById('photo1-capture').click()">Take Photo</button>
+      <input type="file" id="photo1-capture" accept="image/*" capture="environment" style="display: none;" onchange="handlePhoto1(this.files[0])">
+      <button onclick="document.getElementById('photo1-upload').click()">Choose File</button>
+      <input type="file" id="photo1-upload" accept="image/*" style="display: none;" onchange="handlePhoto1(this.files[0])">
+    </div>
+    <p id="photo1-status">No photo selected.</p>
+    <button onclick="goToPhoto2()" id="photo1-next" disabled>Next</button>
+  </div>
+
+  <!-- Photo 2 Screen -->
+  <div id="photo2-screen" class="screen">
+    <h2>Second Medication List</h2>
+    <p>Please take a photo of the second medication list or upload an image.</p>
+    <div class="photo-buttons">
+      <button onclick="document.getElementById('photo2-capture').click()">Take Photo</button>
+      <input type="file" id="photo2-capture" accept="image/*" capture="environment" style="display: none;" onchange="handlePhoto2(this.files[0])">
+      <button onclick="document.getElementById('photo2-upload').click()">Choose File</button>
+      <input type="file" id="photo2-upload" accept="image/*" style="display: none;" onchange="handlePhoto2(this.files[0])">
+    </div>
+    <p id="photo2-status">No photo selected.</p>
+    <button onclick="comparePhotos()" id="photo2-compare" disabled>Compare</button>
+  </div>
+
+  <!-- Results Screen -->
+  <div id="results-screen" class="screen">
+    <h2>Comparison Results</h2>
+    <div id="results-content"></div>
+    <button onclick="startOver()">Start Over</button>
+  </div>
+
+  <!-- Step Indicator -->
+  <div id="progress-steps">
+    <span class="dash" id="step1">-</span>
+    <span class="dash" id="step2">-</span>
+    <span class="dash" id="step3">-</span>
+    <span class="dash" id="step4">-</span>
+  </div>
+
+  <script>
+    // List of critical medications (all lowercase)
+    const criticalMeds = [
+      'warfarin', 'apixaban', 'rivaroxaban', 'dabigatran', 'edoxaban', 'heparin', 'enoxaparin',
+      'clopidogrel', 'ticagrelor', 'prasugrel', 'insulin regular', 'insulin glargine', 'insulin detemir',
+      'insulin lispro', 'insulin aspart', 'insulin degludec', 'glipizide', 'glyburide', 'glimepiride',
+      'repaglinide', 'nateglinide', 'metformin', 'morphine', 'hydromorphone', 'oxycodone', 'fentanyl',
+      'methadone', 'tramadol', 'codeine', 'buprenorphine', 'phenytoin', 'carbamazepine', 'valproic acid',
+      'phenobarbital', 'lamotrigine', 'levetiracetam', 'digoxin', 'amiodarone', 'sotalol', 'diltiazem',
+      'verapamil', 'metoprolol', 'atenolol', 'carvedilol', 'furosemide', 'bumetanide', 'torsemide',
+      'spironolactone', 'hydrochlorothiazide', 'chlorthalidone', 'potassium chloride', 'magnesium sulfate',
+      'calcium gluconate', 'calcium chloride', 'sodium bicarbonate', 'phosphate', 'hydralazine', 'clonidine',
+      'isosorbide mononitrate', 'isosorbide dinitrate', 'nitroglycerin', 'haloperidol', 'risperidone',
+      'olanzapine', 'quetiapine', 'aripiprazole', 'ziprasidone', 'lorazepam', 'diazepam', 'clonazepam',
+      'temazepam', 'midazolam', 'zolpidem', 'prednisone', 'methylprednisolone', 'dexamethasone',
+      'hydrocortisone', 'levothyroxine', 'liothyronine', 'tacrolimus', 'cyclosporine', 'mycophenolate',
+      'azathioprine', 'vancomycin', 'gentamicin', 'tobramycin', 'amikacin', 'ciprofloxacin', 'levofloxacin',
+      'moxifloxacin', 'azithromycin', 'clarithromycin', 'erythromycin', 'amoxicillin',
+      'amoxicillin-clavulanate', 'ceftriaxone', 'cefepime', 'ceftazidime', 'cefdinir', 'cephalexin',
+      'piperacillin-tazobactam', 'penicillin vk', 'dicloxacillin', 'nafcillin', 'meropenem', 'ertapenem',
+      'imipenem-cilastatin', 'doxycycline', 'minocycline', 'tetracycline', 'linezolid',
+      'sulfamethoxazole-trimethoprim', 'nitrofurantoin', 'metronidazole', 'clindamycin', 'fosfomycin',
+      'daptomycin', 'tigecycline', 'carbidopa/levodopa', 'entacapone', 'selegiline', 'rasagiline', 'lithium',
+      'theophylline', 'clozapine', 'methotrexate', 'allopurinol', 'colchicine', 'tamsulosin', 'finasteride',
+      'denosumab', 'zoledronic acid', 'teriparatide', 'alendronate', 'risedronate', 'acetazolamide',
+      'bethanechol', 'bethanechol chloride', 'donepezil', 'rivastigmine', 'galantamine', 'memantine',
+      'naltrexone', 'naloxone', 'flumazenil', 'desmopressin', 'octreotide', 'erythropoietin', 'filgrastim',
+      'calcitriol', 'ergocalciferol', 'cholecalciferol', 'pyridostigmine', 'propranolol', 'labetalol',
+      'isosorbide', 'nicardipine', 'nitroprusside', 'ivabradine', 'sacubitril', 'valsartan',
+      'atorvastatin', 'rosuvastatin', 'simvastatin'
+    ];
+
+    // State: Each OCR-extracted order is stored as { original, parsed }
+    let photo1, photo2, meds1, meds2;
+
+    /* 
+      Step 1: Acknowledge Disclaimer
+    */
+    function acknowledgeDisclaimer() {
+      showScreen('photo1-screen');
+    }
+
+    /* 
+      Handle Photo 1 Selection
+    */
+    function handlePhoto1(file) {
+      if (!file) return;
+      photo1 = file;
+      document.getElementById('photo1-status').textContent = 'Photo selected: ' + file.name;
+      document.getElementById('photo1-next').disabled = false;
+    }
+
+    /* 
+      Step 2: Process Photo 1 and go to Photo 2 Screen
+    */
+    function goToPhoto2() {
+      if (!photo1) {
+        showError('Please select a photo first.');
+        return;
+      }
+      showLoading('Processing first image...');
+      Tesseract.recognize(
+        photo1,
+        'eng',
+        { logger: m => {
+            console.log(m);
+            if (m.progress) {
+              document.getElementById('progress-bar').value = m.progress;
+            }
+          }
+        }
+      ).then(({ data: { text } }) => {
+        const lines = text
+          .split(/[\n,]+/)
+          .map(med => med.trim())
+          // Remove trailing punctuation or symbols like "~~", ">>", or "->"
+          .map(cleanLine)
+          // Filter out lines that look like noise
+          .filter(isLikelyOrderLine);
+
+        meds1 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
+        console.log('Medications from Photo 1:', meds1);
+        hideLoading();
+        showScreen('photo2-screen');
+      }).catch(err => {
+        console.error('OCR Error:', err);
+        hideLoading();
+        showError('Error extracting text from the first photo. Please try again.');
+      });
+    }
+
+    /* 
+      Handle Photo 2 Selection
+    */
+    function handlePhoto2(file) {
+      if (!file) return;
+      photo2 = file;
+      document.getElementById('photo2-status').textContent = 'Photo selected: ' + file.name;
+      document.getElementById('photo2-compare').disabled = false;
+    }
+
+    /* 
+      Step 3: Process Photo 2 and compare orders
+    */
+    function comparePhotos() {
+      if (!photo2) {
+        showError('Please select a photo first.');
+        return;
+      }
+      showLoading('Processing second image...');
+      Tesseract.recognize(
+        photo2,
+        'eng',
+        { logger: m => {
+            console.log(m);
+            if (m.progress) {
+              document.getElementById('progress-bar').value = m.progress;
+            }
+          }
+        }
+      ).then(({ data: { text } }) => {
+        const lines = text
+          .split(/[\n,]+/)
+          .map(med => med.trim())
+          .map(cleanLine)
+          .filter(isLikelyOrderLine);
+
+        meds2 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
+        console.log('Medications from Photo 2:', meds2);
+        hideLoading();
+        compareAndShowResults();
+      }).catch(err => {
+        console.error('OCR Error:', err);
+        hideLoading();
+        showError('Error extracting text from the second photo. Please try again.');
+      });
+    }
+
+    /* 
+      Step 4: Compare orders and show results
+    */
+    function compareAndShowResults() {
+      const { unchanged, removed, added } = compareOrders(meds1, meds2);
+      
+      let html = '';
+      if (removed.length > 0) {
+        html += '<h3>Removed:</h3><ul>';
+        removed.forEach(orderObj => {
+          const crit = isCriticalOrder(orderObj.parsed);
+          html += `<li class="${crit ? 'critical' : ''}">${orderObj.original}</li>`;
+        });
+        html += '</ul>';
+      }
+      if (added.length > 0) {
+        html += '<h3>Added:</h3><ul>';
+        added.forEach(orderObj => {
+          const crit = isCriticalOrder(orderObj.parsed);
+          html += `<li class="${crit ? 'critical' : ''}">${orderObj.original}</li>`;
+        });
+        html += '</ul>';
+      }
+      if (unchanged.length > 0) {
+        html += '<h3>Unchanged:</h3><ul>';
+        unchanged.forEach(orderObj => {
+          html += `<li>${orderObj.original}</li>`;
+        });
+        html += '</ul>';
+      }
+      
+      document.getElementById('results-content').innerHTML = html;
+      showScreen('results-screen');
+    }
+
+    /* 
+      Step 5: Start Over
+    */
+    function startOver() {
+      photo1 = null;
+      photo2 = null;
+      meds1 = null;
+      meds2 = null;
+      document.getElementById('photo1-capture').value = '';
+      document.getElementById('photo1-upload').value = '';
+      document.getElementById('photo2-capture').value = '';
+      document.getElementById('photo2-upload').value = '';
+      document.getElementById('photo1-status').textContent = 'No photo selected.';
+      document.getElementById('photo2-status').textContent = 'No photo selected.';
+      document.getElementById('photo1-next').disabled = true;
+      document.getElementById('photo2-compare').disabled = true;
+      document.getElementById('results-content').innerHTML = '';
+      showScreen('disclaimer-screen');
+    }
+
+    // ---------- Filtering & Cleanup Logic ----------
+
+    /*
+      cleanLine() removes trailing punctuation or symbols, such as "~", ">", or "->".
+      It uses a regex to remove all trailing non-alphanumeric characters.
+      Then it trims whitespace again.
+    */
+    function cleanLine(line) {
+      return line.replace(/[^a-z0-9]+$/i, '').trim();
+    }
+
+    /*
+      isLikelyOrderLine(line) is a stricter filter:
+        1) Must be at least 3 characters long
+        2) Must contain a decent proportion of letters/digits (to discard mostly symbols)
+        3) You can add additional logic (e.g., require 'mg' or 'po').
+    */
+    function isLikelyOrderLine(line) {
+      if (line.length < 3) return false;
+      let alphaNumCount = (line.match(/[a-z0-9]/gi) || []).length;
+      let ratio = alphaNumCount / line.length;
+      if (ratio < 0.4) return false;
+      return true;
+    }
+
+    /*
+      parseOrder() extracts the name, dose in mg, route (po), and frequency from the line.
+    */
+    function parseOrder(orderStr) {
+      orderStr = orderStr.toLowerCase().trim();
+      orderStr = orderStr.replace(/\s+/g, ' ');
+
+      let doseMatch = orderStr.match(/(\d+)\s*mg/);
+      let dose = doseMatch ? parseInt(doseMatch[1]) : null;
+      
+      let route = orderStr.includes("po") ? "po" : "";
+      
+      const freqMapping = {
+        "every other morning": "every other morning",
+        "every other afternoon": "every other afternoon",
+        "every other evening": "every other evening",
+        "every other night": "every other night",
+        "every morning": "every morning",
+        "every afternoon": "every afternoon",
+        "every evening": "every evening",
+        "every night": "every night",
+        "once daily": "daily",
+        "daily": "daily",
+        "qd": "daily",
+        "q.d.": "daily",
+        "twice daily": "twice daily"
+      };
+      let frequency = "";
+      let freqKeys = Object.keys(freqMapping).sort((a, b) => b.length - a.length);
+      for (let key of freqKeys) {
+        if (orderStr.includes(key)) {
+          frequency = freqMapping[key];
+          orderStr = orderStr.replace(key, '');
+          break;
+        }
+      }
+      
+      if (doseMatch) {
+        orderStr = orderStr.replace(doseMatch[0], '');
+      }
+      if (route) {
+        orderStr = orderStr.replace(/\bpo\b/, '');
+      }
+      let name = orderStr.trim();
+      
+      return { name, dose, route, frequency };
+    }
+
+    /*
+      ordersAreEqual() compares two parsed orders (name, dose, route, frequency).
+    */
+    function ordersAreEqual(a, b) {
+      if (a.dose !== b.dose) return false;
+      if (a.route !== b.route) return false;
+      if (a.frequency !== b.frequency) return false;
+      if (a.name && b.name) {
+        if (a.name !== b.name) return false;
+      }
+      return true;
+    }
+
+    /*
+      compareOrders() returns which orders are unchanged, removed, or added
+      by cross-checking the two lists.
+    */
+    function compareOrders(list1, list2) {
+      let unchanged = [];
+      let removed = [];
+      let added = [];
+      let matched2 = new Array(list2.length).fill(false);
+      
+      for (let orderObj1 of list1) {
+        let found = false;
+        for (let i = 0; i < list2.length; i++) {
+          if (!matched2[i] && ordersAreEqual(orderObj1.parsed, list2[i].parsed)) {
+            found = true;
+            matched2[i] = true;
+            unchanged.push(orderObj1);
+            break;
+          }
+        }
+        if (!found) {
+          removed.push(orderObj1);
+        }
+      }
+      
+      for (let i = 0; i < list2.length; i++) {
+        if (!matched2[i]) {
+          added.push(list2[i]);
+        }
+      }
+      
+      return { unchanged, removed, added };
+    }
+
+    /*
+      isCriticalOrder() checks if a medication name is in the list of critical meds.
+    */
+    function isCriticalOrder(parsedOrder) {
+      if (parsedOrder.name && criticalMeds.includes(parsedOrder.name)) {
+        return true;
+      }
+      return false;
+    }
+
+    /*
+      UI Initialization
+    */
+    function showScreen(screenId) {
+      document.getElementById('error-message').textContent = '';
+      document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.remove('active');
+      });
+      document.getElementById(screenId).classList.add('active');
+      updateProgress(screenId);
+    }
+
+    function updateProgress(screenId) {
+      document.getElementById('step1').classList.remove('filled');
+      document.getElementById('step2').classList.remove('filled');
+      document.getElementById('step3').classList.remove('filled');
+      document.getElementById('step4').classList.remove('filled');
+      
+      if(screenId === 'disclaimer-screen'){
+        document.getElementById('step1').classList.add('filled');
+      } else if(screenId === 'photo1-screen'){
+        document.getElementById('step1').classList.add('filled');
+        document.getElementById('step2').classList.add('filled');
+      } else if(screenId === 'photo2-screen'){
+        document.getElementById('step1').classList.add('filled');
+        document.getElementById('step2').classList.add('filled');
+        document.getElementById('step3').classList.add('filled');
+      } else if(screenId === 'results-screen'){
+        document.getElementById('step1').classList.add('filled');
+        document.getElementById('step2').classList.add('filled');
+        document.getElementById('step3').classList.add('filled');
+        document.getElementById('step4').classList.add('filled');
+      }
+    }
+
+    function showLoading(msg) {
+      const ld = document.getElementById('loading');
+      const lt = document.getElementById('loading-text');
+      ld.style.display = 'block';
+      lt.textContent = msg;
+      document.getElementById('progress-bar').value = 0;
+    }
+    function hideLoading() {
+      document.getElementById('loading').style.display = 'none';
+    }
+
+    function showError(msg) {
+      document.getElementById('error-message').textContent = msg;
+    }
+
+    // Set the initial progress indicator.
+    updateProgress('disclaimer-screen');
+  </script>
+</body>
+</html>
