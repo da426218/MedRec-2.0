@@ -56,11 +56,10 @@
     button:hover:not(:disabled) {
       background-color: #0056b3;
     }
-    /* File inputs are hidden; controlled via the buttons below */
+    /* Hide file inputs; we use custom buttons instead */
     input[type="file"] {
       display: none;
     }
-    /* A container for the file buttons */
     .file-buttons {
       text-align: center;
       margin: 1rem 0;
@@ -77,7 +76,6 @@
       color: red;
       font-weight: bold;
     }
-    /* Progress Bar (header) */
     .progress-bar {
       display: flex;
       justify-content: space-between;
@@ -108,14 +106,14 @@
       background-color: #cccccc;
       z-index: 0;
     }
-    /* Loading overlay now fixed at the bottom */
+    /* Loading overlay at bottom, hidden by default */
     #loading {
       display: none;
       position: fixed;
       left: 0;
       bottom: 0;
       width: 100%;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0,0,0,0.8);
       color: white;
       padding: 0.5rem;
       text-align: center;
@@ -124,7 +122,6 @@
     #loading-text {
       margin-bottom: 0.25rem;
     }
-    /* Progress element within loading overlay */
     #loading-progress {
       width: 80%;
       max-width: 300px;
@@ -137,6 +134,11 @@
     }
     h3 {
       margin-top: 1rem;
+    }
+    p.disclaimer-text {
+      text-align: justify;
+      max-width: 500px;
+      margin: 0 auto;
     }
   </style>
 </head>
@@ -156,7 +158,7 @@
     <!-- Disclaimer Screen -->
     <div id="disclaimer-screen" class="screen active">
       <h2>Disclaimer</h2>
-      <p style="text-align: justify; max-width: 500px; margin: 0 auto;">
+      <p class="disclaimer-text">
         ***HIPAA Warning***: DO NOT UPLOAD IMAGES CONTAINING IDENTIFIABLE INFORMATION. This app is intended for use by personnel authorized to handle Protected Health Information (PHI). Users are responsible for ensuring compliance with HIPAA regulations, including safeguarding resident/patient data and restricting access to authorized personnel only. Unauthorized disclosure of PHI may result in disciplinary action and legal consequences.
       </p>
       <button onclick="acknowledgeDisclaimer()">I Understand</button>
@@ -166,10 +168,10 @@
       <h2>Take or Upload First Photo(s)</h2>
       <div class="file-buttons">
         <button onclick="document.getElementById('photo1-capture').click()">Take Photo</button>
-        <input type="file" id="photo1-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto1(this.files)">
         <button onclick="document.getElementById('photo1-upload').click()">Upload Photo</button>
-        <input type="file" id="photo1-upload" accept="image/*" multiple onchange="handlePhoto1(this.files)">
       </div>
+      <input type="file" id="photo1-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto1(this.files)">
+      <input type="file" id="photo1-upload" accept="image/*" multiple onchange="handlePhoto1(this.files)">
       <p id="photo1-status">No photo selected.</p>
       <button id="photo1-next" onclick="goToPhoto2()" disabled>Next</button>
     </div>
@@ -178,10 +180,10 @@
       <h2>Take or Upload Second Photo(s)</h2>
       <div class="file-buttons">
         <button onclick="document.getElementById('photo2-capture').click()">Take Photo</button>
-        <input type="file" id="photo2-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto2(this.files)">
         <button onclick="document.getElementById('photo2-upload').click()">Upload Photo</button>
-        <input type="file" id="photo2-upload" accept="image/*" multiple onchange="handlePhoto2(this.files)">
       </div>
+      <input type="file" id="photo2-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto2(this.files)">
+      <input type="file" id="photo2-upload" accept="image/*" multiple onchange="handlePhoto2(this.files)">
       <p id="photo2-status">No photo selected.</p>
       <button id="photo2-compare" onclick="comparePhotos()" disabled>Compare</button>
     </div>
@@ -227,11 +229,10 @@
       'isosorbide', 'nicardipine', 'nitroprusside', 'ivabradine', 'sacubitril', 'valsartan',
       'atorvastatin', 'rosuvastatin', 'simvastatin'
     ];
-
-    let photo1Files = [], photo2Files = [];
+    let photo1Files = [];
+    let photo2Files = [];
     let meds1 = [], meds2 = [];
-
-    // --- Helper Functions for Processing Multiple Files ---
+    // --- Helper Functions for Multiple File Processing ---
     async function processFiles(files) {
       let allText = "";
       for (let file of files) {
@@ -267,7 +268,6 @@
         reader.readAsDataURL(file);
       });
     }
-
     // --- Order Parsing & Comparison Functions ---
     function cleanLine(line) {
       return line.replace(/[^a-z0-9]+$/i, '').trim();
@@ -348,7 +348,6 @@
     function isCriticalOrder(parsedOrder) {
       return parsedOrder.name && criticalMeds.includes(parsedOrder.name);
     }
-
     // --- UI and OCR Flow ---
     function showScreen(screenId) {
       document.getElementById('error-message').textContent = '';
@@ -380,7 +379,7 @@
     function showLoading(msg) {
       const ld = document.getElementById('loading'),
             lt = document.getElementById('loading-text');
-      ld.style.display = 'flex';
+      ld.style.display = 'block';
       lt.textContent = msg;
     }
     function hideLoading() {
@@ -389,10 +388,9 @@
     function showError(msg) {
       document.getElementById('error-message').textContent = msg;
     }
-
-    // --- File Handling for Multiple Uploads ---
-    let photo1Files = [];
-    let photo2Files = [];
+    function acknowledgeDisclaimer() {
+      showScreen('photo1-screen');
+    }
     function handlePhoto1(files) {
       if (!files || files.length === 0) return;
       photo1Files = Array.from(files);
@@ -405,8 +403,6 @@
       document.getElementById('photo2-status').textContent = photo2Files.length + " photo(s) selected.";
       document.getElementById('photo2-compare').disabled = false;
     }
-
-    // --- OCR and Processing ---
     async function goToPhoto2() {
       if (!photo1Files || photo1Files.length === 0) {
         showError('Please select a photo first.');
