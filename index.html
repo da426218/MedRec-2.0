@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MedRec 2.0</title>
   <style>
     body {
@@ -149,13 +149,13 @@
   </header>
   <main>
     <div id="error-message"></div>
-    <!-- Disclaimer Screen -->
+
     <div id="disclaimer-screen" class="screen active">
       <h2>Disclaimer</h2>
       <p>This app does not store any photos or medication data. It is not HIPAA compliant and should not be used for official medical purposes. Results may be inaccurate and should be verified by a healthcare professional.</p>
       <button onclick="acknowledgeDisclaimer()">I Understand</button>
     </div>
-    <!-- Photo 1 Screen -->
+
     <div id="photo1-screen" class="screen">
       <h2>Take or Upload First Photo</h2>
       <input type="file" id="photo1-capture" accept="image/*" capture="environment" onchange="handlePhoto1(this.files[0])">
@@ -163,7 +163,7 @@
       <p id="photo1-status">No photo selected.</p>
       <button id="photo1-next" onclick="goToPhoto2()" disabled>Next</button>
     </div>
-    <!-- Photo 2 Screen -->
+
     <div id="photo2-screen" class="screen">
       <h2>Take or Upload Second Photo</h2>
       <input type="file" id="photo2-capture" accept="image/*" capture="environment" onchange="handlePhoto2(this.files[0])">
@@ -171,17 +171,19 @@
       <p id="photo2-status">No photo selected.</p>
       <button id="photo2-compare" onclick="comparePhotos()" disabled>Compare</button>
     </div>
-    <!-- Results Screen -->
+
     <div id="results-screen" class="screen">
       <h2>Comparison Results</h2>
       <div id="results-content"></div>
       <button onclick="startOver()">Start Over</button>
     </div>
   </main>
+
   <div id="loading">
     <p id="loading-text">Processing...</p>
     <progress id="progress-bar" max="100"></progress>
   </div>
+
   <script>
     // --- Order Parsing & Comparison Functions ---
     const criticalMeds = [
@@ -213,19 +215,24 @@
       'isosorbide', 'nicardipine', 'nitroprusside', 'ivabradine', 'sacubitril', 'valsartan',
       'atorvastatin', 'rosuvastatin', 'simvastatin'
     ];
+
     let photo1, photo2, meds1, meds2;
-    // Clean trailing punctuation/symbols.
+
+    // Aggressive filtering: clean trailing punctuation/symbols.
     function cleanLine(line) {
       return line.replace(/[^a-z0-9]+$/i, '').trim();
     }
+
     // Filter out lines that likely aren't orders.
     function isLikelyOrderLine(line) {
       if (line.length < 3) return false;
       let alphaNumCount = (line.match(/[a-z0-9]/gi) || []).length;
       let ratio = alphaNumCount / line.length;
+      // If less than 40% alphanumeric, reject.
       if (ratio < 0.4) return false;
       return true;
     }
+
     // Parse an order into its components.
     function parseOrder(orderStr) {
       orderStr = orderStr.toLowerCase().trim().replace(/\s+/g, ' ');
@@ -238,7 +245,7 @@
         "every other evening": "every other evening",
         "every other night": "every other night",
         "every morning": "every morning",
-        "every afternoon": "every afternoon",
+        "every afternoon": "every RCafternoon",
         "every evening": "every evening",
         "every night": "every night",
         "once daily": "daily",
@@ -265,6 +272,7 @@
       let name = orderStr.trim();
       return { name, dose, route, frequency };
     }
+
     function ordersAreEqual(a, b) {
       if (a.dose !== b.dose) return false;
       if (a.route !== b.route) return false;
@@ -272,6 +280,7 @@
       if (a.name && b.name && a.name !== b.name) return false;
       return true;
     }
+
     function compareOrders(list1, list2) {
       let unchanged = [];
       let removed = [];
@@ -294,9 +303,11 @@
       }
       return { unchanged, removed, added };
     }
+
     function isCriticalOrder(parsedOrder) {
       return parsedOrder.name && criticalMeds.includes(parsedOrder.name);
     }
+
     // --- UI and OCR Flow ---
     function showScreen(screenId) {
       document.getElementById('error-message').textContent = '';
@@ -304,6 +315,7 @@
       document.getElementById(screenId).classList.add('active');
       updateProgress(screenId);
     }
+
     function updateProgress(screenId) {
       document.getElementById('step1').classList.remove('filled');
       document.getElementById('step2').classList.remove('filled');
@@ -325,28 +337,34 @@
         document.getElementById('step4').classList.add('filled');
       }
     }
+
     function showLoading(msg) {
       const ld = document.getElementById('loading'),
             lt = document.getElementById('loading-text');
-      ld.style.display = 'flex';
+      ld.style.display = 'block';
       lt.textContent = msg;
       document.getElementById('progress-bar').value = 0;
     }
+
     function hideLoading() {
       document.getElementById('loading').style.display = 'none';
     }
+
     function showError(msg) {
       document.getElementById('error-message').textContent = msg;
     }
+
     function acknowledgeDisclaimer() {
       showScreen('photo1-screen');
     }
+
     function handlePhoto1(file) {
       if (!file) return;
       photo1 = file;
       document.getElementById('photo1-status').textContent = 'Photo selected: ' + file.name;
       document.getElementById('photo1-next').disabled = false;
     }
+
     async function goToPhoto2() {
       if (!photo1) {
         showError('Please select a photo first.');
@@ -378,12 +396,14 @@
         showError('Error extracting text from the first photo. Please try again.');
       }
     }
+
     function handlePhoto2(file) {
       if (!file) return;
       photo2 = file;
       document.getElementById('photo2-status').textContent = 'Photo selected: ' + file.name;
       document.getElementById('photo2-compare').disabled = false;
     }
+
     async function comparePhotos() {
       if (!photo2) {
         showError('Please select a photo first.');
@@ -415,6 +435,7 @@
         showError('Error extracting text from the second photo. Please try again.');
       }
     }
+
     function compareAndShowResults() {
       const { unchanged, removed, added } = compareOrders(meds1, meds2);
       let html = '';
@@ -444,6 +465,7 @@
       document.getElementById('results-content').innerHTML = html;
       showScreen('results-screen');
     }
+
     function startOver() {
       photo1 = photo2 = meds1 = meds2 = null;
       document.getElementById('photo1-capture').value = '';
@@ -457,6 +479,8 @@
       document.getElementById('results-content').innerHTML = '';
       showScreen('disclaimer-screen');
     }
+
+    // Set initial progress.
     updateProgress('disclaimer-screen');
   </script>
 </body>
