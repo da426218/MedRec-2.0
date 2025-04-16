@@ -221,7 +221,7 @@
     .tooltip {
       position: relative;
       display: inline-block;
-      cursor: help;
+      cursor: pointer;
       color: #007bff;
       margin-left: 5px;
       font-size: 0.9rem;
@@ -242,7 +242,8 @@
       opacity: 0;
       transition: opacity 0.3s;
     }
-    .tooltip:hover .tooltip-text {
+    .tooltip:hover .tooltip-text,
+    .tooltip.active .tooltip-text {
       visibility: visible;
       opacity: 1;
     }
@@ -282,7 +283,7 @@
       <div class="card">
         <h2>
           Take or Upload First Photo(s)
-          <span class="tooltip">
+          <span class="tooltip" id="tooltip1">
             (?)
             <span class="tooltip-text">Tip: Crop out anything not part of the medication list</span>
           </span>
@@ -314,7 +315,7 @@
       <div class="card">
         <h2>
           Take or Upload Second Photo(s)
-          <span class="tooltip">
+          <span class="tooltip" id="tooltip2">
             (?)
             <span class="tooltip-text">Tip: Crop out anything not part of the medication list</span>
           </span>
@@ -600,7 +601,7 @@
       } else {
         showError("");
       }
-      document.getElementById('photo2-status').textContent = photo2Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
+      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
       document.getElementById('photo2-compare').disabled = false;
       updatePreview('photo2-preview', photo2Files);
       document.getElementById('initial-photo2-options').style.display = 'none';
@@ -619,7 +620,7 @@
       } else {
         showError("");
       }
-      document.getElementById('photo2-status').textContent = photo2Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
+      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
       updatePreview('photo2-preview', photo2Files);
       document.getElementById('photo2-capture2').value = "";
       document.getElementById('photo2-upload2').value = "";
@@ -791,6 +792,22 @@
       document.getElementById('additional-photo2-option').style.display = 'none';
       showScreen('disclaimer-screen');
     }
+    // Tooltip toggle for mobile
+    document.querySelectorAll('.tooltip').forEach(tooltip => {
+      tooltip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isActive = tooltip.classList.contains('active');
+        document.querySelectorAll('.tooltip').forEach(t => t.classList.remove('active'));
+        if (!isActive) {
+          tooltip.classList.add('active');
+        }
+      });
+    });
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.tooltip').forEach(tooltip => {
+        tooltip.classList.remove('active');
+      });
+    });
     document.addEventListener('DOMContentLoaded', () => {
       hideLoading();
       updateProgress('disclaimer-screen');
