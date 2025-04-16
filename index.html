@@ -31,6 +31,7 @@
       margin: 0 auto;
       width: 100%;
       box-sizing: border-box;
+      text-align: center; /* Center-align text for consistency */
     }
     .screen {
       display: none;
@@ -63,11 +64,21 @@
       display: none;
     }
     .file-buttons {
-      text-align: center;
+      display: flex; /* Use Flexbox for centering */
+      flex-direction: column; /* Stack buttons vertically */
+      align-items: center; /* Center horizontally */
       margin: 1rem 0;
     }
     .file-buttons button {
-      margin: 0.25rem;
+      margin: 0.25rem 0; /* Vertical margin for spacing */
+    }
+    /* Container for action buttons (ensures vertical stacking & centered alignment) */
+    .photo-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem; /* Space between buttons */
+      margin: 1rem 0;
     }
     .upload-instructions {
       font-size: 0.9rem;
@@ -210,8 +221,10 @@
       <p id="photo1-status">No photo selected.</p>
       <!-- Prompt text after selection -->
       <p id="photo1-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Next to continue.</p>
-      <button id="photo1-next" onclick="goToPhoto2()" disabled>Next</button>
-      <button onclick="startOver()">Start Over</button>
+      <div class="photo-actions">
+        <button id="photo1-next" onclick="goToPhoto2()" disabled>Next</button>
+        <button onclick="startOver()">Start Over</button>
+      </div>
     </div>
     <!-- Photo 2 Screen -->
     <div id="photo2-screen" class="screen">
@@ -230,8 +243,10 @@
       <div id="photo2-preview" class="preview-container"></div>
       <p id="photo2-status">No photo selected.</p>
       <p id="photo2-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Compare to continue.</p>
-      <button id="photo2-compare" onclick="comparePhotos()" disabled>Compare</button>
-      <button onclick="startOver()">Start Over</button>
+      <div class="photo-actions">
+        <button id="photo2-compare" onclick="comparePhotos()" disabled>Compare</button>
+        <button onclick="startOver()">Start Over</button>
+      </div>
     </div>
     <!-- Results Screen -->
     <div id="results-screen" class="screen">
@@ -556,41 +571,6 @@
         hideLoading();
         showError('Error extracting text from the second photos. Please try again.');
       }
-    }
-    async function processFiles(files) {
-      let allText = "";
-      for (let file of files) {
-        try {
-          let text = await processFile(file);
-          allText += "\n" + text;
-        } catch (err) {
-          console.error("Error processing file: ", err);
-        }
-      }
-      return allText;
-    }
-    function processFile(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = async function(e) {
-          const base64Image = e.target.result;
-          try {
-            const response = await fetch('https://us-central1-medrec-ocr.cloudfunctions.net/ocr', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image: base64Image })
-            });
-            const { text, error } = await response.json();
-            if (error) reject(error);
-            else if (!text) reject('No text detected');
-            else resolve(text);
-          } catch (err) {
-            reject(err);
-          }
-        };
-        reader.onerror = () => reject("File could not be read.");
-        reader.readAsDataURL(file);
-      });
     }
     function compareAndShowResults() {
       const { unchanged, removed, added } = compareOrders(meds1, meds2);
