@@ -43,6 +43,17 @@
     .screen.active {
       display: block;
     }
+    /* Card Styling */
+    .card {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      border: 1px solid #ddd;
+      padding: 1rem;
+      margin: 0.5rem 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
     /* Buttons & Inputs */
     button {
       background-color: #007bff;
@@ -51,10 +62,13 @@
       padding: 0.5rem 1rem;
       margin: 0.5rem 0;
       cursor: pointer;
-      border-radius: 15px; /* Increased for more rounded corners */
+      border-radius: 15px;
       width: 100%;
       max-width: 300px;
       display: block;
+      font-weight: 600;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      transition: box-shadow 0.2s ease;
     }
     button:disabled {
       background-color: #cccccc;
@@ -62,6 +76,7 @@
     }
     button:hover:not(:disabled) {
       background-color: #0056b3;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     }
     /* Hide native file inputs */
     input[type="file"] {
@@ -203,6 +218,34 @@
       max-width: 500px;
       margin: 0 auto;
     }
+    .tooltip {
+      position: relative;
+      display: inline-block;
+      cursor: help;
+      color: #007bff;
+      margin-left: 5px;
+      font-size: 0.9rem;
+    }
+    .tooltip .tooltip-text {
+      visibility: hidden;
+      width: 200px;
+      background-color: #333;
+      color: white;
+      text-align: center;
+      border-radius: 5px;
+      padding: 5px;
+      position: absolute;
+      z-index: 1;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .tooltip:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
@@ -225,26 +268,35 @@
     <!-- Disclaimer Screen -->
     <div id="disclaimer-screen" class="screen active">
       <h2>Disclaimer</h2>
-      <p class="disclaimer-text">
-        ***HIPAA Warning***: DO NOT UPLOAD IMAGES CONTAINING IDENTIFIABLE INFORMATION. This app is intended for use by personnel authorized to handle Protected Health Information (PHI). Users are responsible for ensuring compliance with HIPAA regulations, including safeguarding resident/patient data and restricting access to authorized personnel only. Unauthorized disclosure of PHI may result in disciplinary action and legal consequences.
-      </p>
+      <div class="card">
+        <p class="disclaimer-text">
+          ***HIPAA Warning***: DO NOT UPLOAD IMAGES CONTAINING IDENTIFIABLE INFORMATION. This app is intended for use by personnel authorized to handle Protected Health Information (PHI). Users are responsible for ensuring compliance with HIPAA regulations, including safeguarding resident/patient data and restricting access to authorized personnel only. Unauthorized disclosure of PHI may result in disciplinary action and legal consequences.
+        </p>
+      </div>
       <div class="disclaimer-actions">
         <button onclick="acknowledgeDisclaimer()">I Understand</button>
       </div>
     </div>
     <!-- Photo 1 Screen -->
     <div id="photo1-screen" class="screen">
-      <h2>Take or Upload First Photo(s)</h2>
-      <p class="upload-instructions">For best results, please take a clear photo of the medication list text only. Avoid excessive background, unrelated papers, or images.</p>
-      <div id="initial-photo1-options" class="photo-actions">
-        <button onclick="document.getElementById('photo1-capture').click()">Take Photo</button>
-        <button onclick="document.getElementById('photo1-upload').click()">Upload Photo</button>
+      <div class="card">
+        <h2>
+          Take or Upload First Photo(s)
+          <span class="tooltip">
+            (?)
+            <span class="tooltip-text">Tip: Crop out anything not part of the medication list</span>
+          </span>
+        </h2>
+        <p class="upload-instructions">For best results, please take a clear photo of the medication list text only. Avoid excessive background, unrelated papers, or images.</p>
+        <div id="initial-photo1-options" class="photo-actions">
+          <button onclick="document.getElementById('photo1-capture').click()">Take Photo</button>
+          <button onclick="document.getElementById('photo1-upload').click()">Upload Photo</button>
+        </div>
+        <div id="additional-photo1-option" class="photo-actions" style="display: none;">
+          <button onclick="document.getElementById('photo1-capture2').click()">Take Another Photo</button>
+          <button onclick="document.getElementById('photo1-upload2').click()">Upload Another Photo</button>
+        </div>
       </div>
-      <div id="additional-photo1-option" class="photo-actions" style="display: none;">
-        <button onclick="document.getElementById('photo1-capture2').click()">Take Another Photo</button>
-        <button onclick="document.getElementById('photo1-upload2').click()">Upload Another Photo</button>
-      </div>
-      <!-- Hidden additional inputs -->
       <input type="file" id="photo1-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto1(this.files)">
       <input type="file" id="photo1-upload" accept="image/*" multiple onchange="handlePhoto1(this.files)">
       <input type="file" id="photo1-capture2" accept="image/*" capture="environment" multiple onchange="handleAdditionalPhoto1(this.files)">
@@ -259,15 +311,23 @@
     </div>
     <!-- Photo 2 Screen -->
     <div id="photo2-screen" class="screen">
-      <h2>Take or Upload Second Photo(s)</h2>
-      <p class="upload-instructions">For best results, please take a clear photo of the medication list text only. Avoid excessive background, unrelated papers, or images.</p>
-      <div id="initial-photo2-options" class="photo-actions">
-        <button onclick="document.getElementById('photo2-capture').click()">Take Photo</button>
-        <button onclick="document.getElementById('photo2-upload').click()">Upload Photo</button>
-      </div>
-      <div id="additional-photo2-option" class="photo-actions" style="display: none;">
-        <button onclick="document.getElementById('photo2-capture2').click()">Take Another Photo</button>
-        <button onclick="document.getElementById('photo2-upload2').click()">Upload Another Photo</button>
+      <div class="card">
+        <h2>
+          Take or Upload Second Photo(s)
+          <span class="tooltip">
+            (?)
+            <span class="tooltip-text">Tip: Crop out anything not part of the medication list</span>
+          </span>
+        </h2>
+        <p class="upload-instructions">For best results, please take a clear photo of the medication list text only. Avoid excessive background, unrelated papers, or images.</p>
+        <div id="initial-photo2-options" class="photo-actions">
+          <button onclick="document.getElementById('photo2-capture').click()">Take Photo</button>
+          <button onclick="document.getElementById('photo2-upload').click()">Upload Photo</button>
+        </div>
+        <div id="additional-photo2-option" class="photo-actions" style="display: none;">
+          <button onclick="document.getElementById('photo2-capture2').click()">Take Another Photo</button>
+          <button onclick="document.getElementById('photo2-upload2').click()">Upload Another Photo</button>
+        </div>
       </div>
       <input type="file" id="photo2-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto2(this.files)">
       <input type="file" id="photo2-upload" accept="image/*" multiple onchange="handlePhoto2(this.files)">
@@ -285,7 +345,9 @@
     <div id="results-screen" class="screen">
       <h2>Comparison Results</h2>
       <p>Changes listed in <span class="critical">bold red</span> are critical medications and should be reconciled with the provider within <span class="critical">4 hours</span> of discovery.</p>
-      <div id="results-content"></div>
+      <div class="card">
+        <div id="results-content"></div>
+      </div>
       <div class="photo-actions">
         <button onclick="exportResults()">Export Results</button>
         <button onclick="printResults()">Print Results</button>
@@ -538,7 +600,7 @@
       } else {
         showError("");
       }
-      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
+      document.getElementById('photo2-status').textContent = photo2Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
       document.getElementById('photo2-compare').disabled = false;
       updatePreview('photo2-preview', photo2Files);
       document.getElementById('initial-photo2-options').style.display = 'none';
@@ -557,7 +619,7 @@
       } else {
         showError("");
       }
-      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
+      document.getElementById('photo2-status').textContent = photo2Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
       updatePreview('photo2-preview', photo2Files);
       document.getElementById('photo2-capture2').value = "";
       document.getElementById('photo2-upload2').value = "";
