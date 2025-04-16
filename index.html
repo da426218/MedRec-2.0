@@ -56,7 +56,7 @@
     button:hover:not(:disabled) {
       background-color: #0056b3;
     }
-    /* Hide file inputs; we use custom buttons */
+    /* Hide native file inputs */
     input[type="file"] {
       display: none;
     }
@@ -67,7 +67,13 @@
     .file-buttons button {
       margin: 0.25rem;
     }
-    /* Preview container for uploaded images */
+    .upload-instructions {
+      font-size: 0.9rem;
+      text-align: center;
+      margin: 0.5rem 1rem;
+      color: #555;
+    }
+    /* Preview container for thumbnails */
     .preview-container {
       text-align: center;
       margin: 0.5rem 0 1rem;
@@ -118,7 +124,7 @@
       background-color: #cccccc;
       z-index: 0;
     }
-    /* Loading overlay at bottom */
+    /* Loading overlay fixed at the bottom */
     #loading {
       display: none;
       position: fixed;
@@ -152,12 +158,6 @@
       max-width: 500px;
       margin: 0 auto;
     }
-    p.upload-instructions {
-      font-size: 0.9rem;
-      text-align: center;
-      margin: 0.5rem 1rem;
-      color: #555;
-    }
   </style>
 </head>
 <body>
@@ -189,7 +189,7 @@
         <button onclick="document.getElementById('photo1-capture').click()">Take Photo</button>
         <button onclick="document.getElementById('photo1-upload').click()">Upload Photo</button>
       </div>
-      <input type="file" id="photo1-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto1(this.files)">
+      <input type="file" id="photo1-capture" accept="image/*" capture="environment" onchange="handlePhoto1(this.files)">
       <input type="file" id="photo1-upload" accept="image/*" multiple onchange="handlePhoto1(this.files)">
       <div id="photo1-preview" class="preview-container"></div>
       <p id="photo1-status">No photo selected.</p>
@@ -204,7 +204,7 @@
         <button onclick="document.getElementById('photo2-capture').click()">Take Photo</button>
         <button onclick="document.getElementById('photo2-upload').click()">Upload Photo</button>
       </div>
-      <input type="file" id="photo2-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto2(this.files)">
+      <input type="file" id="photo2-capture" accept="image/*" capture="environment" onchange="handlePhoto2(this.files)">
       <input type="file" id="photo2-upload" accept="image/*" multiple onchange="handlePhoto2(this.files)">
       <div id="photo2-preview" class="preview-container"></div>
       <p id="photo2-status">No photo selected.</p>
@@ -415,20 +415,38 @@
     function acknowledgeDisclaimer() {
       showScreen('photo1-screen');
     }
-    // --- File Handling with Previews ---
+    // --- File Handling with Previews and Accumulation ---
     function handlePhoto1(files) {
       if (!files || files.length === 0) return;
-      photo1Files = Array.from(files);
+      // Append new files, limiting to 5 total.
+      photo1Files = photo1Files.concat(Array.from(files));
+      if (photo1Files.length > 5) {
+        photo1Files = photo1Files.slice(0, 5);
+        showError("Maximum of 5 photos allowed.");
+      } else {
+        showError("");
+      }
       document.getElementById('photo1-status').textContent = photo1Files.length + " photo(s) selected.";
       document.getElementById('photo1-next').disabled = false;
       updatePreview('photo1-preview', photo1Files);
+      // Clear input value so same file can be re-selected if needed.
+      document.getElementById('photo1-capture').value = "";
+      document.getElementById('photo1-upload').value = "";
     }
     function handlePhoto2(files) {
       if (!files || files.length === 0) return;
-      photo2Files = Array.from(files);
+      photo2Files = photo2Files.concat(Array.from(files));
+      if (photo2Files.length > 5) {
+        photo2Files = photo2Files.slice(0, 5);
+        showError("Maximum of 5 photos allowed.");
+      } else {
+        showError("");
+      }
       document.getElementById('photo2-status').textContent = photo2Files.length + " photo(s) selected.";
       document.getElementById('photo2-compare').disabled = false;
       updatePreview('photo2-preview', photo2Files);
+      document.getElementById('photo2-capture').value = "";
+      document.getElementById('photo2-upload').value = "";
     }
     function updatePreview(previewId, files) {
       const container = document.getElementById(previewId);
@@ -559,7 +577,6 @@
       document.getElementById('photo1-next').disabled = true;
       document.getElementById('photo2-compare').disabled = true;
       document.getElementById('results-content').innerHTML = '';
-      // Clear preview areas
       document.getElementById('photo1-preview').innerHTML = "";
       document.getElementById('photo2-preview').innerHTML = "";
       showScreen('disclaimer-screen');
