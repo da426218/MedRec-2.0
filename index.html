@@ -51,7 +51,7 @@
       padding: 0.5rem 1rem;
       margin: 0.5rem 0;
       cursor: pointer;
-      border-radius: 5px;
+      border-radius: 15px; /* Increased for more rounded corners */
       width: 100%;
       max-width: 300px;
       display: block;
@@ -250,7 +250,7 @@
       <input type="file" id="photo1-capture2" accept="image/*" capture="environment" multiple onchange="handleAdditionalPhoto1(this.files)">
       <input type="file" id="photo1-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto1(this.files)">
       <div id="photo1-preview" class="preview-container"></div>
-      <p id="photo1-status">No photo selected.</p>
+      <p id="photo1-status">No photo added.</p>
       <p id="photo1-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Next to continue.</p>
       <div class="photo-actions">
         <button id="photo1-next" onclick="goToPhoto2()" disabled>Next</button>
@@ -274,7 +274,7 @@
       <input type="file" id="photo2-capture2" accept="image/*" capture="environment" multiple onchange="handleAdditionalPhoto2(this.files)">
       <input type="file" id="photo2-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto2(this.files)">
       <div id="photo2-preview" class="preview-container"></div>
-      <p id="photo2-status">No photo selected.</p>
+      <p id="photo2-status">No photo added.</p>
       <p id="photo2-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Compare to continue.</p>
       <div class="photo-actions">
         <button id="photo2-compare" onclick="comparePhotos()" disabled>Compare</button>
@@ -287,6 +287,8 @@
       <p>Changes listed in <span class="critical">bold red</span> are critical medications and should be reconciled with the provider within <span class="critical">4 hours</span> of discovery.</p>
       <div id="results-content"></div>
       <div class="photo-actions">
+        <button onclick="exportResults()">Export Results</button>
+        <button onclick="printResults()">Print Results</button>
         <button onclick="startOver()">Start Over</button>
       </div>
     </div>
@@ -503,7 +505,7 @@
       } else {
         showError("");
       }
-      document.getElementById('photo1-status').textContent = photo1Files.length + " photo(s) selected.";
+      document.getElementById('photo1-status').textContent = photo1Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
       document.getElementById('photo1-next').disabled = false;
       updatePreview('photo1-preview', photo1Files);
       document.getElementById('photo1-prompt').style.display = 'block';
@@ -522,7 +524,7 @@
       } else {
         showError("");
       }
-      document.getElementById('photo1-status').textContent = photo1Files.length + " photo(s) selected.";
+      document.getElementById('photo1-status').textContent = photo1Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
       updatePreview('photo1-preview', photo1Files);
       document.getElementById('photo1-capture2').value = "";
       document.getElementById('photo1-upload2').value = "";
@@ -536,7 +538,7 @@
       } else {
         showError("");
       }
-      document.getElementById('photo2-status').textContent = photo2Files.length + " photo(s) selected.";
+      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
       document.getElementById('photo2-compare').disabled = false;
       updatePreview('photo2-preview', photo2Files);
       document.getElementById('initial-photo2-options').style.display = 'none';
@@ -555,7 +557,7 @@
       } else {
         showError("");
       }
-      document.getElementById('photo2-status').textContent = photo2Files.length + " photo(s) selected.";
+      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
       updatePreview('photo2-preview', photo2Files);
       document.getElementById('photo2-capture2').value = "";
       document.getElementById('photo2-upload2').value = "";
@@ -638,6 +640,67 @@
       document.getElementById('results-content').innerHTML = html;
       showScreen('results-screen');
     }
+    function exportResults() {
+      const resultsDiv = document.getElementById('results-content');
+      let textContent = '';
+      const sections = resultsDiv.querySelectorAll('h3');
+      sections.forEach(section => {
+        const sectionTitle = section.textContent;
+        textContent += `${sectionTitle}\n`;
+        const items = section.nextElementSibling.querySelectorAll('li');
+        items.forEach(item => {
+          const isCritical = item.classList.contains('critical') ? '[Critical] ' : '';
+          textContent += `- ${isCritical}${item.textContent}\n`;
+        });
+        textContent += '\n';
+      });
+      textContent = `Comparison Results\n\nChanges listed in bold red are critical medications and should be reconciled with the provider within 4 hours of discovery.\n\n${textContent}`;
+      const blob = new Blob([textContent], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'MedRec_Comparison_Results.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }
+    function printResults() {
+      const resultsDiv = document.getElementById('results-content').innerHTML;
+      const note = document.querySelector('#results-screen p').innerHTML;
+      const printContent = `
+        <h2>Comparison Results</h2>
+        <p>${note}</p>
+        ${resultsDiv}
+      `;
+      const iframe = document.createElement('iframe');
+      document.body.appendChild(iframe);
+      iframe.style.display = 'none';
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(`
+        <html>
+          <head>
+            <title>Print MedRec Results</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; }
+              h2 { text-align: center; }
+              p { text-align: center; }
+              .critical { color: red; font-weight: bold; }
+              ul { padding-left: 20px; }
+              li { margin: 5px 0; }
+            </style>
+          </head>
+          <body>
+            ${printContent}
+          </body>
+        </html>
+      `);
+      doc.close();
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      document.body.removeChild(iframe);
+    }
     function startOver() {
       photo1Files = [];
       photo2Files = [];
@@ -651,8 +714,8 @@
       document.getElementById('photo2-upload').value = '';
       document.getElementById('photo2-capture2').value = '';
       document.getElementById('photo2-upload2').value = '';
-      document.getElementById('photo1-status').textContent = 'No photo selected.';
-      document.getElementById('photo2-status').textContent = 'No photo selected.';
+      document.getElementById('photo1-status').textContent = 'No photo added.';
+      document.getElementById('photo2-status').textContent = 'No photo added.';
       document.getElementById('photo1-next').disabled = true;
       document.getElementById('photo2-compare').disabled = true;
       document.getElementById('results-content').innerHTML = '';
