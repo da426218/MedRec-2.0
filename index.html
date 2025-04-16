@@ -56,7 +56,7 @@
     button:hover:not(:disabled) {
       background-color: #0056b3;
     }
-    /* Hide file inputs; we use custom buttons instead */
+    /* Hide file inputs; we use custom buttons */
     input[type="file"] {
       display: none;
     }
@@ -67,11 +67,17 @@
     .file-buttons button {
       margin: 0.25rem;
     }
-    .upload-instructions {
-      font-size: 0.9rem;
+    /* Preview container for uploaded images */
+    .preview-container {
       text-align: center;
-      margin: 0.5rem 1rem;
-      color: #555;
+      margin: 0.5rem 0 1rem;
+    }
+    .preview-container img {
+      width: 80px;
+      height: auto;
+      margin: 0.25rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
     }
     #error-message {
       color: red;
@@ -112,7 +118,7 @@
       background-color: #cccccc;
       z-index: 0;
     }
-    /* Loading overlay at bottom, hidden by default */
+    /* Loading overlay at bottom */
     #loading {
       display: none;
       position: fixed;
@@ -146,6 +152,12 @@
       max-width: 500px;
       margin: 0 auto;
     }
+    p.upload-instructions {
+      font-size: 0.9rem;
+      text-align: center;
+      margin: 0.5rem 1rem;
+      color: #555;
+    }
   </style>
 </head>
 <body>
@@ -161,7 +173,6 @@
   </header>
   <main>
     <div id="error-message"></div>
-
     <!-- Disclaimer Screen -->
     <div id="disclaimer-screen" class="screen active">
       <h2>Disclaimer</h2>
@@ -170,7 +181,6 @@
       </p>
       <button onclick="acknowledgeDisclaimer()">I Understand</button>
     </div>
-
     <!-- Photo 1 Screen -->
     <div id="photo1-screen" class="screen">
       <h2>Take or Upload First Photo(s)</h2>
@@ -181,10 +191,11 @@
       </div>
       <input type="file" id="photo1-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto1(this.files)">
       <input type="file" id="photo1-upload" accept="image/*" multiple onchange="handlePhoto1(this.files)">
+      <div id="photo1-preview" class="preview-container"></div>
       <p id="photo1-status">No photo selected.</p>
       <button id="photo1-next" onclick="goToPhoto2()" disabled>Next</button>
+      <button onclick="startOver()">Start Over</button>
     </div>
-
     <!-- Photo 2 Screen -->
     <div id="photo2-screen" class="screen">
       <h2>Take or Upload Second Photo(s)</h2>
@@ -195,10 +206,11 @@
       </div>
       <input type="file" id="photo2-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto2(this.files)">
       <input type="file" id="photo2-upload" accept="image/*" multiple onchange="handlePhoto2(this.files)">
+      <div id="photo2-preview" class="preview-container"></div>
       <p id="photo2-status">No photo selected.</p>
       <button id="photo2-compare" onclick="comparePhotos()" disabled>Compare</button>
+      <button onclick="startOver()">Start Over</button>
     </div>
-
     <!-- Results Screen -->
     <div id="results-screen" class="screen">
       <h2>Comparison Results</h2>
@@ -206,12 +218,10 @@
       <button onclick="startOver()">Start Over</button>
     </div>
   </main>
-
   <div id="loading">
     <p id="loading-text">Processing...</p>
     <progress id="loading-progress" max="100"></progress>
   </div>
-
   <script>
     // --- Order Parsing & Comparison Functions ---
     const criticalMeds = [
@@ -405,27 +415,42 @@
     function acknowledgeDisclaimer() {
       showScreen('photo1-screen');
     }
+    // --- File Handling with Previews ---
     function handlePhoto1(files) {
       if (!files || files.length === 0) return;
       photo1Files = Array.from(files);
       document.getElementById('photo1-status').textContent = photo1Files.length + " photo(s) selected.";
       document.getElementById('photo1-next').disabled = false;
+      updatePreview('photo1-preview', photo1Files);
     }
     function handlePhoto2(files) {
       if (!files || files.length === 0) return;
       photo2Files = Array.from(files);
       document.getElementById('photo2-status').textContent = photo2Files.length + " photo(s) selected.";
       document.getElementById('photo2-compare').disabled = false;
+      updatePreview('photo2-preview', photo2Files);
     }
+    function updatePreview(previewId, files) {
+      const container = document.getElementById(previewId);
+      container.innerHTML = "";
+      files.forEach(file => {
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        container.appendChild(img);
+      });
+    }
+    // --- OCR and Processing ---
     async function goToPhoto2() {
       if (!photo1Files || photo1Files.length === 0) {
-        showError('Please select a photo first.');
+        showError('Please select at least one photo.');
         return;
       }
       showLoading('Processing first image(s)...');
       try {
-        const combinedText = await processFiles(photo1Files);
-        const lines = combinedText.split(/[\n,]+/).map(line => cleanLine(line)).filter(isLikelyOrderLine);
+        let combinedText = await processFiles(photo1Files);
+        // Deduplicate lines
+        let lines = combinedText.split(/[\n,]+/).map(line => cleanLine(line)).filter(isLikelyOrderLine);
+        lines = [...new Set(lines)];
         meds1 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
         console.log('Medications from Photo 1:', meds1);
         hideLoading();
@@ -438,13 +463,14 @@
     }
     async function comparePhotos() {
       if (!photo2Files || photo2Files.length === 0) {
-        showError('Please select a photo first.');
+        showError('Please select at least one photo.');
         return;
       }
       showLoading('Processing second image(s)...');
       try {
-        const combinedText = await processFiles(photo2Files);
-        const lines = combinedText.split(/[\n,]+/).map(line => cleanLine(line)).filter(isLikelyOrderLine);
+        let combinedText = await processFiles(photo2Files);
+        let lines = combinedText.split(/[\n,]+/).map(line => cleanLine(line)).filter(isLikelyOrderLine);
+        lines = [...new Set(lines)];
         meds2 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
         console.log('Medications from Photo 2:', meds2);
         hideLoading();
@@ -533,6 +559,9 @@
       document.getElementById('photo1-next').disabled = true;
       document.getElementById('photo2-compare').disabled = true;
       document.getElementById('results-content').innerHTML = '';
+      // Clear preview areas
+      document.getElementById('photo1-preview').innerHTML = "";
+      document.getElementById('photo2-preview').innerHTML = "";
       showScreen('disclaimer-screen');
     }
     document.addEventListener('DOMContentLoaded', () => {
