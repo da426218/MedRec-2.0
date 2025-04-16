@@ -395,13 +395,20 @@
     let meds1 = [], meds2 = [];
     async function processFiles(files) {
       let allText = "";
+      let lowConfidence = false;
       for (let file of files) {
         try {
-          let text = await processFile(file);
-          allText += "\n" + text;
+          const result = await processFile(file);
+          allText += "\n" + result.text;
+          if (result.confidence < 0.8) {
+            lowConfidence = true;
+          }
         } catch (err) {
           console.error("Error processing file: ", err);
         }
+      }
+      if (lowConfidence) {
+        showError("Warning: Some text was unclear and may not be accurate. Please review manually.");
       }
       return allText;
     }
@@ -416,10 +423,10 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ image: base64Image })
             });
-            const { text, error } = await response.json();
+            const { text, confidence, error } = await response.json();
             if (error) reject(error);
             else if (!text) reject('No text detected');
-            else resolve(text);
+            else resolve({ text, confidence: confidence || 1.0 });
           } catch (err) {
             reject(err);
           }
@@ -437,8 +444,17 @@
       let ratio = alphaNumCount / line.length;
       return ratio >= 0.4;
     }
+    function normalizeText(str) {
+      return str.toLowerCase()
+        .replace(/p\.?o\.?/g, 'po')
+        .replace(/q\.?d\.?/g, 'daily')
+        .replace(/b\.?i\.?d\.?/g, 'twice daily')
+        .replace(/\s+/g, ' ')
+        .replace(/[^\w\s\/-]/g, '')
+        .trim();
+    }
     function parseOrder(orderStr) {
-      orderStr = orderStr.toLowerCase().trim().replace(/\s+/g, ' ');
+      orderStr = normalizeText(orderStr);
       let doseMatch = orderStr.match(/(\d+)\s*mg/);
       let dose = doseMatch ? parseInt(doseMatch[1]) : null;
       let route = orderStr.includes("po") ? "po" : "";
@@ -475,11 +491,34 @@
       let name = orderStr.trim();
       return { name, dose, route, frequency };
     }
+    function levenshteinDistance(a, b) {
+      const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
+      for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+      for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+      for (let j = 1; j <= b.length; j++) {
+        for (let i = 1; i <= a.length; i++) {
+          const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
+          matrix[j][i] = Math.min(
+            matrix[j][i - 1] + 1,
+            matrix[j - 1][i] + 1,
+            matrix[j - 1][i - 1] + indicator
+          );
+        }
+      }
+      return matrix[b.length][a.length];
+    }
+    function similarity(a, b) {
+      const distance = levenshteinDistance(a, b);
+      const maxLen = Math.max(a.length, b.length);
+      return 1 - distance / maxLen;
+    }
     function ordersAreEqual(a, b) {
       if (a.dose !== b.dose) return false;
       if (a.route !== b.route) return false;
-      if (a.frequency !== b.frequency) return false;
-      if (a.name && b.name && a.name !== b.name) return false;
+      const freqSimilarity = a.frequency && b.frequency ? similarity(a.frequency, b.frequency) : (a.frequency === b.frequency ? 1 : 0);
+      if (freqSimilarity < 0.85) return false;
+      const nameSimilarity = a.name && b.name ? similarity(a.name, b.name) : (a.name === b.name ? 1 : 0);
+      if (nameSimilarity < 0.85) return false;
       return true;
     }
     function compareOrders(list1, list2) {
@@ -505,7 +544,8 @@
       return { unchanged, removed, added };
     }
     function isCriticalOrder(parsedOrder) {
-      return parsedOrder.name && criticalMeds.includes(parsedOrder.name);
+      if (!parsedOrder.name) return false;
+      return criticalMeds.some(med => parsedOrder.name.includes(med));
     }
     function showScreen(screenId) {
       document.getElementById('error-message').textContent = '';
