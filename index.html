@@ -45,11 +45,12 @@
       color: white;
       border: none;
       padding: 0.5rem 1rem;
-      margin: 0 auto;
+      margin: 0.5rem auto;
       cursor: pointer;
       border-radius: 5px;
       width: 100%;
       max-width: 300px;
+      display: block;
     }
     button:disabled {
       background-color: #cccccc;
@@ -62,13 +63,27 @@
     input[type="file"] {
       display: none;
     }
-    /* Container for instructions & preview, aligned center */
+    .file-buttons {
+      text-align: center;
+      margin: 1rem 0;
+    }
+    .file-buttons button {
+      margin: 0.25rem;
+    }
     .upload-instructions {
       font-size: 0.9rem;
       margin: 0.5rem 1rem;
       color: #555;
       text-align: center;
     }
+    /* Prompt message */
+    .upload-prompt {
+      font-size: 0.9rem;
+      margin: 0.5rem 1rem;
+      color: #333;
+      text-align: center;
+    }
+    /* Preview container for thumbnails */
     .preview-container {
       text-align: center;
       margin: 0.5rem 0 1rem;
@@ -89,13 +104,7 @@
       color: red;
       font-weight: bold;
     }
-    /* Prompt message shown after at least one file is added */
-    .upload-prompt {
-      font-size: 0.9rem;
-      margin: 0.5rem 1rem;
-      color: #333;
-    }
-    /* Flex container to stack buttons and messages nicely */
+    /* Flex container for stacking buttons and messages */
     .photo-actions {
       display: flex;
       flex-direction: column;
@@ -208,27 +217,24 @@
         You may add another photo or click Next to continue.
       </p>
 
-      <!-- Buttons & Inputs -->
+      <!-- Action Buttons -->
       <div class="photo-actions">
-        <!-- Initial file buttons -->
-        <div id="initial-photo1-options" style="display: flex; flex-direction: column; gap: 0.5rem;">
+        <!-- Initial Options -->
+        <div id="initial-photo1-options" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
           <button onclick="document.getElementById('photo1-capture').click()">Take Photo</button>
           <button onclick="document.getElementById('photo1-upload').click()">Upload Photo</button>
         </div>
-        <!-- Additional file buttons; initially hidden -->
-        <div id="additional-photo1-options" style="display: none; flex-direction: column; gap: 0.5rem;">
+        <!-- Additional Options (shown after at least one file is added) -->
+        <div id="additional-photo1-options" style="display: none; flex-direction: column; gap: 0.5rem; width: 100%;">
           <button onclick="document.getElementById('photo1-capture2').click()">Add Another (Take)</button>
           <button onclick="document.getElementById('photo1-upload2').click()">Add Another (Upload)</button>
         </div>
-
-        <!-- File inputs -->
+        <!-- File Inputs -->
         <input type="file" id="photo1-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto1(this.files)">
         <input type="file" id="photo1-upload" accept="image/*" multiple onchange="handlePhoto1(this.files)">
-        <!-- Additional file inputs -->
         <input type="file" id="photo1-capture2" accept="image/*" capture="environment" multiple onchange="handleAdditionalPhoto1(this.files)">
         <input type="file" id="photo1-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto1(this.files)">
-
-        <!-- Next / Start Over Buttons -->
+        <!-- Next and Start Over -->
         <button id="photo1-next" onclick="goToPhoto2()" disabled>Next</button>
         <button onclick="startOver()">Start Over</button>
       </div>
@@ -248,27 +254,24 @@
         You may add another photo or click Compare to continue.
       </p>
 
-      <!-- Buttons & Inputs -->
+      <!-- Action Buttons -->
       <div class="photo-actions">
-        <!-- Initial file buttons -->
-        <div id="initial-photo2-options" style="display: flex; flex-direction: column; gap: 0.5rem;">
+        <!-- Initial Options -->
+        <div id="initial-photo2-options" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
           <button onclick="document.getElementById('photo2-capture').click()">Take Photo</button>
           <button onclick="document.getElementById('photo2-upload').click()">Upload Photo</button>
         </div>
-        <!-- Additional file buttons; initially hidden -->
-        <div id="additional-photo2-options" style="display: none; flex-direction: column; gap: 0.5rem;">
+        <!-- Additional Options (shown after first file is added) -->
+        <div id="additional-photo2-options" style="display: none; flex-direction: column; gap: 0.5rem; width: 100%;">
           <button onclick="document.getElementById('photo2-capture2').click()">Add Another (Take)</button>
           <button onclick="document.getElementById('photo2-upload2').click()">Add Another (Upload)</button>
         </div>
-
-        <!-- File inputs -->
+        <!-- File Inputs -->
         <input type="file" id="photo2-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto2(this.files)">
         <input type="file" id="photo2-upload" accept="image/*" multiple onchange="handlePhoto2(this.files)">
-        <!-- Additional file inputs -->
         <input type="file" id="photo2-capture2" accept="image/*" capture="environment" multiple onchange="handleAdditionalPhoto2(this.files)">
         <input type="file" id="photo2-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto2(this.files)">
-
-        <!-- Compare / Start Over Buttons -->
+        <!-- Compare and Start Over -->
         <button id="photo2-compare" onclick="comparePhotos()" disabled>Compare</button>
         <button onclick="startOver()">Start Over</button>
       </div>
@@ -290,7 +293,7 @@
 
   <script>
     /************************************************
-     * Order Parsing & Comparison
+     * Order Parsing & Comparison Functions
      ************************************************/
     const criticalMeds = [
       'warfarin', 'apixaban', 'rivaroxaban', 'dabigatran', 'edoxaban', 'heparin', 'enoxaparin',
@@ -321,6 +324,7 @@
       'isosorbide', 'nicardipine', 'nitroprusside', 'ivabradine', 'sacubitril', 'valsartan',
       'atorvastatin', 'rosuvastatin', 'simvastatin'
     ];
+
     let photo1Files = [];
     let photo2Files = [];
     let meds1 = [], meds2 = [];
@@ -330,9 +334,7 @@
      ************************************************/
     function showScreen(screenId) {
       document.getElementById('error-message').textContent = '';
-      document.querySelectorAll('.screen').forEach(screen => {
-        screen.classList.remove('active');
-      });
+      document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
       document.getElementById(screenId).classList.add('active');
       updateProgress(screenId);
     }
@@ -372,11 +374,13 @@
     }
 
     /************************************************
-     * Photo 1: Handling
+     * File Handling for Photo 1
      ************************************************/
     function handlePhoto1(files) {
       if (!files || files.length === 0) return;
-      photo1Files = photo1Files.concat(Array.from(files));
+      // Filter valid files (non-zero size)
+      const validFiles = Array.from(files).filter(file => file.size > 0);
+      photo1Files = photo1Files.concat(validFiles);
       if (photo1Files.length > 5) {
         photo1Files = photo1Files.slice(0, 5);
         showError("Maximum of 5 photos allowed for this step.");
@@ -386,20 +390,20 @@
       document.getElementById('photo1-status').textContent = photo1Files.length + " photo(s) selected.";
       document.getElementById('photo1-next').disabled = false;
       updatePreview('photo1-preview', photo1Files);
-
-      // Hide initial options, show additional options after first photo is added
+      // Switch to additional option view if at least one file exists
       if (photo1Files.length >= 1) {
         document.getElementById('initial-photo1-options').style.display = 'none';
         document.getElementById('additional-photo1-options').style.display = 'flex';
         document.getElementById('photo1-prompt').style.display = 'block';
+        document.getElementById('photo1-prompt').textContent = "You may add another photo or click Next to continue.";
       }
-      // Reset file input
       document.getElementById('photo1-capture').value = "";
       document.getElementById('photo1-upload').value = "";
     }
     function handleAdditionalPhoto1(files) {
       if (!files || files.length === 0) return;
-      photo1Files = photo1Files.concat(Array.from(files));
+      const validFiles = Array.from(files).filter(file => file.size > 0);
+      photo1Files = photo1Files.concat(validFiles);
       if (photo1Files.length > 5) {
         photo1Files = photo1Files.slice(0, 5);
         showError("Maximum of 5 photos allowed for this step.");
@@ -408,18 +412,17 @@
       }
       document.getElementById('photo1-status').textContent = photo1Files.length + " photo(s) selected.";
       updatePreview('photo1-preview', photo1Files);
-
-      // Clear the additional inputs
       document.getElementById('photo1-capture2').value = "";
       document.getElementById('photo1-upload2').value = "";
     }
 
     /************************************************
-     * Photo 2: Handling
+     * File Handling for Photo 2
      ************************************************/
     function handlePhoto2(files) {
       if (!files || files.length === 0) return;
-      photo2Files = photo2Files.concat(Array.from(files));
+      const validFiles = Array.from(files).filter(file => file.size > 0);
+      photo2Files = photo2Files.concat(validFiles);
       if (photo2Files.length > 5) {
         photo2Files = photo2Files.slice(0, 5);
         showError("Maximum of 5 photos allowed for this step.");
@@ -429,19 +432,19 @@
       document.getElementById('photo2-status').textContent = photo2Files.length + " photo(s) selected.";
       document.getElementById('photo2-compare').disabled = false;
       updatePreview('photo2-preview', photo2Files);
-
       if (photo2Files.length >= 1) {
         document.getElementById('initial-photo2-options').style.display = 'none';
         document.getElementById('additional-photo2-options').style.display = 'flex';
         document.getElementById('photo2-prompt').style.display = 'block';
+        document.getElementById('photo2-prompt').textContent = "You may add another photo or click Compare to continue.";
       }
-      // Reset file input
       document.getElementById('photo2-capture').value = "";
       document.getElementById('photo2-upload').value = "";
     }
     function handleAdditionalPhoto2(files) {
       if (!files || files.length === 0) return;
-      photo2Files = photo2Files.concat(Array.from(files));
+      const validFiles = Array.from(files).filter(file => file.size > 0);
+      photo2Files = photo2Files.concat(validFiles);
       if (photo2Files.length > 5) {
         photo2Files = photo2Files.slice(0, 5);
         showError("Maximum of 5 photos allowed for this step.");
@@ -450,15 +453,9 @@
       }
       document.getElementById('photo2-status').textContent = photo2Files.length + " photo(s) selected.";
       updatePreview('photo2-preview', photo2Files);
-
-      // Clear additional inputs
       document.getElementById('photo2-capture2').value = "";
       document.getElementById('photo2-upload2').value = "";
     }
-
-    /************************************************
-     * Preview & Utility
-     ************************************************/
     function updatePreview(previewId, files) {
       const container = document.getElementById(previewId);
       container.innerHTML = "";
@@ -481,7 +478,7 @@
       try {
         let combinedText = await processFiles(photo1Files);
         let lines = combinedText.split(/[\n,]+/).map(line => cleanLine(line)).filter(isLikelyOrderLine);
-        lines = [...new Set(lines)]; // Deduplicate
+        lines = [...new Set(lines)];
         meds1 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
         console.log('Medications from Photo 1:', meds1);
         hideLoading();
@@ -502,7 +499,7 @@
       try {
         let combinedText = await processFiles(photo2Files);
         let lines = combinedText.split(/[\n,]+/).map(line => cleanLine(line)).filter(isLikelyOrderLine);
-        lines = [...new Set(lines)]; // Deduplicate
+        lines = [...new Set(lines)];
         meds2 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
         console.log('Medications from Photo 2:', meds2);
         hideLoading();
@@ -512,6 +509,43 @@
         hideLoading();
         showError('Error extracting text from the second photos. Please try again.');
       }
+    }
+
+    async function processFiles(files) {
+      let allText = "";
+      for (let file of files) {
+        try {
+          let text = await processFile(file);
+          allText += "\n" + text;
+        } catch (err) {
+          console.error("Error processing file: ", err);
+        }
+      }
+      return allText;
+    }
+
+    function processFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+          const base64Image = e.target.result;
+          try {
+            const response = await fetch('https://us-central1-medrec-ocr.cloudfunctions.net/ocr', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: base64Image })
+            });
+            const { text, error } = await response.json();
+            if (error) reject(error);
+            else if (!text) reject('No text detected');
+            else resolve(text);
+          } catch (err) {
+            reject(err);
+          }
+        };
+        reader.onerror = () => reject("File could not be read.");
+        reader.readAsDataURL(file);
+      });
     }
 
     function compareAndShowResults() {
@@ -549,7 +583,7 @@
       photo2Files = [];
       meds1 = [];
       meds2 = [];
-      // Reset all file inputs
+      // Reset file inputs
       document.getElementById('photo1-capture').value = '';
       document.getElementById('photo1-upload').value = '';
       document.getElementById('photo1-capture2').value = '';
@@ -558,22 +592,21 @@
       document.getElementById('photo2-upload').value = '';
       document.getElementById('photo2-capture2').value = '';
       document.getElementById('photo2-upload2').value = '';
-      // Reset statuses & previews
+      // Reset status and preview areas
       document.getElementById('photo1-status').textContent = 'No photo selected.';
       document.getElementById('photo2-status').textContent = 'No photo selected.';
       document.getElementById('photo1-preview').innerHTML = '';
       document.getElementById('photo2-preview').innerHTML = '';
+      // Reset buttons
       document.getElementById('photo1-next').disabled = true;
       document.getElementById('photo2-compare').disabled = true;
-      document.getElementById('results-content').innerHTML = '';
-      // Reset prompt visibility & button sets
+      // Reset prompt and options visibility
       document.getElementById('photo1-prompt').style.display = 'none';
       document.getElementById('initial-photo1-options').style.display = 'flex';
       document.getElementById('additional-photo1-options').style.display = 'none';
       document.getElementById('photo2-prompt').style.display = 'none';
       document.getElementById('initial-photo2-options').style.display = 'flex';
       document.getElementById('additional-photo2-options').style.display = 'none';
-      // Return to disclaimer
       showScreen('disclaimer-screen');
     }
 
