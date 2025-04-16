@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MedRec 2.0</title>
   <style>
+    /* Basic Layout */
     body {
       font-family: Arial, sans-serif;
       margin: 0;
@@ -37,6 +38,7 @@
     .screen.active {
       display: block;
     }
+    /* Buttons & Inputs */
     button {
       background-color: #007bff;
       color: white;
@@ -94,6 +96,7 @@
       color: red;
       font-weight: bold;
     }
+    /* Progress Bar */
     .progress-bar {
       display: flex;
       justify-content: space-between;
@@ -124,7 +127,7 @@
       background-color: #cccccc;
       z-index: 0;
     }
-    /* Loading overlay fixed at the bottom */
+    /* Loading overlay fixed at bottom */
     #loading {
       display: none;
       position: fixed;
@@ -185,12 +188,16 @@
     <div id="photo1-screen" class="screen">
       <h2>Take or Upload First Photo(s)</h2>
       <p class="upload-instructions">For best results, please take a clear photo of the medication list text only. Avoid excessive background, unrelated papers, or images.</p>
-      <div class="file-buttons">
+      <div id="initial-photo1-options" class="file-buttons">
         <button onclick="document.getElementById('photo1-capture').click()">Take Photo</button>
         <button onclick="document.getElementById('photo1-upload').click()">Upload Photo</button>
       </div>
-      <input type="file" id="photo1-capture" accept="image/*" capture="environment" onchange="handlePhoto1(this.files)">
+      <div id="additional-photo1-option" class="file-buttons" style="display: none;">
+        <button onclick="document.getElementById('photo1-upload2').click()">Add Another Photo</button>
+      </div>
+      <input type="file" id="photo1-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto1(this.files)">
       <input type="file" id="photo1-upload" accept="image/*" multiple onchange="handlePhoto1(this.files)">
+      <input type="file" id="photo1-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto1(this.files)">
       <div id="photo1-preview" class="preview-container"></div>
       <p id="photo1-status">No photo selected.</p>
       <button id="photo1-next" onclick="goToPhoto2()" disabled>Next</button>
@@ -200,12 +207,16 @@
     <div id="photo2-screen" class="screen">
       <h2>Take or Upload Second Photo(s)</h2>
       <p class="upload-instructions">For best results, please take a clear photo of the medication list text only. Avoid excessive background, unrelated papers, or images.</p>
-      <div class="file-buttons">
+      <div id="initial-photo2-options" class="file-buttons">
         <button onclick="document.getElementById('photo2-capture').click()">Take Photo</button>
         <button onclick="document.getElementById('photo2-upload').click()">Upload Photo</button>
       </div>
-      <input type="file" id="photo2-capture" accept="image/*" capture="environment" onchange="handlePhoto2(this.files)">
+      <div id="additional-photo2-option" class="file-buttons" style="display: none;">
+        <button onclick="document.getElementById('photo2-upload2').click()">Add Another Photo</button>
+      </div>
+      <input type="file" id="photo2-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto2(this.files)">
       <input type="file" id="photo2-upload" accept="image/*" multiple onchange="handlePhoto2(this.files)">
+      <input type="file" id="photo2-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto2(this.files)">
       <div id="photo2-preview" class="preview-container"></div>
       <p id="photo2-status">No photo selected.</p>
       <button id="photo2-compare" onclick="comparePhotos()" disabled>Compare</button>
@@ -223,7 +234,7 @@
     <progress id="loading-progress" max="100"></progress>
   </div>
   <script>
-    // --- Order Parsing & Comparison Functions ---
+    // --- Order Parsing & Comparison Functions (unchanged) ---
     const criticalMeds = [
       'warfarin', 'apixaban', 'rivaroxaban', 'dabigatran', 'edoxaban', 'heparin', 'enoxaparin',
       'clopidogrel', 'ticagrelor', 'prasugrel', 'insulin regular', 'insulin glargine', 'insulin detemir',
@@ -415,38 +426,70 @@
     function acknowledgeDisclaimer() {
       showScreen('photo1-screen');
     }
-    // --- File Handling with Previews and Accumulation ---
+    // --- File Handling with Previews and Accumulation for Photo 1 ---
     function handlePhoto1(files) {
       if (!files || files.length === 0) return;
-      // Append new files, limiting to 5 total.
+      // Append new files; limit to 5 total per screen.
       photo1Files = photo1Files.concat(Array.from(files));
       if (photo1Files.length > 5) {
-        photo1Files = photo1Files.slice(0, 5);
-        showError("Maximum of 5 photos allowed.");
+        photo1Files = photo1Files.slice(0,5);
+        showError("Maximum of 5 photos allowed for this step.");
       } else {
         showError("");
       }
       document.getElementById('photo1-status').textContent = photo1Files.length + " photo(s) selected.";
       document.getElementById('photo1-next').disabled = false;
       updatePreview('photo1-preview', photo1Files);
-      // Clear input value so same file can be re-selected if needed.
-      document.getElementById('photo1-capture').value = "";
-      document.getElementById('photo1-upload').value = "";
+      // Hide initial options if at least one file is selected.
+      if (photo1Files.length > 0) {
+        document.getElementById('initial-photo1-options').style.display = 'none';
+        document.getElementById('additional-photo1-option').style.display = 'block';
+      }
     }
+    function handleAdditionalPhoto1(files) {
+      if (!files || files.length === 0) return;
+      photo1Files = photo1Files.concat(Array.from(files));
+      if (photo1Files.length > 5) {
+        photo1Files = photo1Files.slice(0,5);
+        showError("Maximum of 5 photos allowed for this step.");
+      } else {
+        showError("");
+      }
+      document.getElementById('photo1-status').textContent = photo1Files.length + " photo(s) selected.";
+      updatePreview('photo1-preview', photo1Files);
+      // Clear the value of the additional input.
+      document.getElementById('photo1-upload2').value = "";
+    }
+    // --- File Handling with Previews and Accumulation for Photo 2 ---
     function handlePhoto2(files) {
       if (!files || files.length === 0) return;
       photo2Files = photo2Files.concat(Array.from(files));
       if (photo2Files.length > 5) {
-        photo2Files = photo2Files.slice(0, 5);
-        showError("Maximum of 5 photos allowed.");
+        photo2Files = photo2Files.slice(0,5);
+        showError("Maximum of 5 photos allowed for this step.");
       } else {
         showError("");
       }
       document.getElementById('photo2-status').textContent = photo2Files.length + " photo(s) selected.";
       document.getElementById('photo2-compare').disabled = false;
       updatePreview('photo2-preview', photo2Files);
-      document.getElementById('photo2-capture').value = "";
-      document.getElementById('photo2-upload').value = "";
+      if (photo2Files.length > 0) {
+        document.getElementById('initial-photo2-options').style.display = 'none';
+        document.getElementById('additional-photo2-option').style.display = 'block';
+      }
+    }
+    function handleAdditionalPhoto2(files) {
+      if (!files || files.length === 0) return;
+      photo2Files = photo2Files.concat(Array.from(files));
+      if (photo2Files.length > 5) {
+        photo2Files = photo2Files.slice(0,5);
+        showError("Maximum of 5 photos allowed for this step.");
+      } else {
+        showError("");
+      }
+      document.getElementById('photo2-status').textContent = photo2Files.length + " photo(s) selected.";
+      updatePreview('photo2-preview', photo2Files);
+      document.getElementById('photo2-upload2').value = "";
     }
     function updatePreview(previewId, files) {
       const container = document.getElementById(previewId);
@@ -570,8 +613,10 @@
       meds2 = [];
       document.getElementById('photo1-capture').value = '';
       document.getElementById('photo1-upload').value = '';
+      document.getElementById('photo1-upload2').value = '';
       document.getElementById('photo2-capture').value = '';
       document.getElementById('photo2-upload').value = '';
+      document.getElementById('photo2-upload2').value = '';
       document.getElementById('photo1-status').textContent = 'No photo selected.';
       document.getElementById('photo2-status').textContent = 'No photo selected.';
       document.getElementById('photo1-next').disabled = true;
@@ -579,6 +624,11 @@
       document.getElementById('results-content').innerHTML = '';
       document.getElementById('photo1-preview').innerHTML = "";
       document.getElementById('photo2-preview').innerHTML = "";
+      // Reset initial option visibility
+      document.getElementById('initial-photo1-options').style.display = 'block';
+      document.getElementById('additional-photo1-option').style.display = 'none';
+      document.getElementById('initial-photo2-options').style.display = 'block';
+      document.getElementById('additional-photo2-option').style.display = 'none';
       showScreen('disclaimer-screen');
     }
     document.addEventListener('DOMContentLoaded', () => {
