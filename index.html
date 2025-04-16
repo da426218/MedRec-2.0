@@ -75,6 +75,13 @@
       margin: 0.5rem 1rem;
       color: #555;
     }
+    /* Add a prompt message container */
+    .upload-prompt {
+      font-size: 0.9rem;
+      text-align: center;
+      margin: 0.5rem 1rem;
+      color: #333;
+    }
     /* Preview container for thumbnails */
     .preview-container {
       text-align: center;
@@ -195,11 +202,14 @@
       <div id="additional-photo1-option" class="file-buttons" style="display: none;">
         <button onclick="document.getElementById('photo1-upload2').click()">Add Another Photo</button>
       </div>
+      <!-- Hidden additional input -->
       <input type="file" id="photo1-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto1(this.files)">
       <input type="file" id="photo1-upload" accept="image/*" multiple onchange="handlePhoto1(this.files)">
       <input type="file" id="photo1-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto1(this.files)">
       <div id="photo1-preview" class="preview-container"></div>
       <p id="photo1-status">No photo selected.</p>
+      <!-- Prompt text after selection -->
+      <p id="photo1-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Next to continue.</p>
       <button id="photo1-next" onclick="goToPhoto2()" disabled>Next</button>
       <button onclick="startOver()">Start Over</button>
     </div>
@@ -219,6 +229,7 @@
       <input type="file" id="photo2-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto2(this.files)">
       <div id="photo2-preview" class="preview-container"></div>
       <p id="photo2-status">No photo selected.</p>
+      <p id="photo2-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Compare to continue.</p>
       <button id="photo2-compare" onclick="comparePhotos()" disabled>Compare</button>
       <button onclick="startOver()">Start Over</button>
     </div>
@@ -429,7 +440,6 @@
     // --- File Handling with Previews and Accumulation for Photo 1 ---
     function handlePhoto1(files) {
       if (!files || files.length === 0) return;
-      // Append new files; limit to 5 total per screen.
       photo1Files = photo1Files.concat(Array.from(files));
       if (photo1Files.length > 5) {
         photo1Files = photo1Files.slice(0,5);
@@ -440,11 +450,15 @@
       document.getElementById('photo1-status').textContent = photo1Files.length + " photo(s) selected.";
       document.getElementById('photo1-next').disabled = false;
       updatePreview('photo1-preview', photo1Files);
-      // Hide initial options if at least one file is selected.
-      if (photo1Files.length > 0) {
-        document.getElementById('initial-photo1-options').style.display = 'none';
-        document.getElementById('additional-photo1-option').style.display = 'block';
-      }
+      // After at least one photo is added, update the prompt
+      document.getElementById('photo1-prompt').style.display = 'block';
+      document.getElementById('photo1-prompt').textContent = "You may add another photo or click Next to continue.";
+      // Hide initial options and show additional option container
+      document.getElementById('initial-photo1-options').style.display = 'none';
+      document.getElementById('additional-photo1-option').style.display = 'block';
+      // Clear the input values so new selections work
+      document.getElementById('photo1-capture').value = "";
+      document.getElementById('photo1-upload').value = "";
     }
     function handleAdditionalPhoto1(files) {
       if (!files || files.length === 0) return;
@@ -457,7 +471,7 @@
       }
       document.getElementById('photo1-status').textContent = photo1Files.length + " photo(s) selected.";
       updatePreview('photo1-preview', photo1Files);
-      // Clear the value of the additional input.
+      // Clear the additional input value
       document.getElementById('photo1-upload2').value = "";
     }
     // --- File Handling with Previews and Accumulation for Photo 2 ---
@@ -473,10 +487,12 @@
       document.getElementById('photo2-status').textContent = photo2Files.length + " photo(s) selected.";
       document.getElementById('photo2-compare').disabled = false;
       updatePreview('photo2-preview', photo2Files);
-      if (photo2Files.length > 0) {
-        document.getElementById('initial-photo2-options').style.display = 'none';
-        document.getElementById('additional-photo2-option').style.display = 'block';
-      }
+      document.getElementById('initial-photo2-options').style.display = 'none';
+      document.getElementById('additional-photo2-option').style.display = 'block';
+      document.getElementById('photo2-prompt').style.display = 'block';
+      document.getElementById('photo2-prompt').textContent = "You may add another photo or click Compare to continue.";
+      document.getElementById('photo2-capture').value = "";
+      document.getElementById('photo2-upload').value = "";
     }
     function handleAdditionalPhoto2(files) {
       if (!files || files.length === 0) return;
@@ -509,7 +525,6 @@
       showLoading('Processing first image(s)...');
       try {
         let combinedText = await processFiles(photo1Files);
-        // Deduplicate lines
         let lines = combinedText.split(/[\n,]+/).map(line => cleanLine(line)).filter(isLikelyOrderLine);
         lines = [...new Set(lines)];
         meds1 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
@@ -624,9 +639,11 @@
       document.getElementById('results-content').innerHTML = '';
       document.getElementById('photo1-preview').innerHTML = "";
       document.getElementById('photo2-preview').innerHTML = "";
-      // Reset initial option visibility
+      // Reset prompt and initial options visibility
+      document.getElementById('photo1-prompt').style.display = 'none';
       document.getElementById('initial-photo1-options').style.display = 'block';
       document.getElementById('additional-photo1-option').style.display = 'none';
+      document.getElementById('photo2-prompt').style.display = 'none';
       document.getElementById('initial-photo2-options').style.display = 'block';
       document.getElementById('additional-photo2-option').style.display = 'none';
       showScreen('disclaimer-screen');
