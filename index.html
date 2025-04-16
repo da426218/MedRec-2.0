@@ -23,7 +23,7 @@
       position: sticky;
       top: 0;
       z-index: 1000;
-      height: 185px; /* Increased from 160px to 185px to align bottom with progress lines */
+      height: 185px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -147,7 +147,7 @@
       justify-content: space-between;
       align-items: center;
       margin: 0.5rem 0;
-      margin-top: -40px; /* Kept the same */
+      margin-top: -40px;
       position: relative;
     }
     .progress-step {
@@ -254,7 +254,7 @@
       opacity: 1;
     }
     #medrec-logo {
-      height: 180px; /* Kept the same */
+      height: 180px;
       width: auto;
       display: block;
       margin: 0 auto;
@@ -405,9 +405,109 @@
       'isosorbide', 'nicardipine', 'nitroprusside', 'ivabradine', 'sacubitril', 'valsartan',
       'atorvastatin', 'rosuvastatin', 'simvastatin'
     ].map(med => med.toLowerCase());
+
+    // Updated Common Medications List (90 entries)
+    const commonMedications = [
+      { generic: "acetaminophen", brands: ["Tylenol"] },
+      { generic: "albuterol", brands: ["Ventolin", "ProAir", "Proventil"] },
+      { generic: "allopurinol", brands: ["Zyloprim"] },
+      { generic: "alprazolam", brands: ["Xanax"] },
+      { generic: "amlodipine", brands: ["Norvasc"] },
+      { generic: "amoxicillin", brands: ["Amoxil", "Trimox"] },
+      { generic: "aspirin", brands: ["Bayer", "Ecotrin"] },
+      { generic: "atenolol", brands: ["Tenormin"] },
+      { generic: "atorvastatin", brands: ["Lipitor"] },
+      { generic: "azithromycin", brands: ["Zithromax", "Z-Pak"] },
+      { generic: "bisoprolol", brands: ["Zebeta"] },
+      { generic: "budesonide", brands: ["Pulmicort", "Rhinocort"] },
+      { generic: "cephalexin", brands: ["Keflex"] },
+      { generic: "cetirizine", brands: ["Zyrtec"] },
+      { generic: "ciprofloxacin", brands: ["Cipro"] },
+      { generic: "citalopram", brands: ["Celexa"] },
+      { generic: "clindamycin", brands: ["Cleocin"] },
+      { generic: "clonazepam", brands: ["Klonopin"] },
+      { generic: "clopidogrel", brands: ["Plavix"] },
+      { generic: "cyclobenzaprine", brands: ["Flexeril"] },
+      { generic: "digoxin", brands: ["Lanoxin"] },
+      { generic: "doxycycline", brands: ["Vibramycin"] },
+      { generic: "duloxetine", brands: ["Cymbalta"] },
+      { generic: "enalapril", brands: ["Vasotec"] },
+      { generic: "escitalopram", brands: ["Lexapro"] },
+      { generic: "esomeprazole", brands: ["Nexium"] },
+      { generic: "fluoxetine", brands: ["Prozac"] },
+      { generic: "fluticasone", brands: ["Flonase", "Flovent"] },
+      { generic: "furosemide", brands: ["Lasix"] },
+      { generic: "gabapentin", brands: ["Neurontin"] },
+      { generic: "glipizide", brands: ["Glucotrol"] },
+      { generic: "glyburide", brands: ["Diabeta", "Micronase"] },
+      { generic: "hydralazine", brands: ["Apresoline"] },
+      { generic: "hydrochlorothiazide", brands: ["Microzide"] },
+      { generic: "hydrocodone", brands: ["Norco", "Vicodin"] },
+      { generic: "ibuprofen", brands: ["Advil", "Motrin"] },
+      { generic: "insulin glargine", brands: ["Lantus", "Basaglar"] },
+      { generic: "insulin lispro", brands: ["Humalog"] },
+      { generic: "irbesartan", brands: ["Avapro"] },
+      { generic: "isosorbide mononitrate", brands: ["Imdur"] }, // Corrected typo from "isorbide mononitrate"
+      { generic: "ketorolac", brands: ["Toradol"] },
+      { generic: "levothyroxine", brands: ["Synthroid", "Levoxyl"] },
+      { generic: "lisinopril", brands: ["Prinivil", "Zestril"] },
+      { generic: "lorazepam", brands: ["Ativan"] },
+      { generic: "losartan", brands: ["Cozaar"] },
+      { generic: "meloxicam", brands: ["Mobic"] },
+      { generic: "metformin", brands: ["Glucophage"] },
+      { generic: "methotrexate", brands: ["Trexall"] },
+      { generic: "metoprolol", brands: ["Lopressor", "Toprol XL"] },
+      { generic: "montelukast", brands: ["Singulair"] },
+      { generic: "naproxen", brands: ["Aleve", "Naprosyn"] },
+      { generic: "nifedipine", brands: ["Procardia", "Adalat"] },
+      { generic: "nystatin", brands: ["Mycostatin"] },
+      { generic: "omeprazole", brands: ["Prilosec"] },
+      { generic: "oxycodone", brands: ["OxyContin", "Roxicodone"] },
+      { generic: "pantoprazole", brands: ["Protonix"] },
+      { generic: "pravastatin", brands: ["Pravachol"] },
+      { generic: "prednisone", brands: ["Deltasone"] },
+      { generic: "propranolol", brands: ["Inderal"] },
+      { generic: "quinapril", brands: ["Accupril"] },
+      { generic: "ranitidine", brands: ["Zantac"] },
+      { generic: "rosuvastatin", brands: ["Crestor"] },
+      { generic: "sertraline", brands: ["Zoloft"] },
+      { generic: "simvastatin", brands: ["Zocor"] },
+      { generic: "sitagliptin", brands: ["Januvia"] },
+      { generic: "sotalol", brands: ["Betapace"] },
+      { generic: "spironolactone", brands: ["Aldactone"] },
+      { generic: "sulfamethoxazole-trimethoprim", brands: ["Bactrim", "Septra"] },
+      { generic: "tamsulosin", brands: ["Flomax"] },
+      { generic: "tramadol", brands: ["Ultram"] },
+      { generic: "trazodone", brands: ["Desyrel"] },
+      { generic: "valacyclovir", brands: ["Valtrex"] },
+      { generic: "valproic acid", brands: ["Depakene"] },
+      { generic: "venlafaxine", brands: ["Effexor"] },
+      { generic: "verapamil", brands: ["Calan", "Verelan"] },
+      { generic: "warfarin", brands: ["Coumadin"] },
+      { generic: "zolpidem", brands: ["Ambien"] },
+      // Additional medications to reach 90 entries
+      { generic: "amphetamine/dextroamphetamine", brands: ["Adderall", "Adderall XR"] },
+      { generic: "alendronate", brands: ["Fosamax"] },
+      { generic: "tadalafil", brands: ["Cialis"] },
+      { generic: "fluticasone/umeclidinium/vilanterol", brands: ["Trelegy"] },
+      { generic: "empagliflozin", brands: ["Jardiance"] },
+      { generic: "semaglutide", brands: ["Ozempic", "Wegovy"] },
+      { generic: "vitamin d", brands: ["Drisdol"] },
+      { generic: "prednisolone", brands: ["Pred Forte"] },
+      { generic: "enoxaparin", brands: ["Lovenox", "Clexane"] },
+      { generic: "doxorubicin", brands: ["Adriamycin"] },
+      { generic: "adalimumab", brands: ["Humira"] },
+      { generic: "rivaroxaban", brands: ["Xarelto"] },
+      { generic: "methylphenidate", brands: ["Ritalin", "Concerta"] },
+      { generic: "memantine", brands: ["Namenda"] },
+      { generic: "isosorbide", brands: [] },
+      { generic: "isosorbide dinitrate", brands: [] }
+    ];
+
     let photo1Files = [];
     let photo2Files = [];
     let meds1 = [], meds2 = [];
+
     async function processFiles(files) {
       let allText = "";
       let lowConfidence = false;
@@ -427,6 +527,7 @@
       }
       return allText;
     }
+
     function processFile(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -450,15 +551,27 @@
         reader.readAsDataURL(file);
       });
     }
+
     function cleanLine(line) {
       return line.replace(/[^a-z0-9]+$/i, '').trim();
     }
+
     function isLikelyOrderLine(line) {
       if (line.length < 3) return false;
       let alphaNumCount = (line.match(/[a-z0-9]/gi) || []).length;
       let ratio = alphaNumCount / line.length;
       return ratio >= 0.4;
     }
+
+    // New function to check if a line contains a known medication (generic or brand)
+    function containsKnownMedication(line) {
+      const lowerLine = line.toLowerCase();
+      return commonMedications.some(med =>
+        lowerLine.includes(med.generic) ||
+        med.brands.some(brand => lowerLine.includes(brand.toLowerCase()))
+      );
+    }
+
     function normalizeText(str) {
       return str.toLowerCase()
         .replace(/p\.?o\.?/g, 'po')
@@ -468,6 +581,7 @@
         .replace(/[^\w\s\/-]/g, '')
         .trim();
     }
+
     function parseOrder(orderStr) {
       orderStr = normalizeText(orderStr);
       let doseMatch = orderStr.match(/(\d+)\s*mg/);
@@ -506,6 +620,7 @@
       let name = orderStr.trim();
       return { name, dose, route, frequency };
     }
+
     function levenshteinDistance(a, b) {
       const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
       for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
@@ -522,11 +637,13 @@
       }
       return matrix[b.length][a.length];
     }
+
     function similarity(a, b) {
       const distance = levenshteinDistance(a, b);
       const maxLen = Math.max(a.length, b.length);
       return 1 - distance / maxLen;
     }
+
     function ordersAreEqual(a, b) {
       if (a.dose !== b.dose) return false;
       if (a.route !== b.route) return false;
@@ -536,6 +653,7 @@
       if (nameSimilarity < 0.85) return false;
       return true;
     }
+
     function compareOrders(list1, list2) {
       let unchanged = [];
       let removed = [];
@@ -558,16 +676,19 @@
       }
       return { unchanged, removed, added };
     }
+
     function isCriticalOrder(parsedOrder) {
       if (!parsedOrder.name) return false;
       return criticalMeds.some(med => parsedOrder.name.includes(med));
     }
+
     function showScreen(screenId) {
       document.getElementById('error-message').textContent = '';
       document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
       document.getElementById(screenId).classList.add('active');
       updateProgress(screenId);
     }
+
     function updateProgress(screenId) {
       document.getElementById('step1').classList.remove('filled', 'current');
       document.getElementById('step2').classList.remove('filled', 'current');
@@ -599,21 +720,26 @@
         document.getElementById('line3-4').classList.add('filled');
       }
     }
+
     function showLoading(msg) {
       const ld = document.getElementById('loading'),
             lt = document.getElementById('loading-text');
       ld.style.display = 'flex';
       lt.textContent = msg;
     }
+
     function hideLoading() {
       document.getElementById('loading').style.display = 'none';
     }
+
     function showError(msg) {
       document.getElementById('error-message').textContent = msg;
     }
+
     function acknowledgeDisclaimer() {
       showScreen('photo1-screen');
     }
+
     function handlePhoto1(files) {
       if (!files || files.length === 0) return;
       photo1Files = photo1Files.concat(Array.from(files));
@@ -633,6 +759,7 @@
       document.getElementById('photo1-capture').value = "";
       document.getElementById('photo1-upload').value = "";
     }
+
     function handleAdditionalPhoto1(files) {
       if (!files || files.length === 0) return;
       photo1Files = photo1Files.concat(Array.from(files));
@@ -647,6 +774,7 @@
       document.getElementById('photo1-capture2').value = "";
       document.getElementById('photo1-upload2').value = "";
     }
+
     function handlePhoto2(files) {
       if (!files || files.length === 0) return;
       photo2Files = photo2Files.concat(Array.from(files));
@@ -656,7 +784,7 @@
       } else {
         showError("");
       }
-      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
+      document.getElementById('photo2-status').textContent = photo2Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
       document.getElementById('photo2-compare').disabled = false;
       updatePreview('photo2-preview', photo2Files);
       document.getElementById('initial-photo2-options').style.display = 'none';
@@ -666,6 +794,7 @@
       document.getElementById('photo2-capture').value = "";
       document.getElementById('photo2-upload').value = "";
     }
+
     function handleAdditionalPhoto2(files) {
       if (!files || files.length === 0) return;
       photo2Files = photo2Files.concat(Array.from(files));
@@ -675,11 +804,12 @@
       } else {
         showError("");
       }
-      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
+      document.getElementById('photo2-status').textContent = photo2Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
       updatePreview('photo2-preview', photo2Files);
       document.getElementById('photo2-capture2').value = "";
       document.getElementById('photo2-upload2').value = "";
     }
+
     function updatePreview(previewId, files) {
       const container = document.getElementById(previewId);
       container.innerHTML = "";
@@ -689,6 +819,7 @@
         container.appendChild(img);
       });
     }
+
     async function goToPhoto2() {
       if (!photo1Files || photo1Files.length === 0) {
         showError('Please select at least one photo.');
@@ -697,8 +828,16 @@
       showLoading('Processing first image(s)...');
       try {
         let combinedText = await processFiles(photo1Files);
-        let lines = combinedText.split(/[\n,]+/).map(line => cleanLine(line)).filter(isLikelyOrderLine);
+        let lines = combinedText
+          .split(/[\n,]+/)
+          .map(line => cleanLine(line))
+          .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
         lines = [...new Set(lines)];
+        if (lines.length === 0) {
+          hideLoading();
+          showError('No valid medication orders detected in the first photos. Please try again.');
+          return;
+        }
         meds1 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
         console.log('Medications from Photo 1:', meds1);
         hideLoading();
@@ -709,6 +848,7 @@
         showError('Error extracting text from the first photos. Please try again.');
       }
     }
+
     async function comparePhotos() {
       if (!photo2Files || photo2Files.length === 0) {
         showError('Please select at least one photo.');
@@ -717,8 +857,16 @@
       showLoading('Processing second image(s)...');
       try {
         let combinedText = await processFiles(photo2Files);
-        let lines = combinedText.split(/[\n,]+/).map(line => cleanLine(line)).filter(isLikelyOrderLine);
+        let lines = combinedText
+          .split(/[\n,]+/)
+          .map(line => cleanLine(line))
+          .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
         lines = [...new Set(lines)];
+        if (lines.length === 0) {
+          hideLoading();
+          showError('No valid medication orders detected in the second photos. Please try again.');
+          return;
+        }
         meds2 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
         console.log('Medications from Photo 2:', meds2);
         hideLoading();
@@ -729,6 +877,7 @@
         showError('Error extracting text from the second photos. Please try again.');
       }
     }
+
     function compareAndShowResults() {
       const { unchanged, removed, added } = compareOrders(meds1, meds2);
       let html = '';
@@ -758,6 +907,7 @@
       document.getElementById('results-content').innerHTML = html;
       showScreen('results-screen');
     }
+
     function exportResults() {
       const resultsDiv = document.getElementById('results-content');
       let textContent = '';
@@ -783,6 +933,7 @@
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     }
+
     function printResults() {
       const resultsDiv = document.getElementById('results-content').innerHTML;
       const note = document.querySelector('#results-screen p').innerHTML;
@@ -819,6 +970,7 @@
       iframe.contentWindow.print();
       document.body.removeChild(iframe);
     }
+
     function startOver() {
       photo1Files = [];
       photo2Files = [];
@@ -847,6 +999,7 @@
       document.getElementById('additional-photo2-option').style.display = 'none';
       showScreen('disclaimer-screen');
     }
+
     // Tooltip toggle for mobile
     document.querySelectorAll('.tooltip').forEach(tooltip => {
       tooltip.addEventListener('click', (e) => {
@@ -858,11 +1011,13 @@
         }
       });
     });
+
     document.addEventListener('click', () => {
       document.querySelectorAll('.tooltip').forEach(tooltip => {
         tooltip.classList.remove('active');
       });
     });
+
     document.addEventListener('DOMContentLoaded', () => {
       hideLoading();
       updateProgress('disclaimer-screen');
