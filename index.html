@@ -31,7 +31,7 @@
       margin: 0 auto;
       width: 100%;
       box-sizing: border-box;
-      text-align: center; /* Center-align text for consistency */
+      text-align: center;
     }
     .screen {
       display: none;
@@ -64,21 +64,11 @@
       display: none;
     }
     .file-buttons {
-      display: flex; /* Use Flexbox for centering */
-      flex-direction: column; /* Stack buttons vertically */
-      align-items: center; /* Center horizontally */
+      text-align: center;
       margin: 1rem 0;
     }
     .file-buttons button {
-      margin: 0.25rem 0; /* Vertical margin for spacing */
-    }
-    /* Container for action buttons (ensures vertical stacking & centered alignment) */
-    .photo-actions {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.75rem; /* Space between buttons */
-      margin: 1rem 0;
+      margin: 0.25rem;
     }
     .upload-instructions {
       font-size: 0.9rem;
@@ -86,12 +76,20 @@
       margin: 0.5rem 1rem;
       color: #555;
     }
-    /* Add a prompt message container */
+    /* Prompt message container */
     .upload-prompt {
       font-size: 0.9rem;
       text-align: center;
       margin: 0.5rem 1rem;
       color: #333;
+    }
+    /* Container for stacking all photo actions in a column */
+    .photo-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 1rem 0;
     }
     /* Preview container for thumbnails */
     .preview-container {
@@ -167,6 +165,7 @@
     }
     ul {
       padding-left: 20px;
+      text-align: left;
     }
     li {
       margin: 0.5rem 0;
@@ -205,23 +204,33 @@
     <!-- Photo 1 Screen -->
     <div id="photo1-screen" class="screen">
       <h2>Take or Upload First Photo(s)</h2>
-      <p class="upload-instructions">For best results, please take a clear photo of the medication list text only. Avoid excessive background, unrelated papers, or images.</p>
-      <div id="initial-photo1-options" class="file-buttons">
-        <button onclick="document.getElementById('photo1-capture').click()">Take Photo</button>
-        <button onclick="document.getElementById('photo1-upload').click()">Upload Photo</button>
-      </div>
-      <div id="additional-photo1-option" class="file-buttons" style="display: none;">
-        <button onclick="document.getElementById('photo1-upload2').click()">Add Another Photo</button>
-      </div>
-      <!-- Hidden additional input -->
-      <input type="file" id="photo1-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto1(this.files)">
-      <input type="file" id="photo1-upload" accept="image/*" multiple onchange="handlePhoto1(this.files)">
-      <input type="file" id="photo1-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto1(this.files)">
-      <div id="photo1-preview" class="preview-container"></div>
+      <p class="upload-instructions">
+        For best results, please take a clear photo of the medication list text only.
+        Avoid excessive background, unrelated papers, or images.
+      </p>
+      <div class="preview-container" id="photo1-preview"></div>
       <p id="photo1-status">No photo selected.</p>
-      <!-- Prompt text after selection -->
-      <p id="photo1-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Next to continue.</p>
+      <p id="photo1-prompt" class="upload-prompt" style="display: none;">
+        You may add another photo or click Next to continue.
+      </p>
       <div class="photo-actions">
+        <!-- Initial Options -->
+        <div id="initial-photo1-options" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
+          <button onclick="document.getElementById('photo1-capture').click()">Take Photo</button>
+          <button onclick="document.getElementById('photo1-upload').click()">Upload Photo</button>
+        </div>
+        <!-- Additional Options with distinct buttons -->
+        <div id="additional-photo1-options" style="display: none; flex-direction: column; gap: 0.5rem; width: 100%;">
+          <button onclick="document.getElementById('photo1-capture2').click()">Add Another (Take)</button>
+          <button onclick="document.getElementById('photo1-upload2').click()">Add Another (Upload)</button>
+        </div>
+        <!-- File Inputs -->
+        <input type="file" id="photo1-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto1(this.files)">
+        <input type="file" id="photo1-upload" accept="image/*" multiple onchange="handlePhoto1(this.files)">
+        <!-- Additional File Inputs -->
+        <input type="file" id="photo1-capture2" accept="image/*" capture="environment" multiple onchange="handleAdditionalPhoto1(this.files)">
+        <input type="file" id="photo1-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto1(this.files)">
+        <!-- Navigation Buttons -->
         <button id="photo1-next" onclick="goToPhoto2()" disabled>Next</button>
         <button onclick="startOver()">Start Over</button>
       </div>
@@ -229,21 +238,33 @@
     <!-- Photo 2 Screen -->
     <div id="photo2-screen" class="screen">
       <h2>Take or Upload Second Photo(s)</h2>
-      <p class="upload-instructions">For best results, please take a clear photo of the medication list text only. Avoid excessive background, unrelated papers, or images.</p>
-      <div id="initial-photo2-options" class="file-buttons">
-        <button onclick="document.getElementById('photo2-capture').click()">Take Photo</button>
-        <button onclick="document.getElementById('photo2-upload').click()">Upload Photo</button>
-      </div>
-      <div id="additional-photo2-option" class="file-buttons" style="display: none;">
-        <button onclick="document.getElementById('photo2-upload2').click()">Add Another Photo</button>
-      </div>
-      <input type="file" id="photo2-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto2(this.files)">
-      <input type="file" id="photo2-upload" accept="image/*" multiple onchange="handlePhoto2(this.files)">
-      <input type="file" id="photo2-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto2(this.files)">
-      <div id="photo2-preview" class="preview-container"></div>
+      <p class="upload-instructions">
+        For best results, please take a clear photo of the medication list text only.
+        Avoid excessive background, unrelated papers, or images.
+      </p>
+      <div class="preview-container" id="photo2-preview"></div>
       <p id="photo2-status">No photo selected.</p>
-      <p id="photo2-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Compare to continue.</p>
+      <p id="photo2-prompt" class="upload-prompt" style="display: none;">
+        You may add another photo or click Compare to continue.
+      </p>
       <div class="photo-actions">
+        <!-- Initial Options -->
+        <div id="initial-photo2-options" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
+          <button onclick="document.getElementById('photo2-capture').click()">Take Photo</button>
+          <button onclick="document.getElementById('photo2-upload').click()">Upload Photo</button>
+        </div>
+        <!-- Additional Options with distinct buttons -->
+        <div id="additional-photo2-options" style="display: none; flex-direction: column; gap: 0.5rem; width: 100%;">
+          <button onclick="document.getElementById('photo2-capture2').click()">Add Another (Take)</button>
+          <button onclick="document.getElementById('photo2-upload2').click()">Add Another (Upload)</button>
+        </div>
+        <!-- File Inputs -->
+        <input type="file" id="photo2-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto2(this.files)">
+        <input type="file" id="photo2-upload" accept="image/*" multiple onchange="handlePhoto2(this.files)">
+        <!-- Additional File Inputs -->
+        <input type="file" id="photo2-capture2" accept="image/*" capture="environment" multiple onchange="handleAdditionalPhoto2(this.files)">
+        <input type="file" id="photo2-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto2(this.files)">
+        <!-- Navigation Buttons -->
         <button id="photo2-compare" onclick="comparePhotos()" disabled>Compare</button>
         <button onclick="startOver()">Start Over</button>
       </div>
@@ -255,12 +276,15 @@
       <button onclick="startOver()">Start Over</button>
     </div>
   </main>
+  <!-- Loading Overlay -->
   <div id="loading">
     <p id="loading-text">Processing...</p>
     <progress id="loading-progress" max="100"></progress>
   </div>
   <script>
-    // --- Order Parsing & Comparison Functions (unchanged) ---
+    /************************************************
+     * Order Parsing & Comparison Functions
+     ************************************************/
     const criticalMeds = [
       'warfarin', 'apixaban', 'rivaroxaban', 'dabigatran', 'edoxaban', 'heparin', 'enoxaparin',
       'clopidogrel', 'ticagrelor', 'prasugrel', 'insulin regular', 'insulin glargine', 'insulin detemir',
@@ -290,129 +314,19 @@
       'isosorbide', 'nicardipine', 'nitroprusside', 'ivabradine', 'sacubitril', 'valsartan',
       'atorvastatin', 'rosuvastatin', 'simvastatin'
     ];
+    
     let photo1Files = [];
     let photo2Files = [];
     let meds1 = [], meds2 = [];
-    // --- Helper Functions for Multiple File Processing ---
-    async function processFiles(files) {
-      let allText = "";
-      for (let file of files) {
-        try {
-          let text = await processFile(file);
-          allText += "\n" + text;
-        } catch (err) {
-          console.error("Error processing file: ", err);
-        }
-      }
-      return allText;
-    }
-    function processFile(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = async function(e) {
-          const base64Image = e.target.result;
-          try {
-            const response = await fetch('https://us-central1-medrec-ocr.cloudfunctions.net/ocr', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image: base64Image })
-            });
-            const { text, error } = await response.json();
-            if (error) reject(error);
-            else if (!text) reject('No text detected');
-            else resolve(text);
-          } catch (err) {
-            reject(err);
-          }
-        };
-        reader.onerror = () => reject("File could not be read.");
-        reader.readAsDataURL(file);
-      });
-    }
-    // --- Order Parsing & Comparison Functions ---
-    function cleanLine(line) {
-      return line.replace(/[^a-z0-9]+$/i, '').trim();
-    }
-    function isLikelyOrderLine(line) {
-      if (line.length < 3) return false;
-      let alphaNumCount = (line.match(/[a-z0-9]/gi) || []).length;
-      let ratio = alphaNumCount / line.length;
-      return ratio >= 0.4;
-    }
-    function parseOrder(orderStr) {
-      orderStr = orderStr.toLowerCase().trim().replace(/\s+/g, ' ');
-      let doseMatch = orderStr.match(/(\d+)\s*mg/);
-      let dose = doseMatch ? parseInt(doseMatch[1]) : null;
-      let route = orderStr.includes("po") ? "po" : "";
-      const freqMapping = {
-        "every other morning": "every other morning",
-        "every other afternoon": "every other afternoon",
-        "every other evening": "every other evening",
-        "every other night": "every other night",
-        "every morning": "every morning",
-        "every afternoon": "every afternoon",
-        "every evening": "every evening",
-        "every night": "every night",
-        "once daily": "daily",
-        "daily": "daily",
-        "qd": "daily",
-        "q.d.": "daily",
-        "twice daily": "twice daily"
-      };
-      let frequency = "";
-      let freqKeys = Object.keys(freqMapping).sort((a, b) => b.length - a.length);
-      for (let key of freqKeys) {
-        if (orderStr.includes(key)) {
-          frequency = freqMapping[key];
-          orderStr = orderStr.replace(key, '');
-          break;
-        }
-      }
-      if (doseMatch) {
-        orderStr = orderStr.replace(doseMatch[0], '');
-      }
-      if (route) {
-        orderStr = orderStr.replace(/\bpo\b/, '');
-      }
-      let name = orderStr.trim();
-      return { name, dose, route, frequency };
-    }
-    function ordersAreEqual(a, b) {
-      if (a.dose !== b.dose) return false;
-      if (a.route !== b.route) return false;
-      if (a.frequency !== b.frequency) return false;
-      if (a.name && b.name && a.name !== b.name) return false;
-      return true;
-    }
-    function compareOrders(list1, list2) {
-      let unchanged = [];
-      let removed = [];
-      let added = [];
-      let matched2 = new Array(list2.length).fill(false);
-      for (let orderObj1 of list1) {
-        let found = false;
-        for (let i = 0; i < list2.length; i++) {
-          if (!matched2[i] && ordersAreEqual(orderObj1.parsed, list2[i].parsed)) {
-            matched2[i] = true;
-            unchanged.push(orderObj1);
-            found = true;
-            break;
-          }
-        }
-        if (!found) removed.push(orderObj1);
-      }
-      for (let i = 0; i < list2.length; i++) {
-        if (!matched2[i]) added.push(list2[i]);
-      }
-      return { unchanged, removed, added };
-    }
-    function isCriticalOrder(parsedOrder) {
-      return parsedOrder.name && criticalMeds.includes(parsedOrder.name);
-    }
-    // --- UI and OCR Flow ---
+    
+    /************************************************
+     * UI & Flow Control
+     ************************************************/
     function showScreen(screenId) {
       document.getElementById('error-message').textContent = '';
-      document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+      document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.remove('active');
+      });
       document.getElementById(screenId).classList.add('active');
       updateProgress(screenId);
     }
@@ -438,10 +352,8 @@
       }
     }
     function showLoading(msg) {
-      const ld = document.getElementById('loading'),
-            lt = document.getElementById('loading-text');
-      ld.style.display = 'flex';
-      lt.textContent = msg;
+      document.getElementById('loading').style.display = 'flex';
+      document.getElementById('loading-text').textContent = msg;
     }
     function hideLoading() {
       document.getElementById('loading').style.display = 'none';
@@ -452,12 +364,17 @@
     function acknowledgeDisclaimer() {
       showScreen('photo1-screen');
     }
-    // --- File Handling with Previews and Accumulation for Photo 1 ---
+    
+    /************************************************
+     * File Handling for Photo 1
+     ************************************************/
     function handlePhoto1(files) {
       if (!files || files.length === 0) return;
-      photo1Files = photo1Files.concat(Array.from(files));
+      // Append valid files
+      const validFiles = Array.from(files).filter(file => file.size > 0);
+      photo1Files = photo1Files.concat(validFiles);
       if (photo1Files.length > 5) {
-        photo1Files = photo1Files.slice(0,5);
+        photo1Files = photo1Files.slice(0, 5);
         showError("Maximum of 5 photos allowed for this step.");
       } else {
         showError("");
@@ -465,36 +382,43 @@
       document.getElementById('photo1-status').textContent = photo1Files.length + " photo(s) selected.";
       document.getElementById('photo1-next').disabled = false;
       updatePreview('photo1-preview', photo1Files);
-      // After at least one photo is added, update the prompt
-      document.getElementById('photo1-prompt').style.display = 'block';
-      document.getElementById('photo1-prompt').textContent = "You may add another photo or click Next to continue.";
-      // Hide initial options and show additional option container
-      document.getElementById('initial-photo1-options').style.display = 'none';
-      document.getElementById('additional-photo1-option').style.display = 'block';
-      // Clear the input values so new selections work
+      // After first photo, update prompt and switch options
+      if (photo1Files.length >= 1) {
+        document.getElementById('photo1-prompt').style.display = 'block';
+        document.getElementById('photo1-prompt').textContent = "You may add another photo or click Next to continue.";
+        document.getElementById('initial-photo1-options').style.display = 'none';
+        document.getElementById('additional-photo1-options').style.display = 'flex';
+      }
+      // Clear initial inputs so the same file can be reselected if needed
       document.getElementById('photo1-capture').value = "";
       document.getElementById('photo1-upload').value = "";
     }
     function handleAdditionalPhoto1(files) {
       if (!files || files.length === 0) return;
-      photo1Files = photo1Files.concat(Array.from(files));
+      const validFiles = Array.from(files).filter(file => file.size > 0);
+      photo1Files = photo1Files.concat(validFiles);
       if (photo1Files.length > 5) {
-        photo1Files = photo1Files.slice(0,5);
+        photo1Files = photo1Files.slice(0, 5);
         showError("Maximum of 5 photos allowed for this step.");
       } else {
         showError("");
       }
       document.getElementById('photo1-status').textContent = photo1Files.length + " photo(s) selected.";
       updatePreview('photo1-preview', photo1Files);
-      // Clear the additional input value
+      // Clear additional inputs
+      document.getElementById('photo1-capture2').value = "";
       document.getElementById('photo1-upload2').value = "";
     }
-    // --- File Handling with Previews and Accumulation for Photo 2 ---
+    
+    /************************************************
+     * File Handling for Photo 2
+     ************************************************/
     function handlePhoto2(files) {
       if (!files || files.length === 0) return;
-      photo2Files = photo2Files.concat(Array.from(files));
+      const validFiles = Array.from(files).filter(file => file.size > 0);
+      photo2Files = photo2Files.concat(validFiles);
       if (photo2Files.length > 5) {
-        photo2Files = photo2Files.slice(0,5);
+        photo2Files = photo2Files.slice(0, 5);
         showError("Maximum of 5 photos allowed for this step.");
       } else {
         showError("");
@@ -502,24 +426,28 @@
       document.getElementById('photo2-status').textContent = photo2Files.length + " photo(s) selected.";
       document.getElementById('photo2-compare').disabled = false;
       updatePreview('photo2-preview', photo2Files);
-      document.getElementById('initial-photo2-options').style.display = 'none';
-      document.getElementById('additional-photo2-option').style.display = 'block';
-      document.getElementById('photo2-prompt').style.display = 'block';
-      document.getElementById('photo2-prompt').textContent = "You may add another photo or click Compare to continue.";
+      if (photo2Files.length >= 1) {
+        document.getElementById('photo2-prompt').style.display = 'block';
+        document.getElementById('photo2-prompt').textContent = "You may add another photo or click Compare to continue.";
+        document.getElementById('initial-photo2-options').style.display = 'none';
+        document.getElementById('additional-photo2-options').style.display = 'flex';
+      }
       document.getElementById('photo2-capture').value = "";
       document.getElementById('photo2-upload').value = "";
     }
     function handleAdditionalPhoto2(files) {
       if (!files || files.length === 0) return;
-      photo2Files = photo2Files.concat(Array.from(files));
+      const validFiles = Array.from(files).filter(file => file.size > 0);
+      photo2Files = photo2Files.concat(validFiles);
       if (photo2Files.length > 5) {
-        photo2Files = photo2Files.slice(0,5);
+        photo2Files = photo2Files.slice(0, 5);
         showError("Maximum of 5 photos allowed for this step.");
       } else {
         showError("");
       }
       document.getElementById('photo2-status').textContent = photo2Files.length + " photo(s) selected.";
       updatePreview('photo2-preview', photo2Files);
+      document.getElementById('photo2-capture2').value = "";
       document.getElementById('photo2-upload2').value = "";
     }
     function updatePreview(previewId, files) {
@@ -531,7 +459,10 @@
         container.appendChild(img);
       });
     }
-    // --- OCR and Processing ---
+    
+    /************************************************
+     * OCR & Processing
+     ************************************************/
     async function goToPhoto2() {
       if (!photo1Files || photo1Files.length === 0) {
         showError('Please select at least one photo.');
@@ -572,6 +503,41 @@
         showError('Error extracting text from the second photos. Please try again.');
       }
     }
+    async function processFiles(files) {
+      let allText = "";
+      for (let file of files) {
+        try {
+          let text = await processFile(file);
+          allText += "\n" + text;
+        } catch (err) {
+          console.error("Error processing file: ", err);
+        }
+      }
+      return allText;
+    }
+    function processFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+          const base64Image = e.target.result;
+          try {
+            const response = await fetch('https://us-central1-medrec-ocr.cloudfunctions.net/ocr', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ image: base64Image })
+            });
+            const { text, error } = await response.json();
+            if (error) reject(error);
+            else if (!text) reject('No text detected');
+            else resolve(text);
+          } catch (err) {
+            reject(err);
+          }
+        };
+        reader.onerror = () => reject("File could not be read.");
+        reader.readAsDataURL(file);
+      });
+    }
     function compareAndShowResults() {
       const { unchanged, removed, added } = compareOrders(meds1, meds2);
       let html = '';
@@ -601,6 +567,38 @@
       document.getElementById('results-content').innerHTML = html;
       showScreen('results-screen');
     }
+    function ordersAreEqual(a, b) {
+      if (a.dose !== b.dose) return false;
+      if (a.route !== b.route) return false;
+      if (a.frequency !== b.frequency) return false;
+      if (a.name && b.name && a.name !== b.name) return false;
+      return true;
+    }
+    function compareOrders(list1, list2) {
+      let unchanged = [];
+      let removed = [];
+      let added = [];
+      let matched2 = new Array(list2.length).fill(false);
+      for (let orderObj1 of list1) {
+        let found = false;
+        for (let i = 0; i < list2.length; i++) {
+          if (!matched2[i] && ordersAreEqual(orderObj1.parsed, list2[i].parsed)) {
+            matched2[i] = true;
+            unchanged.push(orderObj1);
+            found = true;
+            break;
+          }
+        }
+        if (!found) removed.push(orderObj1);
+      }
+      for (let i = 0; i < list2.length; i++) {
+        if (!matched2[i]) added.push(list2[i]);
+      }
+      return { unchanged, removed, added };
+    }
+    function isCriticalOrder(parsedOrder) {
+      return parsedOrder.name && criticalMeds.includes(parsedOrder.name);
+    }
     function startOver() {
       photo1Files = [];
       photo2Files = [];
@@ -619,13 +617,12 @@
       document.getElementById('results-content').innerHTML = '';
       document.getElementById('photo1-preview').innerHTML = "";
       document.getElementById('photo2-preview').innerHTML = "";
-      // Reset prompt and initial options visibility
       document.getElementById('photo1-prompt').style.display = 'none';
-      document.getElementById('initial-photo1-options').style.display = 'block';
-      document.getElementById('additional-photo1-option').style.display = 'none';
+      document.getElementById('initial-photo1-options').style.display = 'flex';
+      document.getElementById('additional-photo1-options').style.display = 'none';
       document.getElementById('photo2-prompt').style.display = 'none';
-      document.getElementById('initial-photo2-options').style.display = 'block';
-      document.getElementById('additional-photo2-option').style.display = 'none';
+      document.getElementById('initial-photo2-options').style.display = 'flex';
+      document.getElementById('additional-photo2-options').style.display = 'none';
       showScreen('disclaimer-screen');
     }
     document.addEventListener('DOMContentLoaded', () => {
