@@ -39,7 +39,7 @@
     .screen.active {
       display: block;
     }
-    /* Buttons & Inputs */
+    /* Button Styles */
     button {
       background-color: #007bff;
       color: white;
@@ -59,7 +59,7 @@
     button:hover:not(:disabled) {
       background-color: #0056b3;
     }
-    /* File inputs are hidden; we use custom buttons */
+    /* Hide native file inputs */
     input[type="file"] {
       display: none;
     }
@@ -76,7 +76,7 @@
       margin: 0.5rem 1rem;
       color: #555;
     }
-    /* Prompt to add more photos */
+    /* Prompt message shown after at least one file is added */
     .upload-prompt {
       font-size: 0.9rem;
       text-align: center;
@@ -197,15 +197,25 @@
     <div id="photo1-screen" class="screen">
       <h2>Take or Upload First Photo(s)</h2>
       <p class="upload-instructions">For best results, please take a clear photo of the medication list text only. Avoid excessive background, unrelated papers, or images.</p>
-      <div class="file-buttons" id="photo1-options">
+      <!-- Initial file buttons -->
+      <div id="initial-photo1-options" class="file-buttons">
         <button onclick="document.getElementById('photo1-capture').click()">Take Photo</button>
         <button onclick="document.getElementById('photo1-upload').click()">Upload Photo</button>
       </div>
-      <!-- File inputs -->
+      <!-- Additional file buttons; initially hidden -->
+      <div id="additional-photo1-options" class="file-buttons" style="display: none;">
+        <button onclick="document.getElementById('photo1-capture2').click()">Add Another (Take)</button>
+        <button onclick="document.getElementById('photo1-upload2').click()">Add Another (Upload)</button>
+      </div>
+      <!-- File inputs for initial selection -->
       <input type="file" id="photo1-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto1(this.files)">
       <input type="file" id="photo1-upload" accept="image/*" multiple onchange="handlePhoto1(this.files)">
+      <!-- File inputs for additional selection -->
+      <input type="file" id="photo1-capture2" accept="image/*" capture="environment" multiple onchange="handleAdditionalPhoto1(this.files)">
+      <input type="file" id="photo1-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto1(this.files)">
       <div id="photo1-preview" class="preview-container"></div>
       <p id="photo1-status">No photo selected.</p>
+      <!-- Prompt message -->
       <p id="photo1-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Next to continue.</p>
       <button id="photo1-next" onclick="goToPhoto2()" disabled>Next</button>
       <button onclick="startOver()">Start Over</button>
@@ -214,14 +224,25 @@
     <div id="photo2-screen" class="screen">
       <h2>Take or Upload Second Photo(s)</h2>
       <p class="upload-instructions">For best results, please take a clear photo of the medication list text only. Avoid excessive background, unrelated papers, or images.</p>
-      <div class="file-buttons" id="photo2-options">
+      <!-- Initial file buttons -->
+      <div id="initial-photo2-options" class="file-buttons">
         <button onclick="document.getElementById('photo2-capture').click()">Take Photo</button>
         <button onclick="document.getElementById('photo2-upload').click()">Upload Photo</button>
       </div>
+      <!-- Additional file buttons; initially hidden -->
+      <div id="additional-photo2-options" class="file-buttons" style="display: none;">
+        <button onclick="document.getElementById('photo2-capture2').click()">Add Another (Take)</button>
+        <button onclick="document.getElementById('photo2-upload2').click()">Add Another (Upload)</button>
+      </div>
+      <!-- File inputs for initial selection -->
       <input type="file" id="photo2-capture" accept="image/*" capture="environment" multiple onchange="handlePhoto2(this.files)">
       <input type="file" id="photo2-upload" accept="image/*" multiple onchange="handlePhoto2(this.files)">
+      <!-- File inputs for additional selection -->
+      <input type="file" id="photo2-capture2" accept="image/*" capture="environment" multiple onchange="handleAdditionalPhoto2(this.files)">
+      <input type="file" id="photo2-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto2(this.files)">
       <div id="photo2-preview" class="preview-container"></div>
       <p id="photo2-status">No photo selected.</p>
+      <!-- Prompt message -->
       <p id="photo2-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Compare to continue.</p>
       <button id="photo2-compare" onclick="comparePhotos()" disabled>Compare</button>
       <button onclick="startOver()">Start Over</button>
@@ -430,13 +451,12 @@
     function acknowledgeDisclaimer() {
       showScreen('photo1-screen');
     }
-    // --- File Handling with Previews & Accumulation for Photo 1 ---
+    // --- File Handling for Photo 1 ---
     function handlePhoto1(files) {
       if (!files || files.length === 0) return;
-      // Append new files; limit to 5
       photo1Files = photo1Files.concat(Array.from(files));
       if (photo1Files.length > 5) {
-        photo1Files = photo1Files.slice(0, 5);
+        photo1Files = photo1Files.slice(0,5);
         showError("Maximum of 5 photos allowed for this step.");
       } else {
         showError("");
@@ -444,10 +464,14 @@
       document.getElementById('photo1-status').textContent = photo1Files.length + " photo(s) selected.";
       document.getElementById('photo1-next').disabled = false;
       updatePreview('photo1-preview', photo1Files);
-      // Show prompt message
-      document.getElementById('photo1-prompt').style.display = 'block';
-      document.getElementById('photo1-prompt').textContent = "You may add another photo or click Next to continue.";
-      // Clear inputs so same file can be reselected
+      // Hide initial options and show additional options after first photo is added.
+      if (photo1Files.length >= 1) {
+        document.getElementById('initial-photo1-options').style.display = 'none';
+        document.getElementById('additional-photo1-options').style.display = 'block';
+        document.getElementById('photo1-prompt').style.display = 'block';
+        document.getElementById('photo1-prompt').textContent = "You may add another photo or click Next to continue.";
+      }
+      // Clear the value of initial inputs
       document.getElementById('photo1-capture').value = "";
       document.getElementById('photo1-upload').value = "";
     }
@@ -455,7 +479,7 @@
       if (!files || files.length === 0) return;
       photo1Files = photo1Files.concat(Array.from(files));
       if (photo1Files.length > 5) {
-        photo1Files = photo1Files.slice(0, 5);
+        photo1Files = photo1Files.slice(0,5);
         showError("Maximum of 5 photos allowed for this step.");
       } else {
         showError("");
@@ -464,12 +488,12 @@
       updatePreview('photo1-preview', photo1Files);
       document.getElementById('photo1-upload2').value = "";
     }
-    // --- File Handling with Previews & Accumulation for Photo 2 ---
+    // --- File Handling for Photo 2 ---
     function handlePhoto2(files) {
       if (!files || files.length === 0) return;
       photo2Files = photo2Files.concat(Array.from(files));
       if (photo2Files.length > 5) {
-        photo2Files = photo2Files.slice(0, 5);
+        photo2Files = photo2Files.slice(0,5);
         showError("Maximum of 5 photos allowed for this step.");
       } else {
         showError("");
@@ -477,8 +501,12 @@
       document.getElementById('photo2-status').textContent = photo2Files.length + " photo(s) selected.";
       document.getElementById('photo2-compare').disabled = false;
       updatePreview('photo2-preview', photo2Files);
-      document.getElementById('photo2-prompt').style.display = 'block';
-      document.getElementById('photo2-prompt').textContent = "You may add another photo or click Compare to continue.";
+      if (photo2Files.length >= 1) {
+        document.getElementById('initial-photo2-options').style.display = 'none';
+        document.getElementById('additional-photo2-options').style.display = 'block';
+        document.getElementById('photo2-prompt').style.display = 'block';
+        document.getElementById('photo2-prompt').textContent = "You may add another photo or click Compare to continue.";
+      }
       document.getElementById('photo2-capture').value = "";
       document.getElementById('photo2-upload').value = "";
     }
@@ -486,7 +514,7 @@
       if (!files || files.length === 0) return;
       photo2Files = photo2Files.concat(Array.from(files));
       if (photo2Files.length > 5) {
-        photo2Files = photo2Files.slice(0, 5);
+        photo2Files = photo2Files.slice(0,5);
         showError("Maximum of 5 photos allowed for this step.");
       } else {
         showError("");
@@ -616,9 +644,11 @@
       meds2 = [];
       document.getElementById('photo1-capture').value = '';
       document.getElementById('photo1-upload').value = '';
+      document.getElementById('photo1-capture2').value = '';
       document.getElementById('photo1-upload2').value = '';
       document.getElementById('photo2-capture').value = '';
       document.getElementById('photo2-upload').value = '';
+      document.getElementById('photo2-capture2').value = '';
       document.getElementById('photo2-upload2').value = '';
       document.getElementById('photo1-status').textContent = 'No photo selected.';
       document.getElementById('photo2-status').textContent = 'No photo selected.';
@@ -628,6 +658,11 @@
       document.getElementById('photo1-preview').innerHTML = "";
       document.getElementById('photo2-preview').innerHTML = "";
       document.getElementById('photo1-prompt').style.display = 'none';
+      document.getElementById('initial-photo1-options').style.display = 'block';
+      document.getElementById('additional-photo1-options').style.display = 'none';
+      document.getElementById('photo2-prompt').style.display = 'none';
+      document.getElementById('initial-photo2-options').style.display = 'block';
+      document.getElementById('additional-photo2-options').style.display = 'none';
       showScreen('disclaimer-screen');
     }
     document.addEventListener('DOMContentLoaded', () => {
