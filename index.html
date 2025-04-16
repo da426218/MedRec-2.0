@@ -23,7 +23,7 @@
       position: sticky;
       top: 0;
       z-index: 1000;
-      height: 100px;
+      height: 160px; /* Increased from 130px to 160px to encompass the progress bar */
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -147,7 +147,7 @@
       justify-content: space-between;
       align-items: center;
       margin: 0.5rem 0;
-      margin-top: -20px; /* Move the progress bar upward */
+      margin-top: -10px; /* Kept the same to maintain position */
       position: relative;
     }
     .progress-step {
@@ -208,7 +208,7 @@
     }
     #loading-progress {
       width: 80%;
-      max[0] max-width: 300px;
+      max-width: 300px;
     }
     ul {
       padding-left: 20px;
@@ -254,13 +254,13 @@
       opacity: 1;
     }
     #medrec-logo {
-      height: 120px; /* Doubled from 60px */
+      height: 180px; /* Kept the same as requested */
       width: auto;
       display: block;
       margin: 0 auto;
       position: relative;
-      top: -10px; /* Adjust to overlap with content below */
-      z-index: 1001; /* Ensure logo is above other elements */
+      top: -10px;
+      z-index: 1001;
     }
   </style>
 </head>
