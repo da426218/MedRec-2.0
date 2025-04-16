@@ -63,6 +63,7 @@
     input[type="file"] {
       display: none;
     }
+    /* File Buttons & Instructions */
     .file-buttons {
       text-align: center;
       margin: 1rem 0;
@@ -72,18 +73,18 @@
     }
     .upload-instructions {
       font-size: 0.9rem;
-      text-align: center;
       margin: 0.5rem 1rem;
       color: #555;
+      text-align: center;
     }
     /* Prompt message */
     .upload-prompt {
       font-size: 0.9rem;
-      text-align: center;
       margin: 0.5rem 1rem;
       color: #333;
+      text-align: center;
     }
-    /* Flex container to stack buttons and messages */
+    /* Container for stacking action buttons (centered) */
     .photo-actions {
       display: flex;
       flex-direction: column;
@@ -91,7 +92,7 @@
       gap: 0.75rem;
       margin: 1rem 0;
     }
-    /* Preview container for thumbnails */
+    /* Preview container */
     .preview-container {
       text-align: center;
       margin: 0.5rem 0 1rem;
@@ -212,8 +213,10 @@
       </p>
       <div class="preview-container" id="photo1-preview"></div>
       <p id="photo1-status">No photo selected.</p>
-      <p id="photo1-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Next to continue.</p>
-      
+      <p id="photo1-prompt" class="upload-prompt" style="display: none;">
+        You may add another photo or click Next to continue.
+      </p>
+
       <div class="photo-actions">
         <!-- Initial Options -->
         <div id="initial-photo1-options" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
@@ -246,8 +249,10 @@
       </p>
       <div class="preview-container" id="photo2-preview"></div>
       <p id="photo2-status">No photo selected.</p>
-      <p id="photo2-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Compare to continue.</p>
-      
+      <p id="photo2-prompt" class="upload-prompt" style="display: none;">
+        You may add another photo or click Compare to continue.
+      </p>
+
       <div class="photo-actions">
         <!-- Initial Options -->
         <div id="initial-photo2-options" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
@@ -318,7 +323,7 @@
       'isosorbide', 'nicardipine', 'nitroprusside', 'ivabradine', 'sacubitril', 'valsartan',
       'atorvastatin', 'rosuvastatin', 'simvastatin'
     ];
-
+    
     let photo1Files = [];
     let photo2Files = [];
     let meds1 = [], meds2 = [];
@@ -374,7 +379,7 @@
      ************************************************/
     function handlePhoto1(files) {
       if (!files || files.length === 0) return;
-      // Filter valid files by size (> 0)
+      // Filter out empty files
       const validFiles = Array.from(files).filter(file => file.size > 0);
       photo1Files = photo1Files.concat(validFiles);
       if (photo1Files.length > 5) {
@@ -386,11 +391,13 @@
       document.getElementById('photo1-status').textContent = photo1Files.length + " photo(s) selected.";
       document.getElementById('photo1-next').disabled = false;
       updatePreview('photo1-preview', photo1Files);
+      // After first photo, switch button sets and show prompt
       if (photo1Files.length >= 1) {
         document.getElementById('initial-photo1-options').style.display = 'none';
         document.getElementById('additional-photo1-options').style.display = 'flex';
         document.getElementById('photo1-prompt').style.display = 'block';
       }
+      // Clear initial inputs to allow re-selection
       document.getElementById('photo1-capture').value = "";
       document.getElementById('photo1-upload').value = "";
     }
@@ -406,6 +413,7 @@
       }
       document.getElementById('photo1-status').textContent = photo1Files.length + " photo(s) selected.";
       updatePreview('photo1-preview', photo1Files);
+      // Clear additional inputs
       document.getElementById('photo1-capture2').value = "";
       document.getElementById('photo1-upload2').value = "";
     }
@@ -471,7 +479,7 @@
       try {
         let combinedText = await processFiles(photo1Files);
         let lines = combinedText.split(/[\n,]+/).map(line => cleanLine(line)).filter(isLikelyOrderLine);
-        lines = [...new Set(lines)];
+        lines = [...new Set(lines)]; // Remove duplicate lines
         meds1 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
         console.log('Medications from Photo 1:', meds1);
         hideLoading();
