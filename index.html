@@ -38,7 +38,7 @@
     .screen {
       display: none;
       width: 100%;
-      text-align: center; /* Center all text content, including headers */
+      text-align: center;
     }
     .screen.active {
       display: block;
@@ -133,24 +133,42 @@
       width: 30px;
       height: 30px;
       background-color: #cccccc;
+      border: 1px solid #999;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 1;
+      transition: all 0.3s ease;
     }
     .progress-step.filled {
-      background-color: #007bff;
+      background-color: #66b0ff;
+      border: 1px solid #0056b3;
       color: white;
     }
-    .progress-line {
+    .progress-step.current {
+      background-color: #007bff;
+      border: 3px solid #0056b3;
+      color: white;
+    }
+    .progress-line-container {
       position: absolute;
       top: 50%;
-      left: 0;
-      right: 0;
+      left: 15px;
+      right: 15px;
+      height: 2px;
+      z-index: 0;
+      display: flex;
+      justify-content: space-between;
+    }
+    .progress-line {
+      flex: 1;
       height: 2px;
       background-color: #cccccc;
-      z-index: 0;
+      margin: 0 5px;
+    }
+    .progress-line.filled {
+      background-color: #66b0ff;
     }
     #loading {
       display: none;
@@ -191,7 +209,11 @@
   <header>
     <h1>MedRec 2.0</h1>
     <div class="progress-bar">
-      <div class="progress-line"></div>
+      <div class="progress-line-container">
+        <div class="progress-line" id="line1-2"></div>
+        <div class="progress-line" id="line2-3"></div>
+        <div class="progress-line" id="line3-4"></div>
+      </div>
       <div class="progress-step" id="step1">1</div>
       <div class="progress-step" id="step2">2</div>
       <div class="progress-step" id="step3">3</div>
@@ -262,6 +284,7 @@
     <!-- Results Screen -->
     <div id="results-screen" class="screen">
       <h2>Comparison Results</h2>
+      <p>Changes listed in <span class="critical">bold red</span> are critical medications and should be reconciled with the provider within <span class="critical">4 hours</span> of discovery.</p>
       <div id="results-content"></div>
       <div class="photo-actions">
         <button onclick="startOver()">Start Over</button>
@@ -426,24 +449,34 @@
       updateProgress(screenId);
     }
     function updateProgress(screenId) {
-      document.getElementById('step1').classList.remove('filled');
-      document.getElementById('step2').classList.remove('filled');
-      document.getElementById('step3').classList.remove('filled');
-      document.getElementById('step4').classList.remove('filled');
+      document.getElementById('step1').classList.remove('filled', 'current');
+      document.getElementById('step2').classList.remove('filled', 'current');
+      document.getElementById('step3').classList.remove('filled', 'current');
+      document.getElementById('step4').classList.remove('filled', 'current');
+      document.getElementById('line1-2').classList.remove('filled');
+      document.getElementById('line2-3').classList.remove('filled');
+      document.getElementById('line3-4').classList.remove('filled');
+
       if (screenId === 'disclaimer-screen') {
-        document.getElementById('step1').classList.add('filled');
+        document.getElementById('step1').classList.add('current');
       } else if (screenId === 'photo1-screen') {
         document.getElementById('step1').classList.add('filled');
-        document.getElementById('step2').classList.add('filled');
+        document.getElementById('step2').classList.add('current');
+        document.getElementById('line1-2').classList.add('filled');
       } else if (screenId === 'photo2-screen') {
         document.getElementById('step1').classList.add('filled');
         document.getElementById('step2').classList.add('filled');
-        document.getElementById('step3').classList.add('filled');
+        document.getElementById('step3').classList.add('current');
+        document.getElementById('line1-2').classList.add('filled');
+        document.getElementById('line2-3').classList.add('filled');
       } else if (screenId === 'results-screen') {
         document.getElementById('step1').classList.add('filled');
         document.getElementById('step2').classList.add('filled');
         document.getElementById('step3').classList.add('filled');
         document.getElementById('step4').classList.add('filled');
+        document.getElementById('line1-2').classList.add('filled');
+        document.getElementById('line2-3').classList.add('filled');
+        document.getElementById('line3-4').classList.add('filled');
       }
     }
     function showLoading(msg) {
