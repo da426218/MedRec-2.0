@@ -343,7 +343,7 @@
       <input type="file" id="photo1-capture2" accept="image/*" capture="environment" multiple onchange="handleAdditionalPhoto1(this.files)">
       <input type="file" id="photo1-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto1(this.files)">
       <div id="photo1-preview" class="preview-container"></div>
-      <p id="photo1-status">No photo or list added.</p>
+      <p id="photo1-status"></p>
       <p id="photo1-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Next to continue.</p>
       <div class="photo-actions">
         <button id="photo1-next" onclick="goToPhoto2()" disabled>Next</button>
@@ -373,7 +373,7 @@
       <input type="file" id="photo2-capture2" accept="image/*" capture="environment" multiple onchange="handleAdditionalPhoto2(this.files)">
       <input type="file" id="photo2-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto2(this.files)">
       <div id="photo2-preview" class="preview-container"></div>
-      <p id="photo2-status">No photo or list added.</p>
+      <p id="photo2-status"></p>
       <p id="photo2-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Compare to continue.</p>
       <div class="photo-actions">
         <button id="photo2-compare" onclick="comparePhotos()" disabled>Compare</button>
@@ -610,11 +610,12 @@
     }
 
     function containsKnownMedication(line) {
-      const lowerLine = line.toLowerCase();
+      const lower = line.toLowerCase();
+      // Allow anything with a dose/unit pattern through as a fallback
       return commonMedications.some(med =>
-        lowerLine.includes(med.generic) ||
-        med.brands.some(brand => lowerLine.includes(brand.toLowerCase()))
-      );
+        lower.includes(med.generic) ||
+        med.brands.some(b => lower.includes(b.toLowerCase()))
+      ) || /\d+\s*(mg|mcg|units|puffs|tabs?)\b/.test(lower);
     }
 
     function normalizeText(str) {
@@ -957,10 +958,9 @@
       return { unchanged, removed, added };
     }
 
-    function isCriticalOrder(parsedOrder) {
-      if (!parsedOrder.drug) return false;
-      const normalizedName = normalizeMedicationName(parsedOrder.drug);
-      return criticalMeds.some(med => normalizedName.includes(med));
+    function isCriticalOrder(orderObj) {
+      const text = orderObj.original.toLowerCase();
+      return criticalMeds.some(med => text.includes(med));
     }
 
     function showScreen(screenId) {
@@ -1022,7 +1022,7 @@
     }
 
     function handlePhoto1(files) {
-      if (!files || files.length === 0) return;
+      if (!files || files.length === поднимай0) return;
       photo1Files = photo1Files.concat(Array.from(files));
       if (photo1Files.length > 5) {
         photo1Files = photo1Files.slice(0,5);
@@ -1065,7 +1065,7 @@
       } else {
         showError("");
       }
-      document.getElementById('photo2-status').textContent = photo2Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
+      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
       document.getElementById('photo2-compare').disabled = false;
       updatePreview('photo2-preview', photo2Files);
       document.getElementById('initial-photo2-options').style.display = 'none';
@@ -1107,6 +1107,8 @@
         showError('Please paste a medication list before submitting.');
         return;
       }
+      // Clear any old status
+      document.getElementById('photo1-status').textContent = 'List pasted.';
       hasTextInput1 = true;
       let lines = text
         .split(/\r?\n+/)
@@ -1146,6 +1148,8 @@
         showError('Please paste a medication list before submitting.');
         return;
       }
+      // Clear any old status
+      document.getElementById('photo2-status').textContent = 'List pasted.';
       hasTextInput2 = true;
       let lines = text
         .split(/\r?\n+/)
@@ -1171,12 +1175,12 @@
         }
       });
       console.log('Medications from Second List (Text Input):', meds2);
-      document.getElementById('photo2-status').textContent = 'Comparing lists...';
+      document.getElementById('photo2-compare').disabled = false;
       document.getElementById('initial-photo2-options').style.display = 'none';
-      document.getElementById('additional-photo2-option').style.display = 'none';
-      document.getElementById('photo2-prompt').style.display = 'none';
+      document.getElementById('additional-photo2-option').style.display = 'flex';
+      document.getElementById('photo2-prompt').style.display = 'block';
+      document.getElementById('photo2-prompt').textContent = 'You may add another photo or click Compare to continue.';
       showError('');
-      compareAndShowResults();
     }
 
     async function goToPhoto2() {
@@ -1264,6 +1268,8 @@
           hideLoading();
           showError('Error extracting text from the second photos. Please try again.');
         }
+      } else {
+        compareAndShowResults();
       }
     }
 
@@ -1273,7 +1279,7 @@
       if (removed.length > 0) {
         html += '<h3>Removed:</h3><ul>';
         removed.forEach(orderObj => {
-          const crit = isCriticalOrder(orderObj.parsed);
+          const crit = isCriticalOrder(orderObj);
           html += `<li class="${crit ? 'critical' : ''}">${orderObj.original}</li>`;
         });
         html += '</ul>';
@@ -1281,7 +1287,7 @@
       if (added.length > 0) {
         html += '<h3>Added:</h3><ul>';
         added.forEach(orderObj => {
-          const crit = isCriticalOrder(orderObj.parsed);
+          const crit = isCriticalOrder(orderObj);
           html += `<li class="${crit ? 'critical' : ''}">${orderObj.original}</li>`;
         });
         html += '</ul>';
@@ -1377,8 +1383,8 @@
       document.getElementById('photo2-upload2').value = '';
       document.getElementById('photo1-text-input').value = '';
       document.getElementById('photo2-text-input').value = '';
-      document.getElementById('photo1-status').textContent = 'No photo or list added.';
-      document.getElementById('photo2-status').textContent = 'No photo or list added.';
+      document.getElementById('photo1-status').textContent = '';
+      document.getElementById('photo2-status').textContent = '';
       document.getElementById('photo1-next').disabled = true;
       document.getElementById('photo2-compare').disabled = true;
       document.getElementById('results-content').innerHTML = '';
