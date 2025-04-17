@@ -311,7 +311,7 @@
       <h2>Disclaimer</h2>
       <div class="card">
         <p class="disclaimer-text">
-          <b>***HIPAA Warning***: DO NOT UPLOAD IMAGES CONTAINING IDENTIFIABLE INFORMATION.</b> This app is intended for use by personnel authorized to handle Protected Health Information (PHI). Users are responsible for ensuring compliance with HIPAA regulations, including safeguarding resident/patient data and restricting access to authorized personnel only. Unauthorized disclosure of PHI may result in disciplinary action and legal consequences.
+          <strong>***HIPAA Warning***: DO NOT UPLOAD IMAGES CONTAINING IDENTIFIABLE INFORMATION.</strong> This app is intended for use by personnel authorized to handle Protected Health Information (PHI). Users are responsible for ensuring compliance with HIPAA regulations, including safeguarding resident/patient data and restricting access to authorized personnel only. Unauthorized disclosure of PHI may result in disciplinary action and legal consequences.
         </p>
       </div>
       <div class="disclaimer-actions">
@@ -622,7 +622,53 @@
       orderStr = normalizeText(orderStr);
       let doseMatch = orderStr.match(/(\d+)\s*mg/);
       let dose = doseMatch ? parseInt(doseMatch[1]) : null;
-      let route = orderStr.includes("po") ? "po" : "";
+
+      // Define routes with their possible variations
+      const routes = [
+        { standard: "po", variations: ["po", "oral"] },
+        { standard: "sl", variations: ["sl", "sublingual"] },
+        { standard: "buccal", variations: ["buccal"] },
+        { standard: "pr", variations: ["pr", "rectal"] },
+        { standard: "ng", variations: ["ng", "nasogastric"] },
+        { standard: "og", variations: ["og", "orogastric"] },
+        { standard: "gastrostomy", variations: ["gastrostomy"] },
+        { standard: "jejunostomy", variations: ["jejunostomy"] },
+        { standard: "iv", variations: ["iv", "intravenous"] },
+        { standard: "im", variations: ["im", "intramuscular"] },
+        { standard: "subq", variations: ["subq", "sc", "subcutaneous"] },
+        { standard: "id", variations: ["id", "intradermal"] },
+        { standard: "io", variations: ["io", "intraosseous"] },
+        { standard: "intrathecal", variations: ["intrathecal"] },
+        { standard: "epidural", variations: ["epidural"] },
+        { standard: "topical", variations: ["topical"] },
+        { standard: "transdermal", variations: ["transdermal"] },
+        { standard: "ophthalmic", variations: ["ophthalmic"] },
+        { standard: "otic", variations: ["otic"] },
+        { standard: "nasal", variations: ["nasal"] },
+        { standard: "vaginal", variations: ["vaginal"] },
+        { standard: "urethral", variations: ["urethral"] },
+        { standard: "intrauterine", variations: ["intrauterine"] },
+        { standard: "inhalation", variations: ["inhalation", "mdi", "dpi", "nebulized"] },
+        { standard: "intranasal", variations: ["intranasal"] },
+        { standard: "intraperitoneal", variations: ["intraperitoneal"] },
+        { standard: "intraarticular", variations: ["intraarticular", "intra-articular"] },
+        { standard: "intrapleural", variations: ["intrapleural"] },
+        { standard: "intravesical", variations: ["intravesical"] },
+        { standard: "implantable", variations: ["implantable"] }
+      ];
+
+      let route = "";
+      for (const routeDef of routes) {
+        for (const variation of routeDef.variations) {
+          if (orderStr.includes(variation)) {
+            route = routeDef.standard;
+            orderStr = orderStr.replace(new RegExp(`\\b${variation}\\b`, 'i'), '');
+            break;
+          }
+        }
+        if (route) break;
+      }
+
       const freqMapping = {
         "every other morning": "every other morning",
         "every other afternoon": "every other afternoon",
@@ -647,12 +693,11 @@
           break;
         }
       }
+
       if (doseMatch) {
         orderStr = orderStr.replace(doseMatch[0], '');
       }
-      if (route) {
-        orderStr = orderStr.replace(/\bpo\b/, '');
-      }
+
       let name = orderStr.trim();
       return { name, dose, route, frequency };
     }
