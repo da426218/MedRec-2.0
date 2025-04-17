@@ -431,7 +431,7 @@
 
     const commonMedications = [
       { generic: "acetaminophen", brands: ["Tylenol"] },
-      { generic: "albuterol", brands: ["Ventolin", "ProAir", "Proventil"] },
+      { generic: "albuterol", brands: ["Ventolin", "ProAir", "Proventil", "salbutamol"] },
       { generic: "allopurinol", brands: ["Zyloprim"] },
       { generic: "alprazolam", brands: ["Xanax"] },
       { generic: "amlodipine", brands: ["Norvasc"] },
@@ -442,6 +442,7 @@
       { generic: "azithromycin", brands: ["Zithromax", "Z-Pak"] },
       { generic: "bisoprolol", brands: ["Zebeta"] },
       { generic: "budesonide", brands: ["Pulmicort", "Rhinocort"] },
+      { generic: "cefuroxime", brands: ["Ceftin", "Zinacef"] },
       { generic: "cephalexin", brands: ["Keflex"] },
       { generic: "cetirizine", brands: ["Zyrtec"] },
       { generic: "ciprofloxacin", brands: ["Cipro"] },
@@ -456,6 +457,7 @@
       { generic: "enalapril", brands: ["Vasotec"] },
       { generic: "escitalopram", brands: ["Lexapro"] },
       { generic: "esomeprazole", brands: ["Nexium"] },
+      { generic: "ferrous sulfate", brands: [] },
       { generic: "fluoxetine", brands: ["Prozac"] },
       { generic: "fluticasone", brands: ["Flonase", "Flovent"] },
       { generic: "furosemide", brands: ["Lasix"] },
@@ -475,6 +477,7 @@
       { generic: "lisinopril", brands: ["Prinivil", "Zestril"] },
       { generic: "lorazepam", brands: ["Ativan"] },
       { generic: "losartan", brands: ["Cozaar"] },
+      { generic: "melatonin", brands: [] },
       { generic: "meloxicam", brands: ["Mobic"] },
       { generic: "metformin", brands: ["Glucophage"] },
       { generic: "methotrexate", brands: ["Trexall"] },
@@ -820,10 +823,13 @@
           }
         }
 
-        // Handle PRN (as needed)
-        if (orderStr.includes('prn')) {
+        // Handle PRN ("as needed" or "prn")
+        if (/\bprn\b/i.test(orderStr) || /as needed/i.test(orderStr)) {
           order.prn = true;
-          orderStr = orderStr.replace(/\bprn\b/i, '');
+          orderStr = orderStr
+            .replace(/\bprn\b/ig, "")
+            .replace(/as needed/ig, "")
+            .trim();
         }
 
         // Handle "every X hours" patterns
@@ -1059,7 +1065,7 @@
       } else {
         showError("");
       }
-      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
+      document.getElementById('photo2-status').textContent = photo2Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
       document.getElementById('photo2-compare').disabled = false;
       updatePreview('photo2-preview', photo2Files);
       document.getElementById('initial-photo2-options').style.display = 'none';
