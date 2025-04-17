@@ -313,7 +313,7 @@
         <p class="disclaimer-text">
           <strong>HIPAA Warning: DO NOT UPLOAD IMAGES CONTAINING IDENTIFIABLE INFORMATION.</strong> This app is intended for use by personnel authorized to handle Protected Health Information (PHI). Users are responsible for ensuring compliance with HIPAA regulations, including safeguarding resident/patient data and restricting access to authorized personnel only. Unauthorized disclosure of PHI may result in disciplinary action and legal consequences.
 
-<em>Note:</em> MedRec 2.0 is a support tool and does not guarantee 100% accuracy in identifying medication differences. Final verification must be completed by qualified clinical personnel.
+          <em>Note:</em> MedRec 2.0 is a support tool and does not guarantee 100% accuracy in identifying medication differences. Final verification must be completed by qualified clinical personnel.
         </p>
       </div>
       <div class="disclaimer-actions">
@@ -525,6 +525,26 @@
       { generic: "isosorbide dinitrate", brands: [] }
     ];
 
+    const unitVariants = {
+      tablet: ['tab', 'tabs', 'tablet', 'tablets', 'tab.', 'tablet.'],
+      capsule: ['cap', 'caps', 'capsule', 'capsules', 'caplet', 'cap.', 'gelcap', 'softgel', 'gel', 'sprinkle', 'sprinkles'],
+      spray: ['spray', 'sprays'],
+      puff: ['puff', 'puffs'],
+      drop: ['drop', 'drops', 'gtt', 'gtts', 'gt', 'drp'],
+      patch: ['patch', 'patches', 'transdermal patch'],
+      injection: ['shot', 'syringe', 'pen', 'inj', 'auto-injector'],
+      lozenge: ['lozenge', 'loz', 'troche'],
+      suppository: ['supp', 'suppositories'],
+      solution: ['solution', 'sol', 'liq', 'liquid', 'oral sol'],
+      ointment: ['ointment', 'oint', 'ung', 'cream', 'gel'],
+      inhalation: ['inhaler', 'inh', 'neb', 'nebulizer', 'mdi', 'dpi'],
+      unit: ['U', 'IU', 'units'],
+      mL: ['ml', 'mL', 'cc'],
+      mcg: ['μg', 'mcg', 'ug'],
+      mg: ['mg'],
+      g: ['g', 'gram', 'grams']
+    };
+
     let photo1Files = [];
     let photo2Files = [];
     let meds1 = [], meds2 = [];
@@ -595,7 +615,13 @@
     }
 
     function normalizeText(str) {
-      return str.toLowerCase()
+      let text = str.toLowerCase()
+        .replace(/\bone\b/g, '1')
+        .replace(/\btwo\b/g, '2')
+        .replace(/\bthree\b/g, '3')
+        .replace(/\bfour\b/g, '4')
+        .replace(/\bfive\b/g, '5');
+      return text
         .replace(/p\.?o\.?/g, 'po')
         .replace(/q\.?d\.?/g, 'daily')
         .replace(/b\.?i\.?d\.?/g, 'twice daily')
@@ -626,149 +652,197 @@
     function parseOrder(orderStr) {
       orderStr = normalizeText(orderStr);
 
-      // Extract dose (number and unit)
-      let doseMatch = orderStr.match(/(\d+(?:\.\d+)?)\s*([μmcgnmLgtspbIumeqmol%\/]+)?/i);
-      let dose = doseMatch ? { value: parseFloat(doseMatch[1]), unit: doseMatch[2] || '' } : { value: null, unit: '' };
-
-      // Define units and their normalized forms
-      const units = {
-        'mcg': ['mcg', 'μg'],
-        'mg': ['mg'],
-        'g': ['g'],
-        'ng': ['ng'],
-        'mL': ['mL', 'ml'],
-        'L': ['L'],
-        'tsp': ['tsp', 'teaspoon'],
-        'tbsp': ['tbsp', 'tablespoon'],
-        'drop': ['drop', 'drops', 'gtt'],
-        'spray': ['spray', 'sprays'],
-        'unit': ['unit', 'units'],
-        'IU': ['IU', 'international units'],
-        'mEq': ['mEq', 'milliequivalents'],
-        'mmol': ['mmol', 'millimoles'],
-        'mg/mL': ['mg/mL'],
-        'mcg/mL': ['mcg/mL'],
-        '%': ['%'],
-        'puff': ['puff', 'puffs'],
-        'patch': ['patch', 'patches'],
-        'applicator': ['applicator', 'applicators'],
-        'ampule': ['ampule', 'ampules'],
-        'vial': ['vial', 'vials'],
-        'capsule': ['capsule', 'capsules'],
-        'tablet': ['tablet', 'tablets'],
-        'lozenge': ['lozenge', 'lozenges'],
-        'suppository': ['suppository', 'suppositories']
+      // Initialize structured fields
+      let order = {
+        drug: "",
+        dose: { value: null, unit: '', total: null },
+        route: "",
+        frequency: "",
+        prn: false
       };
 
-      // Normalize the unit
-      if (dose.unit) {
-        for (let [standard, variations] of Object.entries(units)) {
-          if (variations.includes(dose.unit)) {
-            dose.unit = standard;
-            break;
+      try {
+        // 1. Extract "sprays per nostril" first
+        const sprayPerNostril = orderStr.match(/(\d+)\s+sprays?\s+per\s+nostril/i);
+        if (sprayPerNostril) {
+          const n = parseInt(sprayPerNostril[1], 10);
+          order.dose = { value: n, unit: 'spray', total: n * 2 };
+          order.route = "nasal";
+          orderStr = orderStr.replace(sprayPerNostril[0], '').trim();
+        }
+
+        // 2. Generic unit pattern
+        const unitRegex = new RegExp(`(\\d+)\\s*(${Object.values(unitVariants).flat().join('|')})\\b`, 'i');
+        const unitMatch = orderStr.match(unitRegex);
+        if (unitMatch && !order.dose.value) {
+          const qty = parseInt(unitMatch[1], 10);
+          const rawUnit = unitMatch[2].toLowerCase();
+          const stdUnit = Object.entries(unitVariants).find(([key, arr]) => arr.includes(rawUnit))?.[0];
+          if (stdUnit) {
+            order.dose = { value: qty, unit: stdUnit, total: qty };
+            orderStr = orderStr.replace(unitMatch[0], '').trim();
+          } else {
+            console.warn('No standard unit found for:', rawUnit);
           }
         }
-      }
 
-      // Remove the dose from the order string
-      if (doseMatch) {
-        orderStr = orderStr.replace(doseMatch[0], '');
-      }
-
-      // Define routes with their possible variations
-      const routes = [
-        { standard: "po", variations: ["po", "oral"] },
-        { standard: "sl", variations: ["sl", "sublingual"] },
-        { standard: "buccal", variations: ["buccal"] },
-        { standard: "pr", variations: ["pr", "rectal"] },
-        { standard: "ng", variations: ["ng", "nasogastric"] },
-        { standard: "og", variations: ["og", "orogastric"] },
-        { standard: "gastrostomy", variations: ["gastrostomy"] },
-        { standard: "jejunostomy", variations: ["jejunostomy"] },
-        { standard: "iv", variations: ["iv", "intravenous"] },
-        { standard: "im", variations: ["im", "intramuscular"] },
-        { standard: "subq", variations: ["subq", "sc", "subcutaneous"] },
-        { standard: "id", variations: ["id", "intradermal"] },
-        { standard: "io", variations: ["io", "intraosseous"] },
-        { standard: "intrathecal", variations: ["intrathecal"] },
-        { standard: "epidural", variations: ["epidural"] },
-        { standard: "topical", variations: ["topical"] },
-        { standard: "transdermal", variations: ["transdermal"] },
-        { standard: "ophthalmic", variations: ["ophthalmic"] },
-        { standard: "otic", variations: ["otic"] },
-        { standard: "nasal", variations: ["nasal"] },
-        { standard: "vaginal", variations: ["vaginal"] },
-        { standard: "urethral", variations: ["urethral"] },
-        { standard: "intrauterine", variations: ["intrauterine"] },
-        { standard: "inhalation", variations: ["inhalation", "mdi", "dpi", "nebulized"] },
-        { standard: "intranasal", variations: ["intranasal"] },
-        { standard: "intraperitoneal", variations: ["intraperitoneal"] },
-        { standard: "intraarticular", variations: ["intraarticular", "intra-articular"] },
-        { standard: "intrapleural", variations: ["intrapleural"] },
-        { standard: "intravesical", variations: ["intravesical"] },
-        { standard: "implantable", variations: ["implantable"] }
-      ];
-
-      let route = "";
-      for (const routeDef of routes) {
-        for (const variation of routeDef.variations) {
-          if (orderStr.includes(variation)) {
-            route = routeDef.standard;
-            orderStr = orderStr.replace(new RegExp(`\\b${variation}\\b`, 'i'), '');
-            break;
+        // 3. Fallback to standard dose extraction
+        if (!order.dose.value) {
+          let leadingDoseMatch = orderStr.match(/(\d+)\s+(sprays|spray|capsules|capsule|puffs|puff|drops|drop|[μmcgnmLgtspbIumeqmol%\/]+)/i);
+          if (leadingDoseMatch) {
+            order.dose = {
+              value: parseFloat(leadingDoseMatch[1]),
+              unit: leadingDoseMatch[2] || '',
+              total: parseFloat(leadingDoseMatch[1])
+            };
+            orderStr = orderStr.replace(leadingDoseMatch[0], '').trim();
           }
         }
-        if (route) break;
-      }
 
-      // Handle PRN (as needed)
-      let prn = false;
-      if (orderStr.includes('prn')) {
-        prn = true;
-        orderStr = orderStr.replace(/\bprn\b/i, '');
-      }
+        // Adjust for "per nostril", "per eye", "per ear" if not already handled
+        if (order.dose.value && !order.sprayCountPerNostril && (orderStr.match(/\bper nostril\b/i) || orderStr.match(/\bper eye\b/i) || orderStr.match(/\bper ear\b/i))) {
+          order.dose.total = order.dose.value * 2;
+          orderStr = orderStr.replace(/\bper nostril\b/i, '').replace(/\bper eye\b/i, '').replace(/\bper ear\b/i, '').trim();
+        }
 
-      // Handle "every X hours" patterns
-      let frequency = "";
-      const everyHoursMatch = orderStr.match(/every\s+(\d+)\s*hours/i);
-      if (everyHoursMatch) {
-        const hours = parseInt(everyHoursMatch[1]);
-        frequency = `q${hours}h`;
-        orderStr = orderStr.replace(everyHoursMatch[0], '');
-      } else {
-        // Handle other frequency patterns
-        const freqMapping = {
-          "every other morning": "every other morning",
-          "every other afternoon": "every other afternoon",
-          "every other evening": "every other evening",
-          "every other night": "every other night",
-          "every morning": "every morning",
-          "every afternoon": "every afternoon",
-          "every evening": "every evening",
-          "every night": "every night",
-          "once daily": "daily",
-          "daily": "daily",
-          "qd": "daily",
-          "q.d.": "daily",
-          "twice daily": "twice daily",
-          "bid": "twice daily",
-          "tid": "three times daily",
-          "qid": "four times daily",
-          "qhs": "at bedtime",
-          "stat": "immediately"
+        // Normalize the unit
+        const units = {
+          'mcg': ['mcg', 'μg'],
+          'mg': ['mg'],
+          'g': ['g'],
+          'ng': ['ng'],
+          'mL': ['mL', 'ml'],
+          'L': ['L'],
+          'tsp': ['tsp', 'teaspoon'],
+          'tbsp': ['tbsp', 'tablespoon'],
+          'drop': ['drop', 'drops', 'gtt'],
+          'spray': ['spray', 'sprays'],
+          'puff': ['puff', 'puffs'],
+          'unit': ['unit', 'units'],
+          'IU': ['IU', 'international units'],
+          'mEq': ['mEq', 'milliequivalents'],
+          'mmol': ['mmol', 'millimoles'],
+          'mg/mL': ['mg/mL'],
+          'mcg/mL': ['mcg/mL'],
+          '%': ['%'],
+          'patch': ['patch', 'patches'],
+          'applicator': ['applicator', 'applicators'],
+          'ampule': ['ampule', 'ampules'],
+          'vial': ['vial', 'vials'],
+          'capsule': ['capsule', 'capsules'],
+          'tablet': ['tablet', 'tablets'],
+          'lozenge': ['lozenge', 'lozenges'],
+          'suppository': ['suppository', 'suppositories']
         };
-        let freqKeys = Object.keys(freqMapping).sort((a, b) => b.length - a.length);
-        for (let key of freqKeys) {
-          if (orderStr.includes(key)) {
-            frequency = freqMapping[key];
-            orderStr = orderStr.replace(key, '');
-            break;
+        if (order.dose.unit) {
+          for (let [standard, variations] of Object.entries(units)) {
+            if (variations.includes(order.dose.unit)) {
+              order.dose.unit = standard;
+              break;
+            }
           }
         }
-      }
 
-      let name = orderStr.trim();
-      return { name, dose, route, frequency, prn };
+        // Define routes with their possible variations
+        const routes = [
+          { standard: "po", variations: ["po", "oral"] },
+          { standard: "sl", variations: ["sl", "sublingual"] },
+          { standard: "buccal", variations: ["buccal"] },
+          { standard: "pr", variations: ["pr", "rectal"] },
+          { standard: "ng", variations: ["ng", "nasogastric"] },
+          { standard: "og", variations: ["og", "orogastric"] },
+          { standard: "gastrostomy", variations: ["gastrostomy"] },
+          { standard: "jejunostomy", variations: ["jejunostomy"] },
+          { standard: "iv", variations: ["iv", "intravenous"] },
+          { standard: "im", variations: ["im", "intramuscular"] },
+          { standard: "subq", variations: ["subq", "sc", "subcutaneous"] },
+          { standard: "id", variations: ["id", "intradermal"] },
+          { standard: "io", variations: ["io", "intraosseous"] },
+          { standard: "intrathecal", variations: ["intrathecal"] },
+          { standard: "epidural", variations: ["epidural"] },
+          { standard: "topical", variations: ["topical"] },
+          { standard: "transdermal", variations: ["transdermal"] },
+          { standard: "ophthalmic", variations: ["ophthalmic"] },
+          { standard: "otic", variations: ["otic"] },
+          { standard: "nasal", variations: ["nasal"] },
+          { standard: "vaginal", variations: ["vaginal"] },
+          { standard: "urethral", variations: ["urethral"] },
+          { standard: "intrauterine", variations: ["intrauterine"] },
+          { standard: "inhalation", variations: ["inhalation", "mdi", "dpi", "nebulized"] },
+          { standard: "intranasal", variations: ["intranasal"] },
+          { standard: "intraperitoneal", variations: ["intraperitoneal"] },
+          { standard: "intraarticular", variations: ["intraarticular", "intra-articular"] },
+          { standard: "intrapleural", variations: ["intrapleural"] },
+          { standard: "intravesical", variations: ["intravesical"] },
+          { standard: "implantable", variations: ["implantable"] }
+        ];
+
+        if (!order.route) {
+          for (const routeDef of routes) {
+            for (const variation of routeDef.variations) {
+              if (orderStr.includes(variation)) {
+                order.route = routeDef.standard;
+                orderStr = orderStr.replace(new RegExp(`\\b${variation}\\b`, 'i'), '');
+                break;
+              }
+            }
+            if (order.route) break;
+          }
+        }
+
+        // Handle PRN (as needed)
+        if (orderStr.includes('prn')) {
+          order.prn = true;
+          orderStr = orderStr.replace(/\bprn\b/i, '');
+        }
+
+        // Handle "every X hours" patterns
+        const everyHoursMatch = orderStr.match(/every\s+(\d+)\s*hours/i);
+        if (everyHoursMatch) {
+          const hours = parseInt(everyHoursMatch[1]);
+          order.frequency = `q${hours}h`;
+          orderStr = orderStr.replace(everyHoursMatch[0], '');
+        } else {
+          const freqMapping = {
+            "every other morning": "every other morning",
+            "every other afternoon": "every other afternoon",
+            "every other evening": "every other evening",
+            "every other night": "every other night",
+            "every morning": "every morning",
+            "every afternoon": "every afternoon",
+            "every evening": "every evening",
+            "every night": "every night",
+            "once daily": "daily",
+            "daily": "daily",
+            "qd": "daily",
+            "q.d.": "daily",
+            "twice daily": "twice daily",
+            "bid": "twice daily",
+            "tid": "three times daily",
+            "qid": "four times daily",
+            "qhs": "at bedtime",
+            "stat": "immediately"
+          };
+          let freqKeys = Object.keys(freqMapping).sort((a, b) => b.length - a.length);
+          for (let key of freqKeys) {
+            if (orderStr.includes(key)) {
+              order.frequency = freqMapping[key];
+              orderStr = orderStr.replace(key, '');
+              break;
+            }
+          }
+        }
+
+        order.drug = orderStr.trim() || orderStr.split(/\s+/)[0] || ''; // Fallback to first word if drug is empty
+
+        // Debugging for all orders
+        console.log('Parsed order:', { original: orderStr, parsed: order });
+
+        return order;
+      } catch (e) {
+        console.error('Error parsing order:', orderStr, e);
+        return { drug: orderStr || '', dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false };
+      }
     }
 
     function levenshteinDistance(a, b) {
@@ -795,11 +869,21 @@
     }
 
     function ordersAreEqual(a, b) {
-      if (a.dose.value !== b.dose.value || a.dose.unit !== b.dose.unit) return false;
+      // Compare drug name
+      const normalizedDrugA = normalizeMedicationName(a.drug);
+      const normalizedDrugB = normalizeMedicationName(b.drug);
+      const drugSimilarity = normalizedDrugA && normalizedDrugB ? similarity(normalizedDrugA, normalizedDrugB) : (normalizedDrugA === normalizedDrugB ? 1 : 0);
+      if (drugSimilarity < 0.85) return false;
+
+      // Compare dose
+      const totalDoseA = a.dose.total !== null ? a.dose.total : a.dose.value;
+      const totalDoseB = b.dose.total !== null ? b.dose.total : b.dose.value;
+      if (totalDoseA !== totalDoseB || a.dose.unit !== b.dose.unit) return false;
+
       if (a.route !== b.route) return false;
       if (a.prn !== b.prn) return false;
 
-      // Handle "every X hours" frequencies (e.g., q6h vs q8h)
+      // Handle "every X hours" frequencies
       const qHoursMatchA = a.frequency.match(/^q(\d+)h$/);
       const qHoursMatchB = b.frequency.match(/^q(\d+)h$/);
       if (qHoursMatchA && qHoursMatchB) {
@@ -807,15 +891,10 @@
         const hoursB = parseInt(qHoursMatchB[1]);
         if (hoursA !== hoursB) return false;
       } else {
-        // For non-qXh frequencies, use similarity comparison
         const freqSimilarity = a.frequency && b.frequency ? similarity(a.frequency, b.frequency) : (a.frequency === b.frequency ? 1 : 0);
         if (freqSimilarity < 0.85) return false;
       }
 
-      const normalizedNameA = normalizeMedicationName(a.name);
-      const normalizedNameB = normalizeMedicationName(b.name);
-      const nameSimilarity = normalizedNameA && normalizedNameB ? similarity(normalizedNameA, normalizedNameB) : (normalizedNameA === normalizedNameB ? 1 : 0);
-      if (nameSimilarity < 0.85) return false;
       return true;
     }
 
@@ -843,8 +922,8 @@
     }
 
     function isCriticalOrder(parsedOrder) {
-      if (!parsedOrder.name) return false;
-      const normalizedName = normalizeMedicationName(parsedOrder.name);
+      if (!parsedOrder.drug) return false;
+      const normalizedName = normalizeMedicationName(parsedOrder.drug);
       return criticalMeds.some(med => normalizedName.includes(med));
     }
 
@@ -994,15 +1073,28 @@
       }
       hasTextInput1 = true;
       let lines = text
-        .split(/[\n,]+/)
+        .split(/\r?\n+/)
         .map(line => cleanLine(line))
         .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+      console.log('Raw lines after filtering:', lines); // Debug log
       lines = [...new Set(lines)];
       if (lines.length === 0) {
         showError('No valid medication orders detected in the pasted list. Please try again.');
         return;
       }
-      meds1 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
+      meds1 = lines.map(med => {
+        try {
+          const parsed = parseOrder(med);
+          if (!parsed || typeof parsed !== 'object') {
+            console.warn('Parse failed for:', med, 'returning default object');
+            return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
+          }
+          return { original: med, parsed: parsed };
+        } catch (e) {
+          console.error('Error parsing line:', med, e);
+          return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
+        }
+      });
       console.log('Medications from First List (Text Input):', meds1);
       document.getElementById('photo1-status').textContent = 'Proceeding to second list...';
       document.getElementById('initial-photo1-options').style.display = 'none';
@@ -1020,15 +1112,28 @@
       }
       hasTextInput2 = true;
       let lines = text
-        .split(/[\n,]+/)
+        .split(/\r?\n+/)
         .map(line => cleanLine(line))
         .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+      console.log('Raw lines after filtering:', lines); // Debug log
       lines = [...new Set(lines)];
       if (lines.length === 0) {
         showError('No valid medication orders detected in the pasted list. Please try again.');
         return;
       }
-      meds2 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
+      meds2 = lines.map(med => {
+        try {
+          const parsed = parseOrder(med);
+          if (!parsed || typeof parsed !== 'object') {
+            console.warn('Parse failed for:', med, 'returning default object');
+            return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
+          }
+          return { original: med, parsed: parsed };
+        } catch (e) {
+          console.error('Error parsing line:', med, e);
+          return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
+        }
+      });
       console.log('Medications from Second List (Text Input):', meds2);
       document.getElementById('photo2-status').textContent = 'Comparing lists...';
       document.getElementById('initial-photo2-options').style.display = 'none';
@@ -1048,16 +1153,29 @@
         try {
           let combinedText = await processFiles(photo1Files);
           let lines = combinedText
-            .split(/[\n,]+/)
+            .split(/\r?\n+/)
             .map(line => cleanLine(line))
             .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+          console.log('Raw lines from OCR:', lines); // Debug log
           lines = [...new Set(lines)];
           if (lines.length === 0) {
             hideLoading();
             showError('No valid medication orders detected in the first photos. Please try again.');
             return;
           }
-          meds1 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
+          meds1 = lines.map(med => {
+            try {
+              const parsed = parseOrder(med);
+              if (!parsed || typeof parsed !== 'object') {
+                console.warn('Parse failed for:', med, 'returning default object');
+                return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
+              }
+              return { original: med, parsed: parsed };
+            } catch (e) {
+              console.error('Error parsing line:', med, e);
+              return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
+            }
+          });
           console.log('Medications from First List:', meds1);
           hideLoading();
           showScreen('photo2-screen');
@@ -1079,16 +1197,29 @@
         try {
           let combinedText = await processFiles(photo2Files);
           let lines = combinedText
-            .split(/[\n,]+/)
+            .split(/\r?\n+/)
             .map(line => cleanLine(line))
             .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+          console.log('Raw lines from OCR:', lines); // Debug log
           lines = [...new Set(lines)];
           if (lines.length === 0) {
             hideLoading();
             showError('No valid medication orders detected in the second photos. Please try again.');
             return;
           }
-          meds2 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
+          meds2 = lines.map(med => {
+            try {
+              const parsed = parseOrder(med);
+              if (!parsed || typeof parsed !== 'object') {
+                console.warn('Parse failed for:', med, 'returning default object');
+                return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
+              }
+              return { original: med, parsed: parsed };
+            } catch (e) {
+              console.error('Error parsing line:', med, e);
+              return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
+            }
+          });
           console.log('Medications from Second List:', meds2);
           hideLoading();
           compareAndShowResults();
