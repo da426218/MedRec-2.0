@@ -311,7 +311,9 @@
       <h2>Disclaimer</h2>
       <div class="card">
         <p class="disclaimer-text">
-          <strong>***HIPAA Warning***: DO NOT UPLOAD IMAGES CONTAINING IDENTIFIABLE INFORMATION.</strong> This app is intended for use by personnel authorized to handle Protected Health Information (PHI). Users are responsible for ensuring compliance with HIPAA regulations, including safeguarding resident/patient data and restricting access to authorized personnel only. Unauthorized disclosure of PHI may result in disciplinary action and legal consequences.
+          <strong>HIPAA Warning: DO NOT UPLOAD IMAGES CONTAINING IDENTIFIABLE INFORMATION.</strong> This app is intended for use by personnel authorized to handle Protected Health Information (PHI). Users are responsible for ensuring compliance with HIPAA regulations, including safeguarding resident/patient data and restricting access to authorized personnel only. Unauthorized disclosure of PHI may result in disciplinary action and legal consequences.
+
+<em>Note:</em> MedRec 2.0 is a support tool and does not guarantee 100% accuracy in identifying medication differences. Final verification must be completed by qualified clinical personnel.
         </p>
       </div>
       <div class="disclaimer-actions">
@@ -597,7 +599,9 @@
         .replace(/p\.?o\.?/g, 'po')
         .replace(/q\.?d\.?/g, 'daily')
         .replace(/b\.?i\.?d\.?/g, 'twice daily')
-        .replace(/hrs/g, 'hours') // Handle shorthand "hrs" as "hours"
+        .replace(/hrs/g, 'hours')
+        .replace(/μg/g, 'mcg')
+        .replace(/ml/g, 'mL')
         .replace(/\s+/g, ' ')
         .replace(/[^\w\s\/-]/g, '')
         .trim();
@@ -621,8 +625,55 @@
 
     function parseOrder(orderStr) {
       orderStr = normalizeText(orderStr);
-      let doseMatch = orderStr.match(/(\d+)\s*mg/);
-      let dose = doseMatch ? parseInt(doseMatch[1]) : null;
+
+      // Extract dose (number and unit)
+      let doseMatch = orderStr.match(/(\d+(?:\.\d+)?)\s*([μmcgnmLgtspbIumeqmol%\/]+)?/i);
+      let dose = doseMatch ? { value: parseFloat(doseMatch[1]), unit: doseMatch[2] || '' } : { value: null, unit: '' };
+
+      // Define units and their normalized forms
+      const units = {
+        'mcg': ['mcg', 'μg'],
+        'mg': ['mg'],
+        'g': ['g'],
+        'ng': ['ng'],
+        'mL': ['mL', 'ml'],
+        'L': ['L'],
+        'tsp': ['tsp', 'teaspoon'],
+        'tbsp': ['tbsp', 'tablespoon'],
+        'drop': ['drop', 'drops', 'gtt'],
+        'spray': ['spray', 'sprays'],
+        'unit': ['unit', 'units'],
+        'IU': ['IU', 'international units'],
+        'mEq': ['mEq', 'milliequivalents'],
+        'mmol': ['mmol', 'millimoles'],
+        'mg/mL': ['mg/mL'],
+        'mcg/mL': ['mcg/mL'],
+        '%': ['%'],
+        'puff': ['puff', 'puffs'],
+        'patch': ['patch', 'patches'],
+        'applicator': ['applicator', 'applicators'],
+        'ampule': ['ampule', 'ampules'],
+        'vial': ['vial', 'vials'],
+        'capsule': ['capsule', 'capsules'],
+        'tablet': ['tablet', 'tablets'],
+        'lozenge': ['lozenge', 'lozenges'],
+        'suppository': ['suppository', 'suppositories']
+      };
+
+      // Normalize the unit
+      if (dose.unit) {
+        for (let [standard, variations] of Object.entries(units)) {
+          if (variations.includes(dose.unit)) {
+            dose.unit = standard;
+            break;
+          }
+        }
+      }
+
+      // Remove the dose from the order string
+      if (doseMatch) {
+        orderStr = orderStr.replace(doseMatch[0], '');
+      }
 
       // Define routes with their possible variations
       const routes = [
@@ -699,7 +750,12 @@
           "daily": "daily",
           "qd": "daily",
           "q.d.": "daily",
-          "twice daily": "twice daily"
+          "twice daily": "twice daily",
+          "bid": "twice daily",
+          "tid": "three times daily",
+          "qid": "four times daily",
+          "qhs": "at bedtime",
+          "stat": "immediately"
         };
         let freqKeys = Object.keys(freqMapping).sort((a, b) => b.length - a.length);
         for (let key of freqKeys) {
@@ -709,10 +765,6 @@
             break;
           }
         }
-      }
-
-      if (doseMatch) {
-        orderStr = orderStr.replace(doseMatch[0], '');
       }
 
       let name = orderStr.trim();
@@ -743,7 +795,7 @@
     }
 
     function ordersAreEqual(a, b) {
-      if (a.dose !== b.dose) return false;
+      if (a.dose.value !== b.dose.value || a.dose.unit !== b.dose.unit) return false;
       if (a.route !== b.route) return false;
       if (a.prn !== b.prn) return false;
 
