@@ -652,7 +652,7 @@
     function parseOrder(orderStr) {
       orderStr = normalizeText(orderStr);
 
-      // Initialize structured fields
+      // Initialize structured fields first
       let order = {
         drug: "",
         dose: { value: null, unit: '', total: null },
@@ -662,6 +662,34 @@
       };
 
       try {
+        // Build a flat list of all unit synonyms
+        const allUnits = Object.values(unitVariants).flat();
+
+        // Find every occurrence of "<number> <unit>" for those variants
+        let unitMatches = [];
+        for (let u of allUnits) {
+          const re = new RegExp(`(\\d+)\\s*${u}\\b`, 'ig');
+          let m;
+          while ((m = re.exec(orderStr)) !== null) {
+            unitMatches.push({ idx: m.index, qty: +m[1], rawUnit: u });
+          }
+        }
+
+        // If we found any, pick the one that comes last in the line
+        if (unitMatches.length) {
+          const best = unitMatches.reduce((a, b) => b.idx > a.idx ? b : a);
+          const stdUnit = Object.entries(unitVariants)
+            .find(([std, arr]) => arr.includes(best.rawUnit))?.[0];
+          if (stdUnit) {
+            order.dose = { value: best.qty, unit: stdUnit, total: best.qty };
+            orderStr = orderStr.replace(new RegExp(`${best.qty}\\s*${best.rawUnit}\\b`, 'i'), '').trim();
+          } else {
+            console.warn('No standard unit found for raw unit:', best.rawUnit, 'in:', orderStr);
+          }
+        } else {
+          console.warn('No unit matches found in:', orderStr);
+        }
+
         // 1. Extract "sprays per nostril" first
         const sprayPerNostril = orderStr.match(/(\d+)\s+sprays?\s+per\s+nostril/i);
         if (sprayPerNostril) {
@@ -682,7 +710,7 @@
             order.dose = { value: qty, unit: stdUnit, total: qty };
             orderStr = orderStr.replace(unitMatch[0], '').trim();
           } else {
-            console.warn('No standard unit found for:', rawUnit);
+            console.warn('No standard unit found for:', rawUnit, 'in:', orderStr);
           }
         }
 
@@ -696,6 +724,8 @@
               total: parseFloat(leadingDoseMatch[1])
             };
             orderStr = orderStr.replace(leadingDoseMatch[0], '').trim();
+          } else {
+            console.warn('No leading dose match found in:', orderStr);
           }
         }
 
@@ -833,14 +863,14 @@
           }
         }
 
-        order.drug = orderStr.trim() || orderStr.split(/\s+/)[0] || ''; // Fallback to first word if drug is empty
+        order.drug = orderStr.trim() || orderStr.split(/\s+/)[0] || '';
 
         // Debugging for all orders
         console.log('Parsed order:', { original: orderStr, parsed: order });
 
         return order;
       } catch (e) {
-        console.error('Error parsing order:', orderStr, e);
+        console.error('Error parsing order:', orderStr, e.stack || e);
         return { drug: orderStr || '', dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false };
       }
     }
@@ -1091,7 +1121,7 @@
           }
           return { original: med, parsed: parsed };
         } catch (e) {
-          console.error('Error parsing line:', med, e);
+          console.error('Error parsing line:', med, e.stack || e);
           return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
         }
       });
@@ -1130,7 +1160,7 @@
           }
           return { original: med, parsed: parsed };
         } catch (e) {
-          console.error('Error parsing line:', med, e);
+          console.error('Error parsing line:', med, e.stack || e);
           return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
         }
       });
@@ -1172,7 +1202,7 @@
               }
               return { original: med, parsed: parsed };
             } catch (e) {
-              console.error('Error parsing line:', med, e);
+              console.error('Error parsing line:', med, e.stack || e);
               return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
             }
           });
@@ -1216,7 +1246,7 @@
               }
               return { original: med, parsed: parsed };
             } catch (e) {
-              console.error('Error parsing line:', med, e);
+              console.error('Error parsing line:', med, e.stack || e);
               return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
             }
           });
