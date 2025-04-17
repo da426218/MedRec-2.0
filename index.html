@@ -597,6 +597,7 @@
         .replace(/p\.?o\.?/g, 'po')
         .replace(/q\.?d\.?/g, 'daily')
         .replace(/b\.?i\.?d\.?/g, 'twice daily')
+        .replace(/hrs/g, 'hours') // Handle shorthand "hrs" as "hours"
         .replace(/\s+/g, ' ')
         .replace(/[^\w\s\/-]/g, '')
         .trim();
@@ -669,28 +670,44 @@
         if (route) break;
       }
 
-      const freqMapping = {
-        "every other morning": "every other morning",
-        "every other afternoon": "every other afternoon",
-        "every other evening": "every other evening",
-        "every other night": "every other night",
-        "every morning": "every morning",
-        "every afternoon": "every afternoon",
-        "every evening": "every evening",
-        "every night": "every night",
-        "once daily": "daily",
-        "daily": "daily",
-        "qd": "daily",
-        "q.d.": "daily",
-        "twice daily": "twice daily"
-      };
+      // Handle PRN (as needed)
+      let prn = false;
+      if (orderStr.includes('prn')) {
+        prn = true;
+        orderStr = orderStr.replace(/\bprn\b/i, '');
+      }
+
+      // Handle "every X hours" patterns
       let frequency = "";
-      let freqKeys = Object.keys(freqMapping).sort((a, b) => b.length - a.length);
-      for (let key of freqKeys) {
-        if (orderStr.includes(key)) {
-          frequency = freqMapping[key];
-          orderStr = orderStr.replace(key, '');
-          break;
+      const everyHoursMatch = orderStr.match(/every\s+(\d+)\s*hours/i);
+      if (everyHoursMatch) {
+        const hours = parseInt(everyHoursMatch[1]);
+        frequency = `q${hours}h`;
+        orderStr = orderStr.replace(everyHoursMatch[0], '');
+      } else {
+        // Handle other frequency patterns
+        const freqMapping = {
+          "every other morning": "every other morning",
+          "every other afternoon": "every other afternoon",
+          "every other evening": "every other evening",
+          "every other night": "every other night",
+          "every morning": "every morning",
+          "every afternoon": "every afternoon",
+          "every evening": "every evening",
+          "every night": "every night",
+          "once daily": "daily",
+          "daily": "daily",
+          "qd": "daily",
+          "q.d.": "daily",
+          "twice daily": "twice daily"
+        };
+        let freqKeys = Object.keys(freqMapping).sort((a, b) => b.length - a.length);
+        for (let key of freqKeys) {
+          if (orderStr.includes(key)) {
+            frequency = freqMapping[key];
+            orderStr = orderStr.replace(key, '');
+            break;
+          }
         }
       }
 
@@ -699,7 +716,7 @@
       }
 
       let name = orderStr.trim();
-      return { name, dose, route, frequency };
+      return { name, dose, route, frequency, prn };
     }
 
     function levenshteinDistance(a, b) {
@@ -728,8 +745,21 @@
     function ordersAreEqual(a, b) {
       if (a.dose !== b.dose) return false;
       if (a.route !== b.route) return false;
-      const freqSimilarity = a.frequency && b.frequency ? similarity(a.frequency, b.frequency) : (a.frequency === b.frequency ? 1 : 0);
-      if (freqSimilarity < 0.85) return false;
+      if (a.prn !== b.prn) return false;
+
+      // Handle "every X hours" frequencies (e.g., q6h vs q8h)
+      const qHoursMatchA = a.frequency.match(/^q(\d+)h$/);
+      const qHoursMatchB = b.frequency.match(/^q(\d+)h$/);
+      if (qHoursMatchA && qHoursMatchB) {
+        const hoursA = parseInt(qHoursMatchA[1]);
+        const hoursB = parseInt(qHoursMatchB[1]);
+        if (hoursA !== hoursB) return false;
+      } else {
+        // For non-qXh frequencies, use similarity comparison
+        const freqSimilarity = a.frequency && b.frequency ? similarity(a.frequency, b.frequency) : (a.frequency === b.frequency ? 1 : 0);
+        if (freqSimilarity < 0.85) return false;
+      }
+
       const normalizedNameA = normalizeMedicationName(a.name);
       const normalizedNameB = normalizeMedicationName(b.name);
       const nameSimilarity = normalizedNameA && normalizedNameB ? similarity(normalizedNameA, normalizedNameB) : (normalizedNameA === normalizedNameB ? 1 : 0);
