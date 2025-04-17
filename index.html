@@ -262,6 +262,31 @@
       top: -10px;
       z-index: 1001;
     }
+    /* New styles for text input */
+    .text-input-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      width: 100%;
+    }
+    textarea {
+      width: 100%;
+      max-width: 300px;
+      height: 100px;
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      resize: none;
+      font-family: Arial, sans-serif;
+      font-size: 0.9rem;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+    }
   </style>
 </head>
 <body>
@@ -296,17 +321,15 @@
     <!-- Photo 1 Screen -->
     <div id="photo1-screen" class="screen">
       <div class="card">
-        <h2>
-          Take or Upload First Photo(s)
-          <span class="tooltip" id="tooltip1">
-            (?)
-            <span class="tooltip-text">Tip: Crop out anything not part of the medication list</span>
-          </span>
-        </h2>
-        <p class="upload-instructions">For best results, please take a clear photo of the medication list text only. Avoid excessive background, unrelated papers, or images.</p>
+        <h2>Enter First Medication List</h2>
+        <p class="upload-instructions">You can take a photo, upload a photo, or paste your medication list below.</p>
         <div id="initial-photo1-options" class="photo-actions">
           <button onclick="document.getElementById('photo1-capture').click()">Take Photo</button>
           <button onclick="document.getElementById('photo1-upload').click()">Upload Photo</button>
+          <div class="text-input-container">
+            <textarea id="photo1-text-input" placeholder="Paste your medication list here..."></textarea>
+            <button onclick="handleTextInput1()">Submit List</button>
+          </div>
         </div>
         <div id="additional-photo1-option" class="photo-actions" style="display: none;">
           <button onclick="document.getElementById('photo1-capture2').click()">Take Another Photo</button>
@@ -318,7 +341,7 @@
       <input type="file" id="photo1-capture2" accept="image/*" capture="environment" multiple onchange="handleAdditionalPhoto1(this.files)">
       <input type="file" id="photo1-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto1(this.files)">
       <div id="photo1-preview" class="preview-container"></div>
-      <p id="photo1-status">No photo added.</p>
+      <p id="photo1-status">No photo or list added.</p>
       <p id="photo1-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Next to continue.</p>
       <div class="photo-actions">
         <button id="photo1-next" onclick="goToPhoto2()" disabled>Next</button>
@@ -328,17 +351,15 @@
     <!-- Photo 2 Screen -->
     <div id="photo2-screen" class="screen">
       <div class="card">
-        <h2>
-          Take or Upload Second Photo(s)
-          <span class="tooltip" id="tooltip2">
-            (?)
-            <span class="tooltip-text">Tip: Crop out anything not part of the medication list</span>
-          </span>
-        </h2>
-        <p class="upload-instructions">For best results, please take a clear photo of the medication list text only. Avoid excessive background, unrelated papers, or images.</p>
+        <h2>Enter Second Medication List</h2>
+        <p class="upload-instructions">You can take a photo, upload a photo, or paste your medication list below.</p>
         <div id="initial-photo2-options" class="photo-actions">
           <button onclick="document.getElementById('photo2-capture').click()">Take Photo</button>
           <button onclick="document.getElementById('photo2-upload').click()">Upload Photo</button>
+          <div class="text-input-container">
+            <textarea id="photo2-text-input" placeholder="Paste your medication list here..."></textarea>
+            <button onclick="handleTextInput2()">Submit List</button>
+          </div>
         </div>
         <div id="additional-photo2-option" class="photo-actions" style="display: none;">
           <button onclick="document.getElementById('photo2-capture2').click()">Take Another Photo</button>
@@ -350,7 +371,7 @@
       <input type="file" id="photo2-capture2" accept="image/*" capture="environment" multiple onchange="handleAdditionalPhoto2(this.files)">
       <input type="file" id="photo2-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto2(this.files)">
       <div id="photo2-preview" class="preview-container"></div>
-      <p id="photo2-status">No photo added.</p>
+      <p id="photo2-status">No photo or list added.</p>
       <p id="photo2-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Compare to continue.</p>
       <div class="photo-actions">
         <button id="photo2-compare" onclick="comparePhotos()" disabled>Compare</button>
@@ -406,7 +427,6 @@
       'atorvastatin', 'rosuvastatin', 'simvastatin'
     ].map(med => med.toLowerCase());
 
-    // Updated Common Medications List (90 entries)
     const commonMedications = [
       { generic: "acetaminophen", brands: ["Tylenol"] },
       { generic: "albuterol", brands: ["Ventolin", "ProAir", "Proventil"] },
@@ -447,7 +467,7 @@
       { generic: "insulin glargine", brands: ["Lantus", "Basaglar"] },
       { generic: "insulin lispro", brands: ["Humalog"] },
       { generic: "irbesartan", brands: ["Avapro"] },
-      { generic: "isosorbide mononitrate", brands: ["Imdur"] }, // Corrected typo from "isorbide mononitrate"
+      { generic: "isosorbide mononitrate", brands: ["Imdur"] },
       { generic: "ketorolac", brands: ["Toradol"] },
       { generic: "levothyroxine", brands: ["Synthroid", "Levoxyl"] },
       { generic: "lisinopril", brands: ["Prinivil", "Zestril"] },
@@ -485,7 +505,6 @@
       { generic: "verapamil", brands: ["Calan", "Verelan"] },
       { generic: "warfarin", brands: ["Coumadin"] },
       { generic: "zolpidem", brands: ["Ambien"] },
-      // Additional medications to reach 90 entries
       { generic: "amphetamine/dextroamphetamine", brands: ["Adderall", "Adderall XR"] },
       { generic: "alendronate", brands: ["Fosamax"] },
       { generic: "tadalafil", brands: ["Cialis"] },
@@ -507,6 +526,8 @@
     let photo1Files = [];
     let photo2Files = [];
     let meds1 = [], meds2 = [];
+    let hasTextInput1 = false; // Track if Photo 1 used text input
+    let hasTextInput2 = false; // Track if Photo 2 used text input
 
     async function processFiles(files) {
       let allText = "";
@@ -563,7 +584,6 @@
       return ratio >= 0.4;
     }
 
-    // New function to check if a line contains a known medication (generic or brand)
     function containsKnownMedication(line) {
       const lowerLine = line.toLowerCase();
       return commonMedications.some(med =>
@@ -580,6 +600,22 @@
         .replace(/\s+/g, ' ')
         .replace(/[^\w\s\/-]/g, '')
         .trim();
+    }
+
+    function normalizeMedicationName(name) {
+      if (!name) return name;
+      const lowerName = name.toLowerCase();
+      for (const med of commonMedications) {
+        if (lowerName.includes(med.generic)) {
+          return med.generic;
+        }
+        for (const brand of med.brands) {
+          if (lowerName.includes(brand.toLowerCase())) {
+            return med.generic;
+          }
+        }
+      }
+      return lowerName;
     }
 
     function parseOrder(orderStr) {
@@ -649,7 +685,9 @@
       if (a.route !== b.route) return false;
       const freqSimilarity = a.frequency && b.frequency ? similarity(a.frequency, b.frequency) : (a.frequency === b.frequency ? 1 : 0);
       if (freqSimilarity < 0.85) return false;
-      const nameSimilarity = a.name && b.name ? similarity(a.name, b.name) : (a.name === b.name ? 1 : 0);
+      const normalizedNameA = normalizeMedicationName(a.name);
+      const normalizedNameB = normalizeMedicationName(b.name);
+      const nameSimilarity = normalizedNameA && normalizedNameB ? similarity(normalizedNameA, normalizedNameB) : (normalizedNameA === normalizedNameB ? 1 : 0);
       if (nameSimilarity < 0.85) return false;
       return true;
     }
@@ -679,7 +717,8 @@
 
     function isCriticalOrder(parsedOrder) {
       if (!parsedOrder.name) return false;
-      return criticalMeds.some(med => parsedOrder.name.includes(med));
+      const normalizedName = normalizeMedicationName(parsedOrder.name);
+      return criticalMeds.some(med => normalizedName.includes(med));
     }
 
     function showScreen(screenId) {
@@ -784,7 +823,7 @@
       } else {
         showError("");
       }
-      document.getElementById('photo2-status').textContent = photo2Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
+      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
       document.getElementById('photo2-compare').disabled = false;
       updatePreview('photo2-preview', photo2Files);
       document.getElementById('initial-photo2-options').style.display = 'none';
@@ -804,7 +843,7 @@
       } else {
         showError("");
       }
-      document.getElementById('photo2-status').textContent = photo2Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
+      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
       updatePreview('photo2-preview', photo2Files);
       document.getElementById('photo2-capture2').value = "";
       document.getElementById('photo2-upload2').value = "";
@@ -820,61 +859,117 @@
       });
     }
 
-    async function goToPhoto2() {
-      if (!photo1Files || photo1Files.length === 0) {
-        showError('Please select at least one photo.');
+    function handleTextInput1() {
+      const text = document.getElementById('photo1-text-input').value.trim();
+      if (!text) {
+        showError('Please paste a medication list before submitting.');
         return;
       }
-      showLoading('Processing first image(s)...');
-      try {
-        let combinedText = await processFiles(photo1Files);
-        let lines = combinedText
-          .split(/[\n,]+/)
-          .map(line => cleanLine(line))
-          .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
-        lines = [...new Set(lines)];
-        if (lines.length === 0) {
+      hasTextInput1 = true;
+      let lines = text
+        .split(/[\n,]+/)
+        .map(line => cleanLine(line))
+        .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+      lines = [...new Set(lines)];
+      if (lines.length === 0) {
+        showError('No valid medication orders detected in the pasted list. Please try again.');
+        return;
+      }
+      meds1 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
+      console.log('Medications from First List (Text Input):', meds1);
+      document.getElementById('photo1-status').textContent = 'Proceeding to second list...';
+      document.getElementById('initial-photo1-options').style.display = 'none';
+      document.getElementById('additional-photo1-option').style.display = 'none';
+      document.getElementById('photo1-prompt').style.display = 'none';
+      showError('');
+      showScreen('photo2-screen');
+    }
+
+    function handleTextInput2() {
+      const text = document.getElementById('photo2-text-input').value.trim();
+      if (!text) {
+        showError('Please paste a medication list before submitting.');
+        return;
+      }
+      hasTextInput2 = true;
+      let lines = text
+        .split(/[\n,]+/)
+        .map(line => cleanLine(line))
+        .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+      lines = [...new Set(lines)];
+      if (lines.length === 0) {
+        showError('No valid medication orders detected in the pasted list. Please try again.');
+        return;
+      }
+      meds2 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
+      console.log('Medications from Second List (Text Input):', meds2);
+      document.getElementById('photo2-status').textContent = 'Comparing lists...';
+      document.getElementById('initial-photo2-options').style.display = 'none';
+      document.getElementById('additional-photo2-option').style.display = 'none';
+      document.getElementById('photo2-prompt').style.display = 'none';
+      showError('');
+      compareAndShowResults();
+    }
+
+    async function goToPhoto2() {
+      if (!hasTextInput1 && (!photo1Files || photo1Files.length === 0)) {
+        showError('Please select at least one photo or submit a medication list.');
+        return;
+      }
+      if (!hasTextInput1) {
+        showLoading('Processing first image(s)...');
+        try {
+          let combinedText = await processFiles(photo1Files);
+          let lines = combinedText
+            .split(/[\n,]+/)
+            .map(line => cleanLine(line))
+            .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+          lines = [...new Set(lines)];
+          if (lines.length === 0) {
+            hideLoading();
+            showError('No valid medication orders detected in the first photos. Please try again.');
+            return;
+          }
+          meds1 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
+          console.log('Medications from First List:', meds1);
           hideLoading();
-          showError('No valid medication orders detected in the first photos. Please try again.');
-          return;
+          showScreen('photo2-screen');
+        } catch (err) {
+          console.error('OCR Error:', err);
+          hideLoading();
+          showError('Error extracting text from the first photos. Please try again.');
         }
-        meds1 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
-        console.log('Medications from Photo 1:', meds1);
-        hideLoading();
-        showScreen('photo2-screen');
-      } catch (err) {
-        console.error('OCR Error:', err);
-        hideLoading();
-        showError('Error extracting text from the first photos. Please try again.');
       }
     }
 
     async function comparePhotos() {
-      if (!photo2Files || photo2Files.length === 0) {
-        showError('Please select at least one photo.');
+      if (!hasTextInput2 && (!photo2Files || photo2Files.length === 0)) {
+        showError('Please select at least one photo or submit a medication list.');
         return;
       }
-      showLoading('Processing second image(s)...');
-      try {
-        let combinedText = await processFiles(photo2Files);
-        let lines = combinedText
-          .split(/[\n,]+/)
-          .map(line => cleanLine(line))
-          .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
-        lines = [...new Set(lines)];
-        if (lines.length === 0) {
+      if (!hasTextInput2) {
+        showLoading('Processing second image(s)...');
+        try {
+          let combinedText = await processFiles(photo2Files);
+          let lines = combinedText
+            .split(/[\n,]+/)
+            .map(line => cleanLine(line))
+            .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+          lines = [...new Set(lines)];
+          if (lines.length === 0) {
+            hideLoading();
+            showError('No valid medication orders detected in the second photos. Please try again.');
+            return;
+          }
+          meds2 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
+          console.log('Medications from Second List:', meds2);
           hideLoading();
-          showError('No valid medication orders detected in the second photos. Please try again.');
-          return;
+          compareAndShowResults();
+        } catch (err) {
+          console.error('OCR Error:', err);
+          hideLoading();
+          showError('Error extracting text from the second photos. Please try again.');
         }
-        meds2 = lines.map(med => ({ original: med, parsed: parseOrder(med) }));
-        console.log('Medications from Photo 2:', meds2);
-        hideLoading();
-        compareAndShowResults();
-      } catch (err) {
-        console.error('OCR Error:', err);
-        hideLoading();
-        showError('Error extracting text from the second photos. Please try again.');
       }
     }
 
@@ -976,6 +1071,8 @@
       photo2Files = [];
       meds1 = [];
       meds2 = [];
+      hasTextInput1 = false;
+      hasTextInput2 = false;
       document.getElementById('photo1-capture').value = '';
       document.getElementById('photo1-upload').value = '';
       document.getElementById('photo1-capture2').value = '';
@@ -984,8 +1081,10 @@
       document.getElementById('photo2-upload').value = '';
       document.getElementById('photo2-capture2').value = '';
       document.getElementById('photo2-upload2').value = '';
-      document.getElementById('photo1-status').textContent = 'No photo added.';
-      document.getElementById('photo2-status').textContent = 'No photo added.';
+      document.getElementById('photo1-text-input').value = '';
+      document.getElementById('photo2-text-input').value = '';
+      document.getElementById('photo1-status').textContent = 'No photo or list added.';
+      document.getElementById('photo2-status').textContent = 'No photo or list added.';
       document.getElementById('photo1-next').disabled = true;
       document.getElementById('photo2-compare').disabled = true;
       document.getElementById('results-content').innerHTML = '';
