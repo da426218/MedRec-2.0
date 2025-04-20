@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MedRec 2.0</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <style>
     /* Basic Layout */
     body {
@@ -126,12 +127,45 @@
       text-align: center;
       margin: 0.5rem 0 1rem;
     }
-    .preview-container img {
+    .thumbnail-container {
+      position: relative;
+      display: inline-block;
+      margin: 0.25rem;
+    }
+    .thumbnail-container img {
       width: 80px;
       height: auto;
-      margin: 0.25rem;
       border: 1px solid #ddd;
       border-radius: 4px;
+    }
+    /* ============== delete (close) chip ============== */
+    .delete-btn {
+      position: absolute;
+      top: -6px;                   /* sticks out a little */
+      right: -6px;
+      width: 24px;                 /* exact circle */
+      height: 24px;
+      border: none;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ff4d4d;         /* red chip */
+      color: #fff;                 /* white “X” */
+      font-size: 18px;             /* icon size */
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,.25);
+      transition: background .15s ease;
+      padding: 0;                  /* override global button padding */
+    }
+    .delete-btn:hover {
+      background: #d73838;         /* darker on hover */
+    }
+    /* make the glyph a touch smaller and centred */
+    .delete-btn .material-icons {
+      font-size: 18px;             /* icon ≈ 75 % of circle */
+      line-height: 1;
     }
     #error-message {
       color: red;
@@ -344,7 +378,7 @@
       <input type="file" id="photo1-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto1(this.files)">
       <div id="photo1-preview" class="preview-container"></div>
       <p id="photo1-status"></p>
-      <p id="photo1-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Next to continue.</p>
+      <p id="photo1-prompt" class="upload-prompt" style="display: none;"></p>
       <div class="photo-actions">
         <button id="photo1-next" onclick="goToPhoto2()" disabled>Next</button>
         <button onclick="startOver()">Start Over</button>
@@ -374,7 +408,7 @@
       <input type="file" id="photo2-upload2" accept="image/*" multiple onchange="handleAdditionalPhoto2(this.files)">
       <div id="photo2-preview" class="preview-container"></div>
       <p id="photo2-status"></p>
-      <p id="photo2-prompt" class="upload-prompt" style="display: none;">You may add another photo or click Compare to continue.</p>
+      <p id="photo2-prompt" class="upload-prompt" style="display: none;"></p>
       <div class="photo-actions">
         <button id="photo2-compare" onclick="comparePhotos()" disabled>Compare</button>
         <button onclick="startOver()">Start Over</button>
@@ -1030,15 +1064,7 @@
       } else {
         showError("");
       }
-      document.getElementById('photo1-status').textContent = photo1Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
-      document.getElementById('photo1-next').disabled = false;
-      updatePreview('photo1-preview', photo1Files);
-      document.getElementById('photo1-prompt').style.display = 'block';
-      document.getElementById('photo1-prompt').textContent = "You may add another photo or click Next to continue.";
-      document.getElementById('initial-photo1-options').style.display = 'none';
-      document.getElementById('additional-photo1-option').style.display = 'flex';
-      document.getElementById('photo1-capture').value = "";
-      document.getElementById('photo1-upload').value = "";
+      updatePhoto1UI();
     }
 
     function handleAdditionalPhoto1(files) {
@@ -1050,10 +1076,27 @@
       } else {
         showError("");
       }
-      document.getElementById('photo1-status').textContent = photo1Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
-      updatePreview('photo1-preview', photo1Files);
+      updatePhoto1UI();
       document.getElementById('photo1-capture2').value = "";
       document.getElementById('photo1-upload2').value = "";
+    }
+
+    function updatePhoto1UI() {
+      document.getElementById('photo1-status').textContent = photo1Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
+      document.getElementById('photo1-next').disabled = photo1Files.length === 0;
+      updatePreview('photo1-preview', photo1Files, 1);
+      if (photo1Files.length > 0) {
+        document.getElementById('photo1-prompt').style.display = 'block';
+        document.getElementById('photo1-prompt').textContent = `Photo ${photo1Files.length} of 5 added. Add another photo (up to 5) to complete your list, or click Next to continue.`;
+        document.getElementById('initial-photo1-options').style.display = 'none';
+        document.getElementById('additional-photo1-option').style.display = 'flex';
+      } else {
+        document.getElementById('photo1-prompt').style.display = 'none';
+        document.getElementById('initial-photo1-options').style.display = 'flex';
+        document.getElementById('additional-photo1-option').style.display = 'none';
+      }
+      document.getElementById('photo1-capture').value = "";
+      document.getElementById('photo1-upload').value = "";
     }
 
     function handlePhoto2(files) {
@@ -1065,15 +1108,7 @@
       } else {
         showError("");
       }
-      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
-      document.getElementById('photo2-compare').disabled = false;
-      updatePreview('photo2-preview', photo2Files);
-      document.getElementById('initial-photo2-options').style.display = 'none';
-      document.getElementById('additional-photo2-option').style.display = 'flex';
-      document.getElementById('photo2-prompt').style.display = 'block';
-      document.getElementById('photo2-prompt').textContent = "You may add another photo or click Compare to continue.";
-      document.getElementById('photo2-capture').value = "";
-      document.getElementById('photo2-upload').value = "";
+      updatePhoto2UI();
     }
 
     function handleAdditionalPhoto2(files) {
@@ -1085,20 +1120,55 @@
       } else {
         showError("");
       }
-      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
-      updatePreview('photo2-preview', photo2Files);
+      updatePhoto2UI();
       document.getElementById('photo2-capture2').value = "";
       document.getElementById('photo2-upload2').value = "";
     }
 
-    function updatePreview(previewId, files) {
+    function updatePhoto2UI() {
+      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
+      document.getElementById('photo2-compare').disabled = photo2Files.length === 0;
+      updatePreview('photo2-preview', photo2Files, 2);
+      if (photo2Files.length > 0) {
+        document.getElementById('photo2-prompt').style.display = 'block';
+        document.getElementById('photo2-prompt').textContent = `Photo ${photo2Files.length} of 5 added. Add another photo (up to 5) to complete your list, or click Compare to continue.`;
+        document.getElementById('initial-photo2-options').style.display = 'none';
+        document.getElementById('additional-photo2-option').style.display = 'flex';
+      } else {
+        document.getElementById('photo2-prompt').style.display = 'none';
+        document.getElementById('initial-photo2-options').style.display = 'flex';
+        document.getElementById('additional-photo2-option').style.display = 'none';
+      }
+      document.getElementById('photo2-capture').value = "";
+      document.getElementById('photo2-upload').value = "";
+    }
+
+    function updatePreview(previewId, files, listNumber) {
       const container = document.getElementById(previewId);
       container.innerHTML = "";
-      files.forEach(file => {
+      files.forEach((file, index) => {
+        const thumbnailDiv = document.createElement('div');
+        thumbnailDiv.className = 'thumbnail-container';
         const img = document.createElement('img');
         img.src = URL.createObjectURL(file);
-        container.appendChild(img);
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn';
+        deleteBtn.innerHTML = '<span class="material-icons">close</span>';
+        deleteBtn.onclick = () => deletePhoto(listNumber, index);
+        thumbnailDiv.appendChild(img);
+        thumbnailDiv.appendChild(deleteBtn);
+        container.appendChild(thumbnailDiv);
       });
+    }
+
+    function deletePhoto(listNumber, index) {
+      if (listNumber === 1) {
+        photo1Files.splice(index, 1);
+        updatePhoto1UI();
+      } else if (listNumber === 2) {
+        photo2Files.splice(index, 1);
+        updatePhoto2UI();
+      }
     }
 
     function handleTextInput1() {
@@ -1179,7 +1249,7 @@
       document.getElementById('initial-photo2-options').style.display = 'none';
       document.getElementById('additional-photo2-option').style.display = 'flex';
       document.getElementById('photo2-prompt').style.display = 'block';
-      document.getElementById('photo2-prompt').textContent = 'You may add another photo or click Compare to continue.';
+      document.getElementById('photo2-prompt').textContent = 'You may add a photo or click Compare to continue.';
       showError('');
     }
 
