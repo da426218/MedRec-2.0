@@ -460,7 +460,10 @@
       'naltrexone', 'naloxone', 'flumazenil', 'desmopressin', 'octreotide', 'erythropoietin', 'filgrastim',
       'calcitriol', 'ergocalciferol', 'cholecalciferol', 'pyridostigmine', 'propranolol', 'labetalol',
       'isosorbide', 'nicardipine', 'nitroprusside', 'ivabradine', 'sacubitril', 'valsartan',
-      'atorvastatin', 'rosuvastatin', 'simvastatin'
+      'atorvastatin', 'rosuvastatin', 'simvastatin', 'Norco', 'oxycodone/acetaminophen', 'codeine/acetaminophen', 'tramadol/acetaminophen', 'acetaminophen/caffeine/dihydrocodeine', 'aspirin/caffeine/dihydrocodeine', 'aspirin/codeine', 'ibuprofen/oxycodone', 'acetaminophen/butalbital/caffeine', 'aspirin/butalbital/caffeine', 'acetaminophen/butalbital', 'methylphenidate', 'amphetamine/dextroamphetamine', 'hydrocodone/pseudoephedrine', 'hydrocodone/chlorpheniramine', 'hydrocodone/homatropine', 'busulfan', 'doxorubicin', 'adalimumab', 'acetaminophen/isometheptene/dichloralphenazone', 'ultracet', 'percocet', 'roxicet', 'endocet', 'tylenol #3', 'zamicet', 'vicodin', 'lortab', 'panlor ss', 'trezix', 'synalgos-dc', 'empirin with codeine', 'combunox', 'fioricet', 'esgic', 'zebutal', 'fiorinal', 'bupap', 'rezira', 'tussionex', 'hycomine', 'hydromet', 'midrin'
+
+
+
     ].map(med => med.toLowerCase());
 
     const commonMedications = [
@@ -578,24 +581,25 @@
     ];
 
     const unitVariants = {
-      tablet: ['tab', 'tabs', 'tablet', 'tablets', 'tab.', 'tablet.'],
-      capsule: ['cap', 'caps', 'capsule', 'capsules', 'caplet', 'cap.', 'gelcap', 'softgel', 'gel', 'sprinkle', 'sprinkles'],
-      spray: ['spray', 'sprays'],
-      puff: ['puff', 'puffs'],
-      drop: ['drop', 'drops', 'gtt', 'gtts', 'gt', 'drp'],
-      patch: ['patch', 'patches', 'transdermal patch'],
-      injection: ['shot', 'syringe', 'pen', 'inj', 'auto-injector'],
-      lozenge: ['lozenge', 'loz', 'troche'],
-      suppository: ['supp', 'suppositories'],
-      solution: ['solution', 'sol', 'liq', 'liquid', 'oral sol'],
-      ointment: ['ointment', 'oint', 'ung', 'cream', 'gel'],
-      inhalation: ['inhaler', 'inh', 'neb', 'nebulizer', 'mdi', 'dpi'],
-      unit: ['U', 'IU', 'units'],
-      mL: ['ml', 'mL', 'cc'],
-      mcg: ['μg', 'mcg', 'ug'],
-      mg: ['mg'],
-      g: ['g', 'gram', 'grams']
-    };
+  tablet:   ['tab','tabs','tablet','tablets','tab.','tablet.'],
+  capsule:  ['cap','caps','capsule','capsules','caplet','cap.','gelcap','softgel','gel','sprinkle','sprinkles'],
+  spray:    ['spray','sprays'],
+  puff:     ['puff','puffs'],
+  drop:     ['drop','drops','gtt','gtts','gt','drp'],
+  patch:    ['patch','patches','transdermal patch'],
+  injection:['shot','syringe','pen','inj','auto-injector'],
+  lozenge:  ['lozenge','loz','troche'],
+  suppository:['supp','suppositories'],
+  solution: ['solution','sol','liq','liquid','oral sol'],
+  ointment: ['ointment','oint','ung','cream','gel'],
+  inhalation:['inhaler','inh','neb','nebulizer','mdi','dpi'],
+  unit:     ['U','IU','units'],
+  mL:       ['ml','mL','cc'],
+  mcg:      ['μg','mcg','ug'],
+  mg:       ['mg'],
+  g:        ['g','gram','grams']
+};
+
 
     let photo1Files = [];
     let photo2Files = [];
@@ -658,61 +662,92 @@
       return ratio >= 0.4;
     }
 
-    function containsKnownMedication(line) {
-      const lower = line.toLowerCase();
-      // Allow anything with a dose/unit pattern through as a fallback
-      return commonMedications.some(med =>
-        lower.includes(med.generic) ||
-        med.brands.some(b => lower.includes(b.toLowerCase()))
-      ) || /\d+\s*(mg|mcg|units|puffs|tabs?)\b/.test(lower);
-    }
+function containsKnownMedication(line) {
+  const lower = line.toLowerCase();
+
+  // 1) Critical meds always match
+  if (criticalMeds.some(med => lower.includes(med))) return true;
+
+  // 2) Any brand name in commonMedications also counts
+  if (commonMedications.some(m =>
+        m.brands.some(b => lower.includes(b.toLowerCase()))
+      )) return true;
+
+  // 3) Generic names or dose patterns as before
+  return commonMedications.some(med => lower.includes(med.generic))
+      || /\d+\s*(?:mg|mcg|units|puffs|tabs?|tablets?|capsules?)\b/.test(lower);
+}
 
     function normalizeText(str) {
-      let text = str.toLowerCase()
-        .replace(/\bone\b/g, '1')
-        .replace(/\btwo\b/g, '2')
-        .replace(/\bthree\b/g, '3')
-        .replace(/\bfour\b/g, '4')
-        .replace(/\bfive\b/g, '5');
-      return text
-        .replace(/p\.?o\.?/g, 'po')
-        .replace(/q\.?d\.?/g, 'daily')
-        .replace(/b\.?i\.?d\.?/g, 'twice daily')
-        .replace(/hrs/g, 'hours')
-        .replace(/μg/g, 'mcg')
-        .replace(/ml/g, 'mL')
-        .replace(/\s+/g, ' ')
-        .replace(/[^\w\s\/-]/g, '')
-        .trim();
-    }
+  let text = str.toLowerCase()
+    .replace(/\bone\b/g, '1')
+    .replace(/\btwo\b/g, '2')
+    .replace(/\bthree\b/g, '3')
+    .replace(/\bfour\b/g, '4')
+    .replace(/\bfive\b/g, '5');
 
-    function normalizeMedicationName(name) {
-      if (!name) return name;
-      const lowerName = name.toLowerCase();
-      for (const med of commonMedications) {
-        if (lowerName.includes(med.generic)) {
-          return med.generic;
-        }
-        for (const brand of med.brands) {
-          if (lowerName.includes(brand.toLowerCase())) {
-            return med.generic;
-          }
-        }
-      }
-      return lowerName;
+  return text
+    .replace(/p\.?o\.?/g, 'po')
+    .replace(/q\.?d\.?/g, 'daily')
+    .replace(/b\.?i\.?d\.?/g, 'twice daily')
+    .replace(/\bqhs\b/g, 'at bedtime')
+    .replace(/\bevery night\b/g, 'at bedtime')
+    .replace(/hrs/g, 'hours')
+    .replace(/μg/g, 'mcg')
+    .replace(/ml/g, 'mL')
+    .replace(/[^\w\s\/-]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+
+function normalizeMedicationName(name) {
+  if (!name) return "";
+  const lowerName = name.toLowerCase();
+
+  // 1) Critical meds stay as-is
+  for (let med of criticalMeds) {
+    if (lowerName.includes(med)) return med;
+  }
+
+  // 2) Generic or brand → generic
+  for (const {generic, brands} of commonMedications) {
+    if (lowerName.includes(generic))      return generic;
+    if (brands.some(b => lowerName.includes(b.toLowerCase()))) {
+      return generic;
     }
+  }
+
+  // 3) Fallback to raw text
+  return lowerName;
+}
 
     function parseOrder(orderStr) {
+      orderStr = orderStr.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
       orderStr = normalizeText(orderStr);
 
-      // Initialize structured fields first
-      let order = {
-        drug: "",
-        dose: { value: null, unit: '', total: null },
-        route: "",
-        frequency: "",
-        prn: false
-      };
+let order = {
+  drug: "",
+  dose: { value: null, unit: '', total: null },
+  route: "",
+  frequency: "",
+  prn: false,
+  form: ""
+};
+
+// ——— ADD for combo doses like “10-325 mg” ———
+const comboMatch = orderStr.match(/(\d+)\s*-\s*(\d+)\s*mg\b/);
+if (comboMatch) {
+  order.dose = {
+    value: [parseInt(comboMatch[1], 10), parseInt(comboMatch[2], 10)],
+    unit: 'mg',
+    total: null
+  };
+  orderStr = orderStr.replace(comboMatch[0], '').trim();
+}
+// ——————————————————————————————————————
+
+
 
       try {
         // Build a flat list of all unit synonyms
@@ -729,7 +764,7 @@
         }
 
         // If we found any, pick the one that comes last in the line
-        if (unitMatches.length) {
+        if (!Array.isArray(order.dose.value) && unitMatches.length) {
           const best = unitMatches.reduce((a, b) => b.idx > a.idx ? b : a);
           const stdUnit = Object.entries(unitVariants)
             .find(([std, arr]) => arr.includes(best.rawUnit))?.[0];
@@ -789,34 +824,34 @@
         }
 
         // Normalize the unit
-        const units = {
-          'mcg': ['mcg', 'μg'],
-          'mg': ['mg'],
-          'g': ['g'],
-          'ng': ['ng'],
-          'mL': ['mL', 'ml'],
-          'L': ['L'],
-          'tsp': ['tsp', 'teaspoon'],
-          'tbsp': ['tbsp', 'tablespoon'],
-          'drop': ['drop', 'drops', 'gtt'],
-          'spray': ['spray', 'sprays'],
-          'puff': ['puff', 'puffs'],
-          'unit': ['unit', 'units'],
-          'IU': ['IU', 'international units'],
-          'mEq': ['mEq', 'milliequivalents'],
-          'mmol': ['mmol', 'millimoles'],
-          'mg/mL': ['mg/mL'],
-          'mcg/mL': ['mcg/mL'],
-          '%': ['%'],
-          'patch': ['patch', 'patches'],
-          'applicator': ['applicator', 'applicators'],
-          'ampule': ['ampule', 'ampules'],
-          'vial': ['vial', 'vials'],
-          'capsule': ['capsule', 'capsules'],
-          'tablet': ['tablet', 'tablets'],
-          'lozenge': ['lozenge', 'lozenges'],
-          'suppository': ['suppository', 'suppositories']
-        };
+const units = {
+  'mcg':      ['mcg','μg'],
+  'mg':       ['mg'],
+  'g':        ['g'],
+  'mL':       ['mL','ml'],
+  'L':        ['L'],
+  'tsp':      ['tsp','teaspoon'],
+  'tbsp':     ['tbsp','tablespoon'],
+  'drop':     ['drop','drops','gtt'],
+  'spray':    ['spray','sprays'],
+  'puff':     ['puff','puffs'],
+  'unit':     ['unit','units'],
+  'IU':       ['IU','international units'],
+  'mEq':      ['mEq','milliequivalents'],
+  'mmol':     ['mmol','millimoles'],
+  'mg/mL':    ['mg/mL'],
+  'mcg/mL':   ['mcg/mL'],
+  '%':        ['%'],
+  'patch':    ['patch','patches'],
+  'applicator':['applicator','applicators'],
+  'ampule':   ['ampule','ampules'],
+  'vial':     ['vial','vials'],
+  'capsule':  ['cap','caps','capsule','capsules','caplet','cap.','gelcap','softgel','gel','sprinkle','sprinkles'],
+  'tablet':   ['tab','tabs','tablet','tablets','tab.','tablet.'],
+  'lozenge':  ['lozenge','lozenges'],
+  'suppository':['suppository','suppositories']
+};
+
         if (order.dose.unit) {
           for (let [standard, variations] of Object.entries(units)) {
             if (variations.includes(order.dose.unit)) {
@@ -825,6 +860,13 @@
             }
           }
         }
+     // ——— DETECT TABLET vs CAPSULE ———
+     const formMatch = orderStr.match(/\b(caplet|capsule|tablet)\b/i);
+     if (formMatch) {
+       order.form = formMatch[1].toLowerCase();    // “tablet” or “capsule” or “caplet”
+       orderStr = orderStr.replace(formMatch[0], '').trim();
+     }
+     // ——————————————————————————————
 
         // Define routes with their possible variations
         const routes = [
@@ -927,7 +969,7 @@
         return order;
       } catch (e) {
         console.error('Error parsing order:', orderStr, e.stack || e);
-        return { drug: orderStr || '', dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false };
+        return { drug: orderStr || '', dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, form: '' };
       }
     }
 
@@ -955,34 +997,49 @@
     }
 
     function ordersAreEqual(a, b) {
-      // Compare drug name
-      const normalizedDrugA = normalizeMedicationName(a.drug);
-      const normalizedDrugB = normalizeMedicationName(b.drug);
-      const drugSimilarity = normalizedDrugA && normalizedDrugB ? similarity(normalizedDrugA, normalizedDrugB) : (normalizedDrugA === normalizedDrugB ? 1 : 0);
-      if (drugSimilarity < 0.85) return false;
+  // 1) drug name
+  const normA = normalizeMedicationName(a.drug);
+  const normB = normalizeMedicationName(b.drug);
+  const drugSimilarity = normA && normB
+    ? similarity(normA, normB)
+    : (normA === normB ? 1 : 0);
+  if (drugSimilarity < 0.85) return false;
 
-      // Compare dose
-      const totalDoseA = a.dose.total !== null ? a.dose.total : a.dose.value;
-      const totalDoseB = b.dose.total !== null ? b.dose.total : b.dose.value;
-      if (totalDoseA !== totalDoseB || a.dose.unit !== b.dose.unit) return false;
-
-      if (a.route !== b.route) return false;
-      if (a.prn !== b.prn) return false;
-
-      // Handle "every X hours" frequencies
-      const qHoursMatchA = a.frequency.match(/^q(\d+)h$/);
-      const qHoursMatchB = b.frequency.match(/^q(\d+)h$/);
-      if (qHoursMatchA && qHoursMatchB) {
-        const hoursA = parseInt(qHoursMatchA[1]);
-        const hoursB = parseInt(qHoursMatchB[1]);
-        if (hoursA !== hoursB) return false;
-      } else {
-        const freqSimilarity = a.frequency && b.frequency ? similarity(a.frequency, b.frequency) : (a.frequency === b.frequency ? 1 : 0);
-        if (freqSimilarity < 0.85) return false;
-      }
-
-      return true;
+  // 2) dose (including combos)
+  if (Array.isArray(a.dose.value) || Array.isArray(b.dose.value)) {
+    if (!Array.isArray(a.dose.value) || !Array.isArray(b.dose.value)) return false;
+    if (a.dose.value.length !== b.dose.value.length) return false;
+    for (let i = 0; i < a.dose.value.length; i++) {
+      if (a.dose.value[i] !== b.dose.value[i]) return false;
     }
+    if (a.dose.unit !== b.dose.unit) return false;
+  } else {
+    const totalA = (a.dose.total != null ? a.dose.total : a.dose.value);
+    const totalB = (b.dose.total != null ? b.dose.total : b.dose.value);
+    if (totalA !== totalB || a.dose.unit !== b.dose.unit) return false;
+  }
+
+  // 3) route
+  if (a.route !== b.route) return false;
+
+  // 4) frequency (“qXh” exact or fuzzy)
+  const qA = a.frequency.match(/^q(\d+)h$/);
+  const qB = b.frequency.match(/^q(\d+)h$/);
+  if (qA && qB) {
+    if (parseInt(qA[1]) !== parseInt(qB[1])) return false;
+  } else {
+    const freqSim = (a.frequency && b.frequency)
+      ? similarity(a.frequency, b.frequency)
+      : (a.frequency === b.frequency ? 1 : 0);
+    if (freqSim < 0.85) return false;
+  }
+   // 5) dosage form must match (tablet ≠ capsule)
+   if ((a.form || "") !== (b.form || "")) return false;
+  // 6) PRN flag
+  if (a.prn !== b.prn) return false;
+
+  return true;
+}
 
     function compareOrders(list1, list2) {
       let unchanged = [];
