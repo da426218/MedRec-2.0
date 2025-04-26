@@ -938,16 +938,25 @@ const units = {
         // Handle PRN ("as needed" or "prn") and grab the indication text
         const prnMatch = orderStr.match(/\b(prn|as needed)\b/i);
         if (prnMatch) {
-        order.prn = true;
-        // Capture anything after PRN as an indication:
-        const prnIndication = orderStr.match(/\b(?:prn|as needed)\b\s*(.+)/i);
-        if (prnIndication) {
-        order.indication = prnIndication[1].trim();
-        }
-  // Remove PRN and its indication from the string:
-  orderStr = orderStr.replace(/\b(?:prn|as needed)\b\s*.+/i, "").trim();
-}
+          order.prn = true;
 
+          // 1) Capture anything after PRN as the indication
+          const prnIndication = orderStr.match(/\b(?:prn|as needed)\b\s*(.+)/i);
+          if (prnIndication) {
+            order.indication = prnIndication[1].trim();
+          }
+
+          // 2) CLEAN UP INDICATION TEXT
+          if (order.indication) {
+            order.indication = order.indication
+              .replace(/\b(for|the|a|an|of)\b/gi, '')  // strip filler words
+              .replace(/\s+/g, ' ')                   // collapse extra spaces
+              .trim();                                 // trim ends
+          }
+
+          // 3) Remove the PRN clause from the original string
+          orderStr = orderStr.replace(/\b(?:prn|as needed)\b\s*.+/i, '').trim();
+        }
 
         // Handle "every X hours" patterns
         const everyHoursMatch = orderStr.match(/every\s+(\d+)\s*hours/i);
