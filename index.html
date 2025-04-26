@@ -1177,22 +1177,46 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
     }
 
     function updatePhoto1UI() {
-      document.getElementById('photo1-status').textContent = photo1Files.length + (photo1Files.length === 1 ? " photo added." : " photos added.");
-      document.getElementById('photo1-next').disabled = photo1Files.length === 0;
-      updatePreview('photo1-preview', photo1Files, 1);
-      if (photo1Files.length > 0) {
-        document.getElementById('photo1-prompt').style.display = 'block';
-        document.getElementById('photo1-prompt').textContent = `Photo ${photo1Files.length} of 5 added. Add another photo (up to 5) to complete your list, or click Next to continue.`;
-        document.getElementById('initial-photo1-options').style.display = 'none';
-        document.getElementById('additional-photo1-option').style.display = 'flex';
-      } else {
-        document.getElementById('photo1-prompt').style.display = 'none';
-        document.getElementById('initial-photo1-options').style.display = 'flex';
-        document.getElementById('additional-photo1-option').style.display = 'none';
-      }
-      document.getElementById('photo1-capture').value = "";
-      document.getElementById('photo1-upload').value = "";
-    }
+  // Hide the “take/upload/paste” line as soon as there's ≥1 photo:
+  const instr1 = document.querySelector('#photo1-screen .upload-instructions');
+  instr1.style.display = photo1Files.length > 0 ? 'none' : 'block';
+
+  // Update count & Next-button state:
+  document.getElementById('photo1-status').textContent =
+    photo1Files.length + (photo1Files.length === 1
+      ? " photo added."
+      : " photos added.");
+  document.getElementById('photo1-next').disabled =
+    photo1Files.length === 0;
+
+  // Refresh thumbnails:
+  updatePreview('photo1-preview', photo1Files, 1);
+
+  if (photo1Files.length > 0) {
+    // Show prompt with **Next** bold:
+    const prompt1 = document.getElementById('photo1-prompt');
+    prompt1.style.display = 'block';
+    prompt1.innerHTML =
+      `Photo ${photo1Files.length} of 5 added. ` +
+      `Add another photo (up to 5) to complete your list, or click ` +
+      `<strong>Next</strong> to continue.`;
+
+    // Swap out buttons:
+    document.getElementById('initial-photo1-options').style.display = 'none';
+    document.getElementById('additional-photo1-option').style.display = 'flex';
+  } else {
+    // No photos → back to start
+    document.getElementById('photo1-prompt').style.display = 'none';
+    document.getElementById('initial-photo1-options').style.display = 'flex';
+    document.getElementById('additional-photo1-option').style.display = 'none';
+  }
+
+  // Clear file inputs so you can re-select the same file if needed:
+  document.getElementById('photo1-capture').value = "";
+  document.getElementById('photo1-upload').value = "";
+}
+
+
 
     function handlePhoto2(files) {
       if (!files || files.length === 0) return;
@@ -1221,22 +1245,44 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
     }
 
     function updatePhoto2UI() {
-      document.getElementById('photo2-status').textContent = photo2Files.length + (photo2Files.length === 1 ? " photo added." : " photos added.");
-      document.getElementById('photo2-compare').disabled = photo2Files.length === 0;
-      updatePreview('photo2-preview', photo2Files, 2);
-      if (photo2Files.length > 0) {
-        document.getElementById('photo2-prompt').style.display = 'block';
-        document.getElementById('photo2-prompt').textContent = `Photo ${photo2Files.length} of 5 added. Add another photo (up to 5) to complete your list, or click Compare to continue.`;
-        document.getElementById('initial-photo2-options').style.display = 'none';
-        document.getElementById('additional-photo2-option').style.display = 'flex';
-      } else {
-        document.getElementById('photo2-prompt').style.display = 'none';
-        document.getElementById('initial-photo2-options').style.display = 'flex';
-        document.getElementById('additional-photo2-option').style.display = 'none';
-      }
-      document.getElementById('photo2-capture').value = "";
-      document.getElementById('photo2-upload').value = "";
-    }
+  // Hide original instructions once you have ≥1 photo:
+  const instr2 = document.querySelector('#photo2-screen .upload-instructions');
+  instr2.style.display = photo2Files.length > 0 ? 'none' : 'block';
+
+  // Update count & Compare-button state:
+  document.getElementById('photo2-status').textContent =
+    photo2Files.length + (photo2Files.length === 1
+      ? " photo added."
+      : " photos added.");
+  document.getElementById('photo2-compare').disabled =
+    photo2Files.length === 0;
+
+  // Refresh thumbnails:
+  updatePreview('photo2-preview', photo2Files, 2);
+
+  if (photo2Files.length > 0) {
+    // Show prompt with **Compare** bold:
+    const prompt2 = document.getElementById('photo2-prompt');
+    prompt2.style.display = 'block';
+    prompt2.innerHTML =
+      `Photo ${photo2Files.length} of 5 added. ` +
+      `Add another photo (up to 5) to complete your list, or click ` +
+      `<strong>Compare</strong> to continue.`;
+
+    // Swap out buttons:
+    document.getElementById('initial-photo2-options').style.display = 'none';
+    document.getElementById('additional-photo2-option').style.display = 'flex';
+  } else {
+    // No photos → back to start
+    document.getElementById('photo2-prompt').style.display = 'none';
+    document.getElementById('initial-photo2-options').style.display = 'flex';
+    document.getElementById('additional-photo2-option').style.display = 'none';
+  }
+
+  // Clear file inputs
+  document.getElementById('photo2-capture').value = "";
+  document.getElementById('photo2-upload').value = "";
+}
 
     function updatePreview(previewId, files, listNumber) {
       const container = document.getElementById(previewId);
