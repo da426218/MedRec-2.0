@@ -732,8 +732,17 @@ let order = {
   route: "",
   frequency: "",
   prn: false,
-  form: ""
+  form: "",
+  indication: ""
 };
+
+// ——— TRACK PAIN INDICATION ———
+const indicMatch = orderStr.match(/\bfor\s+(?:(mild|moderate|severe)\s+)?pain\b/i);
+if (indicMatch) {
+  // indicMatch[1] will be "mild", "moderate", "severe", or undefined
+  order.indication = (indicMatch[1] ? indicMatch[1].toLowerCase() + " " : "") + "pain";
+  orderStr = orderStr.replace(indicMatch[0], "").trim();
+}
 
 // ——— ADD for combo doses like “10-325 mg” ———
 const comboMatch = orderStr.match(/(\d+)\s*-\s*(\d+)\s*mg\b/);
@@ -969,9 +978,17 @@ const units = {
         return order;
       } catch (e) {
         console.error('Error parsing order:', orderStr, e.stack || e);
-        return { drug: orderStr || '', dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, form: '' };
-      }
-    }
+         return { 
+      drug: orderStr || '', 
+      dose: { value: null, unit: '', total: null }, 
+      route: '', 
+      frequency: '', 
+      prn: false, 
+      form: '', 
+      indication: '' 
+    };
+   }
+}
 
     function levenshteinDistance(a, b) {
       const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
@@ -1037,6 +1054,12 @@ const units = {
    if ((a.form || "") !== (b.form || "")) return false;
   // 6) PRN flag
   if (a.prn !== b.prn) return false;
+
+// ——— ENSURE PAIN INDICATION MATCHES ———
+if ((a.indication || b.indication) && a.indication !== b.indication) {
+  return false;
+}
+// ——————————————————————————————
 
   return true;
 }
