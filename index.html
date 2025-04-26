@@ -495,6 +495,10 @@
       { generic: "azithromycin", brands: ["Zithromax", "Z-Pak"] },
       { generic: "bisoprolol", brands: ["Zebeta"] },
       { generic: "budesonide", brands: ["Pulmicort", "Rhinocort"] },
+               {   generic: "calcium gluconate",  brands: [] },
+               {   generic: "calcium chloride",   brands: [] },
+               {   generic: "calcium carbonate",  brands: [] },
+               {   generic: "calcium citrate",    brands: [] }, 
       { generic: "cefuroxime", brands: ["Ceftin", "Zinacef"] },
       { generic: "cephalexin", brands: ["Keflex"] },
       { generic: "cetirizine", brands: ["Zyrtec"] },
@@ -923,15 +927,27 @@ const units = {
             if (order.route) break;
           }
         }
-
-        // Handle PRN ("as needed" or "prn")
-        if (/\bprn\b/i.test(orderStr) || /as needed/i.test(orderStr)) {
-          order.prn = true;
-          orderStr = orderStr
-            .replace(/\bprn\b/ig, "")
-            .replace(/as needed/ig, "")
-            .trim();
+        // ——— HANDLE “qXh” FREQUENCY ———
+        const qhMatch = orderStr.match(/\bq(\d+)h\b/i);
+        if (qhMatch) {
+        order.frequency = `q${qhMatch[1]}h`;
+        orderStr = orderStr.replace(qhMatch[0], "").trim();
         }
+        // ————————————————————————————
+
+        // Handle PRN ("as needed" or "prn") and grab the indication text
+        const prnMatch = orderStr.match(/\b(prn|as needed)\b/i);
+        if (prnMatch) {
+        order.prn = true;
+        // Capture anything after PRN as an indication:
+        const prnIndication = orderStr.match(/\b(?:prn|as needed)\b\s*(.+)/i);
+        if (prnIndication) {
+        order.indication = prnIndication[1].trim();
+        }
+  // Remove PRN and its indication from the string:
+  orderStr = orderStr.replace(/\b(?:prn|as needed)\b\s*.+/i, "").trim();
+}
+
 
         // Handle "every X hours" patterns
         const everyHoursMatch = orderStr.match(/every\s+(\d+)\s*hours/i);
