@@ -1177,9 +1177,12 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
     }
 
     function updatePhoto1UI() {
-  // Hide the “take/upload/paste” line as soon as there's ≥1 photo:
+  // 1) grab the “You can take a photo…” paragraph
   const instr1 = document.querySelector('#photo1-screen .upload-instructions');
-  instr1.style.display = photo1Files.length > 0 ? 'none' : 'block';
+  // 2) hide it as soon as you've added ≥1 photo OR used the text‐paste path
+  instr1.style.display = (photo1Files.length > 0 || hasTextInput1)
+    ? 'none'
+    : 'block';
 
   // Update count & Next-button state:
   document.getElementById('photo1-status').textContent =
@@ -1245,9 +1248,12 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
     }
 
     function updatePhoto2UI() {
-  // Hide original instructions once you have ≥1 photo:
+    // 1) grab the “You can take a photo…” paragraph on screen 2
   const instr2 = document.querySelector('#photo2-screen .upload-instructions');
-  instr2.style.display = photo2Files.length > 0 ? 'none' : 'block';
+  // 2) hide it as soon as you've added ≥1 photo OR used the paste path
+  instr2.style.display = (photo2Files.length > 0 || hasTextInput2)
+    ? 'none'
+    : 'block';
 
   // Update count & Compare-button state:
   document.getElementById('photo2-status').textContent =
