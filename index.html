@@ -583,6 +583,13 @@
       { generic: "isosorbide", brands: [] },
       { generic: "isosorbide dinitrate", brands: [] }
     ];
+	// ——— Map every brand name to its generic ———
+	const brandToGenericMap = {};
+	commonMedications.forEach(({ generic, brands }) => {
+ 	 brands.forEach(brand => {
+   	 brandToGenericMap[brand.toLowerCase()] = generic.toLowerCase();
+ 	 });
+	});
 
     const unitVariants = {
   tablet:   ['tab','tabs','tablet','tablets','tab.','tablet.'],
@@ -1518,7 +1525,53 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
     }
 
     function compareAndShowResults() {
-      const { unchanged, removed, added } = compareOrders(meds1, meds2);
+      let   { unchanged, removed, added } = compareOrders(meds1, meds2);
+ // ——— Flag only brand→generic, ignore generic→brand ———
+let finalRemoved   = [];
+let finalAdded     = [];
+let finalUnchanged = [...unchanged];
+
+// 1) Brand→Generic: if a removed item is a brand AND added has its generic, flag it
+removed.forEach(r => {
+  const lowerR   = r.original.toLowerCase();
+  const generic  = brandToGenericMap[lowerR];
+  const matchGen = generic && added.find(a => a.original.toLowerCase() === generic);
+  if (matchGen) {
+    finalRemoved.push(r);
+    finalAdded.push(matchGen);
+    added = added.filter(a => a !== matchGen);
+  } else {
+    finalRemoved.push(r);
+  }
+});
+
+// 2) Generic→Brand: if a removed item is a generic AND added has one of its brands, treat as unchanged
+finalRemoved = finalRemoved.filter(r => {
+  const lowerR   = r.original.toLowerCase();
+  const medEntry = commonMedications.find(m => lowerR.includes(m.generic));
+  if (medEntry) {
+    const brandMatch = added.find(a =>
+      medEntry.brands.some(b => 
+        a.original.toLowerCase().includes(b.toLowerCase())
+      )
+    );
+    if (brandMatch) {
+      finalUnchanged.push(r);
+      added = added.filter(a => a !== brandMatch);
+      return false;    // drop r from finalRemoved
+    }
+  }
+  return true;       // keep r
+});
+
+// 3) Anything still in added[] goes into finalAdded
+added.forEach(a => finalAdded.push(a));
+
+// 4) Overwrite your arrays with the filtered results
+removed   = finalRemoved;
+added     = finalAdded;
+unchanged = finalUnchanged;
+
       let html = '';
       if (removed.length > 0) {
         html += '<h3>Removed:</h3><ul>';
