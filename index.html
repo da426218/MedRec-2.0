@@ -695,6 +695,8 @@ function containsKnownMedication(line) {
     .replace(/q\.?d\.?/g, 'daily')
     .replace(/b\.?i\.?d\.?/g, 'twice daily')
     .replace(/\bqhs\b/g, 'at bedtime')
+    .replace(/\bq\s*a\.?m\.?\b/g, 'every morning')
+    .replace(/\bq\s*p\.?m\.?\b/g, 'every evening')
     .replace(/\bevery night\b/g, 'at bedtime')
     .replace(/hrs/g, 'hours')
     .replace(/μg/g, 'mcg')
