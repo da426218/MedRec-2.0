@@ -176,6 +176,32 @@
       color: red;
       font-weight: bold;
     }
+/* ========= New table styling ========== */
+table.changes-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+table.changes-table th,
+table.changes-table td {
+  border: 1px solid #ddd;
+  padding: 0.5rem;
+  text-align: left;
+}
+table.changes-table th {
+  background-color: #f0f0f0;
+}
+/* Prevent splitting rows across PDF pages */
+.changes-table,
+.changes-table thead,
+.changes-table tbody,
+.changes-table tr,
+.changes-table th,
+.changes-table td {
+  page-break-inside: avoid !important;
+}
+
     .progress-bar {
       display: flex;
       justify-content: space-between;
@@ -345,9 +371,9 @@
       <h2>Disclaimer</h2>
       <div class="card">
         <p class="disclaimer-text">
-          <strong>HIPAA Warning: DO NOT UPLOAD IMAGES CONTAINING IDENTIFIABLE INFORMATION.</strong> This app is intended for use by personnel authorized to handle Protected Health Information (PHI). Users are responsible for ensuring compliance with HIPAA regulations, including safeguarding resident/patient data and restricting access to authorized personnel only. Unauthorized disclosure of PHI may result in disciplinary action and legal consequences.
-
-          <em>Note:</em> MedRec 2.0 is a support tool and does not guarantee 100% accuracy in identifying medication differences. Final verification must be completed by qualified clinical personnel.
+          <strong>HIPAA Warning: DO NOT UPLOAD IMAGES CONTAINING IDENTIFIABLE INFORMATION.</strong> This app is intended for use by personnel authorized to handle Protected Health Information (PHI). While MedRec 2.0 is a HIPAA compliant application, users are responsible for ensuring full compliance with HIPAA regulations, including safeguarding resident/patient data and restricting access to authorized personnel only. Unauthorized disclosure of PHI may result in disciplinary action and legal consequences.
+<br><br>
+          <em>Note:</em> MedRec 2.0 is a support tool and does not guarantee 100% accuracy in identifying medication discrepancies. Final verification must be completed by qualified clinical personnel.
         </p>
       </div>
       <div class="disclaimer-actions">
@@ -422,7 +448,7 @@
         <div id="results-content"></div>
       </div>
       <div class="photo-actions">
-        <button onclick="exportResults()">Export Results</button>
+                    <button onclick="exportToPDF()">Export as PDF</button>
         <button onclick="printResults()">Print Results</button>
         <button onclick="startOver()">Start Over</button>
       </div>
@@ -732,11 +758,53 @@ function containsKnownMedication(line) {
 
     function normalizeText(str) {
   let text = str.toLowerCase()
-    .replace(/\bone\b/g, '1')
-    .replace(/\btwo\b/g, '2')
+    // common shorthand → full text
+    .replace(/\bsob\b/g, 'shortness of breath')
+    .replace(/\bnpo\b/g, 'nothing by mouth')
+    .replace(/\bac\b/g, 'before meals')
+    .replace(/\bpc\b/g, 'after meals')
+    .replace(/\bhs\b/g, 'at bedtime')
+    .replace(/\bqod\b/g, 'every other day')
+    .replace(/\bq(\d+)h\b/g, 'every $1 hours')
+    .replace(/\btid\b/g, 'three times daily')
+    .replace(/\bqid\b/g, 'four times daily')
+
+    // ——— additional frequency normalizations ———
+    .replace(/\bevery\s*day\b/g,         'daily')
+    .replace(/\bper\s*day\b/g,           'daily')
+    .replace(/\bdaily\b/g,               'daily')
+    .replace(/\bonce\s*(?:a|per)?\s*day\b/g, 'daily')
+
+    .replace(/\btwice\s*(?:a|per)?\s*day\b/g, 'twice daily')
+    .replace(/\bbi-?daily\b/g,               'twice daily')
+
+    .replace(/\bthree\s*times?\s*(?:a|per)?\s*day\b/g, 'three times daily')
+    .replace(/\bt\.?i\.?d\.?\b/g,                       'three times daily')
+
+    .replace(/\bfour\s*times?\s*(?:a|per)?\s*day\b/g, 'four times daily')
+    // (you already handle “qid” above)
+
+    .replace(/\bqhs\b/g,                 'at bedtime')
+    .replace(/\b(?:nightly|at night)\b/g, 'at bedtime')
+
+    .replace(/\bevery\s*morning\b/g,     'every morning')
+    .replace(/\bevery\s*evening\b/g,     'every evening')
+    .replace(/\bam\b/g,                  'every morning')
+    .replace(/\bpm\b/g,                  'every evening')
+
+    .replace(/\bas\s*needed\b/g,         'prn')
+    .replace(/\bas\s*required\b/g,       'prn')
+
+    .replace(/\bnow\b/g,      'immediately')
+    .replace(/\bstat\b/g,     'immediately')
+    // ————————————————————————————————
+
+    // your original word-to-digit and cleanup steps
+    .replace(/\bone\b/g,   '1')
+    .replace(/\btwo\b/g,   '2')
     .replace(/\bthree\b/g, '3')
-    .replace(/\bfour\b/g, '4')
-    .replace(/\bfive\b/g, '5');
+    .replace(/\bfour\b/g,  '4')
+    .replace(/\bfive\b/g,  '5');
 
   return text
     .replace(/p\.?o\.?/g, 'po')
@@ -752,6 +820,66 @@ function containsKnownMedication(line) {
     .replace(/[^\w\s\/-]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+
+// ── new helper: merge continuation lines into the previous order ──
+function mergeMultiLineOrders(lines) {
+  const merged = [];
+  lines.forEach(line => {
+    if (containsKnownMedication(line)) {
+      // a true order → start new entry
+      merged.push(line);
+    } else if (merged.length) {
+      // continuation → append to last entry
+      merged[merged.length - 1] += ' ' + line;
+    } else {
+      // fallback if first lines aren’t detected as orders
+      merged.push(line);
+    }
+  });
+  return merged;
+}
+/**
+ * Collapse any “Day X … <drug> …” lines into one “pack” order.
+ */
+function mergeTaperPackOrders(lines) {
+  const packs = {};
+  const standalone = [];
+
+  lines.forEach(line => {
+    // normalize drug name for grouping, e.g. “prednisone”
+    const drugKey = normalizeMedicationName(line);
+    // detect “Day N” prefix
+    if (/\bday\s*\d+\b/i.test(line) && drugKey) {
+      packs[drugKey] = packs[drugKey] || [];
+      packs[drugKey].push(line.trim());
+    } else {
+      standalone.push(line);
+    }
+  });
+
+  // build result: all non-pack lines + one joined string per pack
+  const result = standalone.slice();
+  Object.values(packs).forEach(packLines => {
+    result.push(packLines.join('; '));
+  });
+  return result;
+}
+// ======= New helper to describe what changed ========
+function getChangeReason(orig, updated) {
+  if (orig.dose.value !== updated.dose.value ||
+      orig.dose.unit  !== updated.dose.unit) {
+    return 'Dose changed';
+  }
+  if (orig.frequency !== updated.frequency) {
+    return 'Frequency changed';
+  }
+  if (orig.prn !== updated.prn ||
+      orig.indication !== updated.indication) {
+    return 'PRN/Indication changed';
+  }
+  return 'Order logic changed';
 }
 
 
@@ -779,7 +907,7 @@ function normalizeMedicationName(name) {
     function parseOrder(orderStr) {
       orderStr = orderStr.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
       orderStr = normalizeText(orderStr);
-
+  
 let order = {
   drug: "",
   dose: { value: null, unit: '', total: null },
@@ -789,6 +917,20 @@ let order = {
   form: "",
   indication: ""
 };
+// ── extra normalizations that need the `order` object ──
+// weight-based dosing (mg/kg)
+const weightMatch = orderStr.match(/(\d+(?:\.\d+)?)\s*mg\/kg\b/i);
+if (weightMatch) {
+  order.dose = { value: parseFloat(weightMatch[1]), unit: 'mg/kg', total: null };
+  orderStr = orderStr.replace(weightMatch[0], '').trim();
+}
+// duration: x3d → for 3 days
+orderStr = orderStr.replace(/\bx(\d+)d\b/ig, 'for $1 days');
+// #60 → quantity 60
+orderStr = orderStr.replace(/#(\d+)/g, 'quantity $1');
+// fix common typos
+orderStr = orderStr.replace(/\btablt\b/ig, 'tablet');
+orderStr = orderStr.replace(/\bcaps\b/ig, 'capsule');
 
 // ——— TRACK PAIN INDICATION ———
 const indicMatch = orderStr.match(/\bfor\s+(?:(mild|moderate|severe)\s+)?pain\b/i);
@@ -819,7 +961,7 @@ if (comboMatch) {
         // Find every occurrence of "<number> <unit>" for those variants
         let unitMatches = [];
         for (let u of allUnits) {
-          const re = new RegExp(`(\\d+)\\s*${u}\\b`, 'ig');
+          const re = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${u}\\b`, 'ig');
           let m;
           while ((m = re.exec(orderStr)) !== null) {
             unitMatches.push({ idx: m.index, qty: +m[1], rawUnit: u });
@@ -851,7 +993,8 @@ if (comboMatch) {
         }
 
         // 2. Generic unit pattern
-        const unitRegex = new RegExp(`(\\d+)\\s*(${Object.values(unitVariants).flat().join('|')})\\b`, 'i');
+        // allow decimal doses, e.g. 0.125 mg
+	const unitRegex = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${Object.values(unitVariants).flat().join('|')})\\b`, 'i');
         const unitMatch = orderStr.match(unitRegex);
         if (unitMatch && !order.dose.value) {
           const qty = parseInt(unitMatch[1], 10);
@@ -867,7 +1010,8 @@ if (comboMatch) {
 
         // 3. Fallback to standard dose extraction
         if (!order.dose.value) {
-          let leadingDoseMatch = orderStr.match(/(\d+)\s+(sprays|spray|capsules|capsule|puffs|puff|drops|drop|[μmcgnmLgtspbIumeqmol%\/]+)/i);
+          // fallback: allow decimals, e.g. 0.5 mg/kg or 0.125 mg
+	let leadingDoseMatch = orderStr.match(/(\d+(?:\.\d+)?)\s+(sprays|spray|capsules|capsule|puffs|puff|drops|drop|[μmcgnmLgtspbIumeqmol%\/]+)/i);
           if (leadingDoseMatch) {
             order.dose = {
               value: parseFloat(leadingDoseMatch[1]),
@@ -1402,10 +1546,11 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
       // Clear any old status
       document.getElementById('photo1-status').textContent = 'List pasted.';
       hasTextInput1 = true;
-      let lines = text
-        .split(/\r?\n+/)
-        .map(line => cleanLine(line))
-        .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+      let lines = text.split(/\r?\n+/).map(line => cleanLine(line));
+	lines = mergeMultiLineOrders(lines);
+	lines = mergeTaperPackOrders(lines);
+	lines = lines.filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+
       console.log('Raw lines after filtering:', lines); // Debug log
       lines = [...new Set(lines)];
       if (lines.length === 0) {
@@ -1443,10 +1588,11 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
       // Clear any old status
       document.getElementById('photo2-status').textContent = 'List pasted.';
       hasTextInput2 = true;
-      let lines = text
-        .split(/\r?\n+/)
-        .map(line => cleanLine(line))
-        .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+          let lines = text.split(/\r?\n+/).map(line => cleanLine(line));
+    	lines = mergeMultiLineOrders(lines);
+	lines = mergeTaperPackOrders(lines);
+    	lines = lines.filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+
       console.log('Raw lines after filtering:', lines); // Debug log
       lines = [...new Set(lines)];
       if (lines.length === 0) {
@@ -1484,10 +1630,12 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
         showLoading('Processing first image(s)...');
         try {
           let combinedText = await processFiles(photo1Files);
-          let lines = combinedText
-            .split(/\r?\n+/)
-            .map(line => cleanLine(line))
-            .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+                      let lines = combinedText.split(/\r?\n+/).map(line => cleanLine(line));
+      		lines = mergeMultiLineOrders(lines);
+		lines = mergeTaperPackOrders(lines);
+     		lines = lines.filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+
+
           console.log('Raw lines from OCR:', lines); // Debug log
           lines = [...new Set(lines)];
           if (lines.length === 0) {
@@ -1528,10 +1676,11 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
         showLoading('Processing second image(s)...');
         try {
           let combinedText = await processFiles(photo2Files);
-          let lines = combinedText
-            .split(/\r?\n+/)
-            .map(line => cleanLine(line))
-            .filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+                let lines = combinedText.split(/\r?\n+/).map(line => cleanLine(line));
+      		lines = mergeMultiLineOrders(lines);
+		lines = mergeTaperPackOrders(lines);
+      		lines = lines.filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+
           console.log('Raw lines from OCR:', lines); // Debug log
           lines = [...new Set(lines)];
           if (lines.length === 0) {
@@ -1613,59 +1762,123 @@ removed   = finalRemoved;
 added     = finalAdded;
 unchanged = finalUnchanged;
 
-      let html = '';
-      if (removed.length > 0) {
-        html += '<h3>Removed:</h3><ul>';
-        removed.forEach(orderObj => {
-          const crit = isCriticalOrder(orderObj);
-          html += `<li class="${crit ? 'critical' : ''}">${orderObj.original}</li>`;
-        });
-        html += '</ul>';
-      }
-      if (added.length > 0) {
-        html += '<h3>Added:</h3><ul>';
-        added.forEach(orderObj => {
-          const crit = isCriticalOrder(orderObj);
-          html += `<li class="${crit ? 'critical' : ''}">${orderObj.original}</li>`;
-        });
-        html += '</ul>';
-      }
-      if (unchanged.length > 0) {
-        html += '<h3>Unchanged:</h3><ul>';
-        unchanged.forEach(orderObj => {
-          html += `<li>${orderObj.original}</li>`;
-        });
-        html += '</ul>';
-      }
-      document.getElementById('results-content').innerHTML = html;
+        // build a numbered, four-column table of changes
+  let idx = 1;
+  let html = `
+    <table class="changes-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Original Order</th>
+          <th>New Order</th>
+          <th>Change</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  // 1) matched modifications
+ // 1) matched modifications
+removed.forEach(r => {
+  const match = added.find(a =>
+    normalizeMedicationName(r.parsed.drug) ===
+    normalizeMedicationName(a.parsed.drug)
+  );
+  // <-- Insert this line to detect critical:
+  const crit = isCriticalOrder(r) || (match && isCriticalOrder(match));
+  if (match) {
+    const reason = getChangeReason(r.parsed, match.parsed);
+    html += `
+      <tr class="${crit ? 'critical' : ''}">
+        <td>${idx++}</td>
+        <td>${r.original}</td>
+        <td>${match.original}</td>
+        <td>${reason}</td>
+      </tr>
+    `;
+    added = added.filter(a => a !== match);
+    return;
+  }
+  // pure removal: also highlight if critical
+  html += `
+    <tr class="${crit ? 'critical' : ''}">
+      <td>${idx++}</td>
+      <td>${r.original}</td>
+      <td></td>
+      <td>Removed</td>
+    </tr>
+  `;
+});
+
+  // 2) pure additions
+added.forEach(a => {
+  // detect critical on added items
+  const crit = isCriticalOrder(a);
+  html += `
+    <tr class="${crit ? 'critical' : ''}">
+      <td>${idx++}</td>
+      <td></td>
+      <td>${a.original}</td>
+      <td>Added</td>
+    </tr>
+  `;
+});
+
+  // 3) unchanged (optional; you can remove this loop if you don’t want to list them)
+  unchanged.forEach(u => {
+    html += `
+      <tr>
+        <td>${idx++}</td>
+        <td>${u.original}</td>
+        <td>${u.original}</td>
+        <td>Unchanged</td>
+      </tr>
+    `;
+  });
+
+  html += `
+      </tbody>
+    </table>
+  `;
+
+  document.getElementById('results-content').innerHTML = html;
+
       showScreen('results-screen');
     }
 
-    function exportResults() {
-      const resultsDiv = document.getElementById('results-content');
-      let textContent = '';
-      const sections = resultsDiv.querySelectorAll('h3');
-      sections.forEach(section => {
-        const sectionTitle = section.textContent;
-        textContent += `${sectionTitle}\n`;
-        const items = section.nextElementSibling.querySelectorAll('li');
-        items.forEach(item => {
-          const isCritical = item.classList.contains('critical') ? '[Critical] ' : '';
-          textContent += `- ${isCritical}${item.textContent}\n`;
-        });
-        textContent += '\n';
-      });
-      textContent = `Comparison Results\n\nChanges listed in bold red are critical medications and should be reconciled with the provider within 4 hours of discovery.\n\n${textContent}`;
-      const blob = new Blob([textContent], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'MedRec_Comparison_Results.txt';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+    async function exportToPDF() {
+  // 1) grab your table
+  const table = document.querySelector('.changes-table');
+  // 2) init jsPDF
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+
+  // 3) optional: add a title
+  pdf.setFontSize(14);
+  pdf.text('Comparison Results', 40, 40);
+
+  // 4) render the table with AutoTable
+  pdf.autoTable({
+    html: table,
+    startY: 60,
+    theme: 'grid',
+    headStyles: { fillColor: [240,240,240] },
+    styles: {
+      fontSize: 9,
+      cellPadding: 4,
+      overflow: 'linebreak'
+    },
+    // ensure no row ever splits across pages:
+    pageBreak: 'avoid',
+    didDrawPage: (data) => {
+      // here you could add page numbers, headers, etc.
     }
+  });
+
+  // 5) save the PDF
+  pdf.save('MedRec_Report.pdf');
+}
+
 
     function printResults() {
       const resultsDiv = document.getElementById('results-content').innerHTML;
@@ -1760,6 +1973,12 @@ unchanged = finalUnchanged;
       updateProgress('disclaimer-screen');
     });
   </script>
- 
+<!-- 1) html2canvas: required for jsPDF.html() to work -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- 2) jsPDF UMD bundle -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- 3) jsPDF-AutoTable plugin: add this line -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+
 </body>
 </html>
