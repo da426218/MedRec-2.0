@@ -502,9 +502,7 @@ const functions = firebase.functions(app);
       'naltrexone', 'naloxone', 'flumazenil', 'desmopressin', 'octreotide', 'erythropoietin', 'filgrastim',
       'calcitriol', 'ergocalciferol', 'cholecalciferol', 'pyridostigmine', 'propranolol', 'labetalol',
       'isosorbide', 'nicardipine', 'nitroprusside', 'ivabradine', 'sacubitril', 'valsartan',
-      'atorvastatin', 'rosuvastatin', 'simvastatin', 'Norco', 'oxycodone/acetaminophen', 'codeine/acetaminophen', 'tramadol/acetaminophen', 'acetaminophen/caffeine/dihydrocodeine', 'aspirin/caffeine/dihydrocodeine', 'aspirin/codeine', 'ibuprofen/oxycodone', 'acetaminophen/butalbital/caffeine', 'aspirin/butalbital/caffeine', 'acetaminophen/butalbital', 'methylphenidate', 'amphetamine/dextroamphetamine', 'hydrocodone/pseudoephedrine', 'hydrocodone/chlorpheniramine', 'hydrocodone/homatropine', 'busulfan', 'doxorubicin', 'adalimumab', 'acetaminophen/isometheptene/dichloralphenazone', 'ultracet', 'percocet', 'roxicet', 'endocet', 'tylenol #3', 'zamicet', 'vicodin', 'lortab', 'panlor ss', 'trezix', 'synalgos-dc', 'empirin with codeine', 'combunox', 'fioricet', 'esgic', 'zebutal', 'fiorinal', 'bupap', 'rezira', 'tussionex', 'hycomine', 'hydromet', 'midrin'
-
-
+      'atorvastatin', 'rosuvastatin', 'simvastatin', 'Norco', 'oxycodone/acetaminophen', 'hydrocodone/acetaminophen', 'codeine/acetaminophen', 'tramadol/acetaminophen', 'acetaminophen/caffeine/dihydrocodeine', 'aspirin/caffeine/dihydrocodeine', 'aspirin/codeine', 'ibuprofen/oxycodone', 'acetaminophen/butalbital/caffeine', 'aspirin/butalbital/caffeine', 'acetaminophen/butalbital', 'methylphenidate', 'amphetamine/dextroamphetamine', 'hydrocodone/pseudoephedrine', 'hydrocodone/chlorpheniramine', 'hydrocodone/homatropine', 'busulfan', 'doxorubicin', 'adalimumab', 'acetaminophen/isometheptene/dichloralphenazone', 'ultracet', 'percocet', 'roxicet', 'endocet', 'tylenol #3', 'zamicet', 'vicodin', 'lortab', 'panlor ss', 'trezix', 'synalgos-dc', 'empirin with codeine', 'combunox', 'fioricet', 'esgic', 'zebutal', 'fiorinal', 'bupap', 'rezira', 'tussionex', 'hycomine', 'hydromet', 'midrin'
 
     ].map(med => med.toLowerCase());
 
@@ -789,8 +787,6 @@ function containsKnownMedication(line) {
 
     .replace(/\bevery\s*morning\b/g,     'every morning')
     .replace(/\bevery\s*evening\b/g,     'every evening')
-    .replace(/\bam\b/g,                  'every morning')
-    .replace(/\bpm\b/g,                  'every evening')
 
     .replace(/\bas\s*needed\b/g,         'prn')
     .replace(/\bas\s*required\b/g,       'prn')
@@ -875,6 +871,11 @@ function getChangeReason(orig, updated) {
   if (orig.frequency !== updated.frequency) {
     return 'Frequency changed';
   }
+// ─── time-of-day change (e.g. morning→evening) ───
+if ((orig.timeOfDay || '') !== (updated.timeOfDay || '')) {
+return 'Time of day changed';
+ }
+ // ────────────────────────────────────────────────
   if (orig.prn !== updated.prn ||
       orig.indication !== updated.indication) {
     return 'PRN/Indication changed';
@@ -913,10 +914,28 @@ let order = {
   dose: { value: null, unit: '', total: null },
   route: "",
   frequency: "",
+  timeOfDay: "",
   prn: false,
   form: "",
   indication: ""
 };
+
+// ——— EXTRACT TIME-OF-DAY ———
+{
+  const todMatch = orderStr.match(
+    /\b(?:in the\s*)?(every\s*(morning|evening)|at\s*bedtime|bedtime|night|morning|evening)\b/i
+  );
+  if (todMatch) {
+    // todMatch[1] will catch "every evening" or "at bedtime"; fallback to todMatch[0] otherwise
+    let phrase = (todMatch[1] || todMatch[0]).toLowerCase();
+    // strip leading "every " or "at "
+    phrase = phrase.replace(/^every\s*/, '').replace(/^at\s*/, '');
+    order.timeOfDay = phrase;      // e.g. "evening" or "bedtime"
+    orderStr = orderStr.replace(todMatch[0], '').trim();
+  }
+}
+// ────────────────────────────────
+
 // ── extra normalizations that need the `order` object ──
 // weight-based dosing (mg/kg)
 const weightMatch = orderStr.match(/(\d+(?:\.\d+)?)\s*mg\/kg\b/i);
@@ -932,11 +951,17 @@ orderStr = orderStr.replace(/#(\d+)/g, 'quantity $1');
 orderStr = orderStr.replace(/\btablt\b/ig, 'tablet');
 orderStr = orderStr.replace(/\bcaps\b/ig, 'capsule');
 
+// ——— TRACK PRN FLAG ———
+if (/\bprn\b/i.test(orderStr)) {
+  order.prn = true;
+  orderStr = orderStr.replace(/\bprn\b/i, '').trim();
+}
+
 // ——— TRACK PAIN INDICATION ———
-const indicMatch = orderStr.match(/\bfor\s+(?:(mild|moderate|severe)\s+)?pain\b/i);
+const indicMatch = orderStr.match(/\b(?:for\s+)?(?:(mild|moderate|severe)\s+)?pain\b/i);
 if (indicMatch) {
-  // indicMatch[1] will be "mild", "moderate", "severe", or undefined
-  order.indication = (indicMatch[1] ? indicMatch[1].toLowerCase() + " " : "") + "pain";
+  order.indication =
+    (indicMatch[1] ? indicMatch[1].toLowerCase() + " " : "") + "pain";
   orderStr = orderStr.replace(indicMatch[0], "").trim();
 }
 
@@ -1121,73 +1146,38 @@ const units = {
             if (order.route) break;
           }
         }
-        // ——— HANDLE “qXh” FREQUENCY ———
-        const qhMatch = orderStr.match(/\bq(\d+)h\b/i);
-        if (qhMatch) {
-        order.frequency = `q${qhMatch[1]}h`;
-        orderStr = orderStr.replace(qhMatch[0], "").trim();
-        }
-        // ————————————————————————————
-
-        // Handle PRN ("as needed" or "prn") and grab the indication text
-        const prnMatch = orderStr.match(/\b(prn|as needed)\b/i);
-        if (prnMatch) {
-          order.prn = true;
-
-          // 1) Capture anything after PRN as the indication
-          const prnIndication = orderStr.match(/\b(?:prn|as needed)\b\s*(.+)/i);
-          if (prnIndication) {
-            order.indication = prnIndication[1].trim();
+            // ——— INTERVAL-ONLY FREQUENCY ———
+    // 1) “q6h” style
+    const qhMatch = orderStr.match(/\bq(\d+)h\b/i);
+    if (qhMatch) {
+      order.frequency = `q${qhMatch[1]}h`;
+      orderStr = orderStr.replace(qhMatch[0], '').trim();
+    } else {
+      // 2) named intervals (daily, bid, tid, qod, stat…)
+      const freqMapping = {
+        "once daily":        "daily",
+        "daily":             "daily",
+        "twice daily":       "twice daily",
+        "bid":               "twice daily",
+        "three times daily": "three times daily",
+        "tid":               "three times daily",
+        "four times daily":  "four times daily",
+        "qid":               "four times daily",
+        "every other day":   "every other day",
+        "stat":              "immediately"
+      };
+      // longest keys first so “three times daily” beats “daily”
+      Object.keys(freqMapping)
+        .sort((a, b) => b.length - a.length)
+        .forEach(key => {
+          if (!order.frequency && orderStr.toLowerCase().includes(key)) {
+            order.frequency = freqMapping[key];
+            orderStr = orderStr.replace(new RegExp(key, 'i'), '').trim();
           }
+        });
+    }
+    // ──────────────────────────────────
 
-          // 2) CLEAN UP INDICATION TEXT
-          if (order.indication) {
-            order.indication = order.indication
-              .replace(/\b(for|the|a|an|of)\b/gi, '')  // strip filler words
-              .replace(/\s+/g, ' ')                   // collapse extra spaces
-              .trim();                                 // trim ends
-          }
-
-          // 3) Remove the PRN clause from the original string
-          orderStr = orderStr.replace(/\b(?:prn|as needed)\b\s*.+/i, '').trim();
-        }
-
-        // Handle "every X hours" patterns
-        const everyHoursMatch = orderStr.match(/every\s+(\d+)\s*hours/i);
-        if (everyHoursMatch) {
-          const hours = parseInt(everyHoursMatch[1]);
-          order.frequency = `q${hours}h`;
-          orderStr = orderStr.replace(everyHoursMatch[0], '');
-        } else {
-          const freqMapping = {
-            "every other morning": "every other morning",
-            "every other afternoon": "every other afternoon",
-            "every other evening": "every other evening",
-            "every other night": "every other night",
-            "every morning": "every morning",
-            "every afternoon": "every afternoon",
-            "every evening": "every evening",
-            "every night": "every night",
-            "once daily": "daily",
-            "daily": "daily",
-            "qd": "daily",
-            "q.d.": "daily",
-            "twice daily": "twice daily",
-            "bid": "twice daily",
-            "tid": "three times daily",
-            "qid": "four times daily",
-            "qhs": "at bedtime",
-            "stat": "immediately"
-          };
-          let freqKeys = Object.keys(freqMapping).sort((a, b) => b.length - a.length);
-          for (let key of freqKeys) {
-            if (orderStr.includes(key)) {
-              order.frequency = freqMapping[key];
-              orderStr = orderStr.replace(key, '');
-              break;
-            }
-          }
-        }
 
         order.drug = orderStr.trim() || orderStr.split(/\s+/)[0] || '';
 
@@ -1201,7 +1191,8 @@ const units = {
       drug: orderStr || '', 
       dose: { value: null, unit: '', total: null }, 
       route: '', 
-      frequency: '', 
+      frequency: '',
+      timeOfDay: '', 
       prn: false, 
       form: '', 
       indication: '' 
@@ -1258,21 +1249,35 @@ const units = {
   // 3) route
   if (a.route !== b.route) return false;
 
-  // 4) frequency (“qXh” exact or fuzzy)
+    // 4) frequency (“qXh” exact or fuzzy)
   const qA = a.frequency.match(/^q(\d+)h$/);
   const qB = b.frequency.match(/^q(\d+)h$/);
   if (qA && qB) {
-    if (parseInt(qA[1]) !== parseInt(qB[1])) return false;
+    if (+qA[1] !== +qB[1]) return false;
   } else {
     const freqSim = (a.frequency && b.frequency)
       ? similarity(a.frequency, b.frequency)
       : (a.frequency === b.frequency ? 1 : 0);
     if (freqSim < 0.85) return false;
   }
-   // 5) dosage form must match (tablet ≠ capsule)
-   if ((a.form || "") !== (b.form || "")) return false;
-  // 6) PRN flag
+
+  // ─── normalize time-of-day equivalence ───
+  const normalizeTOD = t => {
+    if (!t) return '';
+    t = t.toLowerCase();
+    if (['evening','night','bedtime'].includes(t)) return 'bedtime';
+    return t;
+  };
+  if (normalizeTOD(a.timeOfDay) !== normalizeTOD(b.timeOfDay)) {
+    return false;
+  }
+  // ────────────────────────────────────────────
+
+  // 5) dosage form must match …
+  if ((a.form || '') !== (b.form || '')) return false;
+  // 6) PRN flag …
   if (a.prn !== b.prn) return false;
+
 
 // ——— ENSURE PAIN INDICATION MATCHES ———
 if ((a.indication || b.indication) && a.indication !== b.indication) {
@@ -1716,55 +1721,10 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
 
     function compareAndShowResults() {
       let   { unchanged, removed, added } = compareOrders(meds1, meds2);
- // ——— Flag only brand→generic, ignore generic→brand ———
-let finalRemoved   = [];
-let finalAdded     = [];
-let finalUnchanged = [...unchanged];
 
-// 1) Brand→Generic: if a removed item is a brand AND added has its generic, flag it
-removed.forEach(r => {
-  const lowerR   = r.original.toLowerCase();
-  const generic  = brandToGenericMap[lowerR];
-  const matchGen = generic && added.find(a => a.original.toLowerCase() === generic);
-  if (matchGen) {
-    finalRemoved.push(r);
-    finalAdded.push(matchGen);
-    added = added.filter(a => a !== matchGen);
-  } else {
-    finalRemoved.push(r);
-  }
-});
-
-// 2) Generic→Brand: if a removed item is a generic AND added has one of its brands, treat as unchanged
-finalRemoved = finalRemoved.filter(r => {
-  const lowerR   = r.original.toLowerCase();
-  const medEntry = commonMedications.find(m => lowerR.includes(m.generic));
-  if (medEntry) {
-    const brandMatch = added.find(a =>
-      medEntry.brands.some(b => 
-        a.original.toLowerCase().includes(b.toLowerCase())
-      )
-    );
-    if (brandMatch) {
-      finalUnchanged.push(r);
-      added = added.filter(a => a !== brandMatch);
-      return false;    // drop r from finalRemoved
-    }
-  }
-  return true;       // keep r
-});
-
-// 3) Anything still in added[] goes into finalAdded
-added.forEach(a => finalAdded.push(a));
-
-// 4) Overwrite your arrays with the filtered results
-removed   = finalRemoved;
-added     = finalAdded;
-unchanged = finalUnchanged;
 
         // build a numbered, four-column table of changes
-  let idx = 1;
-  let html = `
+ let html = `
     <table class="changes-table">
       <thead>
         <tr>
@@ -1776,17 +1736,59 @@ unchanged = finalUnchanged;
       </thead>
       <tbody>
   `;
-
-  // 1) matched modifications
- // 1) matched modifications
+let idx = 1;
 removed.forEach(r => {
-  const match = added.find(a =>
-    normalizeMedicationName(r.parsed.drug) ===
-    normalizeMedicationName(a.parsed.drug)
+
+  // 1) Check for a brand→generic swap first
+  const lowerRemoved = r.original.toLowerCase();
+  // find any brand name inside this line
+  let mappedGeneric = null;
+  for (const [brand, generic] of Object.entries(brandToGenericMap)) {
+    if (lowerRemoved.includes(brand)) {
+      mappedGeneric = generic;
+      break;
+    }
+  }
+
+// 2) first try brand→generic swap (strict, normalized)
+let match = null;
+if (mappedGeneric) {
+  match = added.find(a =>
+    normalizeMedicationName(a.parsed.drug) === mappedGeneric
   );
-  // <-- Insert this line to detect critical:
-  const crit = isCriticalOrder(r) || (match && isCriticalOrder(match));
+}
+
+
+  // 3) fallback to your old name‐to‐name match
+  if (!match) {
+    match = added.find(a =>
+      normalizeMedicationName(r.parsed.drug) ===
+      normalizeMedicationName(a.parsed.drug)
+    );
+  }
+
+const crit = isCriticalOrder(r) || (match && isCriticalOrder(match));
+
   if (match) {
+
+    // if we detected a brand in the “removed” list…
+    if (mappedGeneric && match) {
+      // and the parsed drug of the added order matches that generic…
+      if (normalizeMedicationName(match.parsed.drug) === mappedGeneric) {
+        html += `
+          <tr class="critical">
+            <td>${idx++}</td>
+            <td>${r.original}</td>
+            <td>${match.original}</td>
+            <td>Generic Medication</td>
+          </tr>
+        `;
+        added = added.filter(a => a !== match);
+        return;
+      }
+    }
+
+    // otherwise dose/frequency/etc
     const reason = getChangeReason(r.parsed, match.parsed);
     html += `
       <tr class="${crit ? 'critical' : ''}">
@@ -1799,27 +1801,14 @@ removed.forEach(r => {
     added = added.filter(a => a !== match);
     return;
   }
-  // pure removal: also highlight if critical
+
+  // pure removal
   html += `
     <tr class="${crit ? 'critical' : ''}">
       <td>${idx++}</td>
       <td>${r.original}</td>
       <td></td>
       <td>Removed</td>
-    </tr>
-  `;
-});
-
-  // 2) pure additions
-added.forEach(a => {
-  // detect critical on added items
-  const crit = isCriticalOrder(a);
-  html += `
-    <tr class="${crit ? 'critical' : ''}">
-      <td>${idx++}</td>
-      <td></td>
-      <td>${a.original}</td>
-      <td>Added</td>
     </tr>
   `;
 });
@@ -1835,6 +1824,19 @@ added.forEach(a => {
       </tr>
     `;
   });
+
+// 4) added
+added.forEach(a => {
+  const crit = isCriticalOrder(a);
+  html += `
+    <tr class="${crit ? 'critical' : ''}">
+      <td>${idx++}</td>
+      <td></td>
+      <td>${a.original}</td>
+      <td>Added</td>
+    </tr>
+  `;
+});
 
   html += `
       </tbody>
