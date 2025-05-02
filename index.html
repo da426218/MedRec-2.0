@@ -178,10 +178,15 @@
     }
 /* ========= New table styling ========== */
 table.changes-table {
-  width: 100%;
+  width: auto;
+  margin: 1rem auto;    /* center horizontally */
   border-collapse: collapse;
-  margin: 1rem 0;
   font-size: 0.9rem;
+}
+/* allow horizontal scroll on narrow viewports */
+#results-content {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 table.changes-table th,
 table.changes-table td {
@@ -201,6 +206,7 @@ table.changes-table th {
 .changes-table td {
   page-break-inside: avoid !important;
 }
+
 
     .progress-bar {
       display: flex;
@@ -347,7 +353,15 @@ table.changes-table th {
       border-color: #007bff;
       box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
     }
+    
+    @media print {
+          /* ensure the table prints fully, without scrollbars */
+         #results-content {
+         overflow: visible !important;
+         }
+       }
   </style>
+
 </head>
 <body>
   <header>
@@ -502,7 +516,7 @@ const functions = firebase.functions(app);
       'naltrexone', 'naloxone', 'flumazenil', 'desmopressin', 'octreotide', 'erythropoietin', 'filgrastim',
       'calcitriol', 'ergocalciferol', 'cholecalciferol', 'pyridostigmine', 'propranolol', 'labetalol',
       'isosorbide', 'nicardipine', 'nitroprusside', 'ivabradine', 'sacubitril', 'valsartan',
-      'atorvastatin', 'rosuvastatin', 'simvastatin', 'Norco', 'oxycodone/acetaminophen', 'hydrocodone/acetaminophen', 'codeine/acetaminophen', 'tramadol/acetaminophen', 'acetaminophen/caffeine/dihydrocodeine', 'aspirin/caffeine/dihydrocodeine', 'aspirin/codeine', 'ibuprofen/oxycodone', 'acetaminophen/butalbital/caffeine', 'aspirin/butalbital/caffeine', 'acetaminophen/butalbital', 'methylphenidate', 'amphetamine/dextroamphetamine', 'hydrocodone/pseudoephedrine', 'hydrocodone/chlorpheniramine', 'hydrocodone/homatropine', 'busulfan', 'doxorubicin', 'adalimumab', 'acetaminophen/isometheptene/dichloralphenazone', 'ultracet', 'percocet', 'roxicet', 'endocet', 'tylenol #3', 'zamicet', 'vicodin', 'lortab', 'panlor ss', 'trezix', 'synalgos-dc', 'empirin with codeine', 'combunox', 'fioricet', 'esgic', 'zebutal', 'fiorinal', 'bupap', 'rezira', 'tussionex', 'hycomine', 'hydromet', 'midrin'
+      'atorvastatin', 'rosuvastatin', 'simvastatin', 'Norco', 'oxycodone/acetaminophen', 'hydrocodone/acetaminophen', 'codeine/acetaminophen', 'tramadol/acetaminophen', 'acetaminophen/caffeine/dihydrocodeine', 'aspirin/caffeine/dihydrocodeine', 'aspirin/codeine', 'ibuprofen/oxycodone', 'acetaminophen/butalbital/caffeine', 'aspirin/butalbital/caffeine', 'acetaminophen/butalbital', 'methylphenidate', 'amphetamine/dextroamphetamine', 'hydrocodone/pseudoephedrine', 'hydrocodone/chlorpheniramine', 'hydrocodone/homatropine', 'busulfan', 'doxorubicin', 'adalimumab', 'acetaminophen/isometheptene/dichloralphenazone', 'ultracet', 'percocet', 'roxicet', 'endocet', 'tylenol #3', 'zamicet', 'vicodin', 'lortab', 'panlor ss', 'trezix', 'synalgos-dc', 'empirin with codeine', 'combunox', 'fioricet', 'esgic', 'zebutal', 'fiorinal', 'bupap', 'rezira', 'tussionex', 'hycomine', 'hydromet', 'midrin','chlorpropamide', 'acarbose', 'miglitol', 'argatroban', 'bivalirudin', 'fondaparinux', 'methylergonovine', 'carboplatin', 'cyclophosphamide', 'promethazine'
 
     ].map(med => med.toLowerCase());
 
@@ -624,12 +638,19 @@ const functions = firebase.functions(app);
       { generic: "isosorbide dinitrate", brands: [] }
     ];
 	// ——— Map every brand name to its generic ———
-	const brandToGenericMap = {};
-	commonMedications.forEach(({ generic, brands }) => {
- 	 brands.forEach(brand => {
-   	 brandToGenericMap[brand.toLowerCase()] = generic.toLowerCase();
- 	 });
-	});
+    const brandToGenericMap = {};
+    commonMedications.forEach(({ generic, brands }) => {
+      brands.forEach(brand => {
+        brandToGenericMap[brand.toLowerCase()] = generic.toLowerCase();
+      });
+    });
+
+    // ——— Map every generic to its brands ———
+    const genericToBrandMap = {};
+    Object.entries(brandToGenericMap).forEach(([brand, generic]) => {
+      if (!genericToBrandMap[generic]) genericToBrandMap[generic] = [];
+      genericToBrandMap[generic].push(brand);
+    });
 
     const unitVariants = {
   tablet:   ['tab','tabs','tablet','tablets','tab.','tablet.'],
@@ -875,12 +896,20 @@ function getChangeReason(orig, updated) {
 if ((orig.timeOfDay || '') !== (updated.timeOfDay || '')) {
 return 'Time of day changed';
  }
+  // ─── dosage form change (tablet vs capsule) ───
+  if ((orig.form || '') !== (updated.form || '')) {
+    return 'Form changed';
+  }
+  // ─── route change (PO vs IV etc) ───
+  if ((orig.route || '') !== (updated.route || '')) {
+    return 'Route changed';
+  }
  // ────────────────────────────────────────────────
   if (orig.prn !== updated.prn ||
       orig.indication !== updated.indication) {
     return 'PRN/Indication changed';
   }
-  return 'Order logic changed';
+  return 'Misc. Change';
 }
 
 
@@ -915,6 +944,7 @@ let order = {
   route: "",
   frequency: "",
   timeOfDay: "",
+     administration: "",
   prn: false,
   form: "",
   indication: ""
@@ -935,6 +965,21 @@ let order = {
   }
 }
 // ────────────────────────────────
+// ─── TRACK ADMINISTRATION (with/without X) ───
+{
+  const adminMatch = orderStr.match(
+    /\b(?:with|w\/)\s*(meals|water|juice|liquid)\b|\b(?:without|w\/o)\s*(meals|water|juice|liquid)\b/i
+  );
+  if (adminMatch) {
+    // determine “with” vs “without”
+    const prefix = adminMatch[0].toLowerCase().startsWith('with') ? 'with ' : 'without ';
+    // capture the noun (meals, water, etc.)
+    const noun = (adminMatch[1] || adminMatch[2] || '').toLowerCase();
+    order.administration = prefix + noun;   // e.g. “with meals” or “without water”
+    // strip it out so it won’t interfere with later parsing
+    orderStr = orderStr.replace(adminMatch[0], '').trim();
+  }
+}
 
 // ── extra normalizations that need the `order` object ──
 // weight-based dosing (mg/kg)
@@ -1736,82 +1781,106 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
       </thead>
       <tbody>
   `;
+
 let idx = 1;
-removed.forEach(r => {
+  removed.forEach(r => {
+    const lowerRem = r.original.toLowerCase();
+    let match = null;
+    let changeType = null;
 
-  // 1) Check for a brand→generic swap first
-  const lowerRemoved = r.original.toLowerCase();
-  // find any brand name inside this line
-  let mappedGeneric = null;
-  for (const [brand, generic] of Object.entries(brandToGenericMap)) {
-    if (lowerRemoved.includes(brand)) {
-      mappedGeneric = generic;
-      break;
+    // 1) brand → generic?
+    const brandKey = Object.keys(brandToGenericMap).find(b => lowerRem.includes(b));
+    if (brandKey) {
+      const gen = brandToGenericMap[brandKey];
+      changeType = 'Generic Medication';
+      match = added.find(a =>
+        normalizeMedicationName(a.parsed.drug) === gen
+      );
     }
-  }
 
-// 2) first try brand→generic swap (strict, normalized)
-let match = null;
-if (mappedGeneric) {
-  match = added.find(a =>
-    normalizeMedicationName(a.parsed.drug) === mappedGeneric
-  );
-}
-
-
-  // 3) fallback to your old name‐to‐name match
-  if (!match) {
-    match = added.find(a =>
-      normalizeMedicationName(r.parsed.drug) ===
-      normalizeMedicationName(a.parsed.drug)
-    );
-  }
-
-const crit = isCriticalOrder(r) || (match && isCriticalOrder(match));
-
-  if (match) {
-
-    // if we detected a brand in the “removed” list…
-    if (mappedGeneric && match) {
-      // and the parsed drug of the added order matches that generic…
-      if (normalizeMedicationName(match.parsed.drug) === mappedGeneric) {
-        html += `
-          <tr class="critical">
-            <td>${idx++}</td>
-            <td>${r.original}</td>
-            <td>${match.original}</td>
-            <td>Generic Medication</td>
-          </tr>
-        `;
-        added = added.filter(a => a !== match);
-        return;
+    // 2) generic → brand?
+    if (!changeType) {
+      const genKey = normalizeMedicationName(r.parsed.drug);
+      const possibleBrands = genericToBrandMap[genKey] || [];
+      const brandFound = possibleBrands.find(b =>
+        added.some(a => a.original.toLowerCase().includes(b))
+      );
+      if (brandFound) {
+        changeType = 'Brand Medication';
+        match = added.find(a =>
+          a.original.toLowerCase().includes(brandFound)
+        );
       }
     }
 
-    // otherwise dose/frequency/etc
-    const reason = getChangeReason(r.parsed, match.parsed);
+    // 3) fallback by drug‐name match
+    if (!match) {
+      match = added.find(a =>
+        normalizeMedicationName(a.parsed.drug) ===
+        normalizeMedicationName(r.parsed.drug)
+      );
+    }
+
+    const crit = isCriticalOrder(r) || (match && isCriticalOrder(match));
+
+    // 4) If brand↔generic swap, emit that and skip
+    if (match && (changeType === 'Generic Medication' || changeType === 'Brand Medication')) {
+      html += `
+        <tr class="${crit ? 'critical' : ''}">
+          <td>${idx++}</td>
+          <td>${r.original}</td>
+          <td>${match.original}</td>
+          <td>${changeType}</td>
+        </tr>
+      `;
+      added = added.filter(a => a !== match);
+      return;
+    }
+
+    // 5) Otherwise, collect dose/frequency/etc. reasons
+    const reasons = [];
+    if (match) {
+      if (r.parsed.dose.value  !== match.parsed.dose.value ||
+          r.parsed.dose.unit   !== match.parsed.dose.unit)   reasons.push('Dose changed');
+      if ((r.parsed.timeOfDay || '') !== (match.parsed.timeOfDay || ''))
+        reasons.push('Time of day changed');
+      else if (r.parsed.frequency !== match.parsed.frequency)
+        reasons.push('Frequency changed');
+      if (r.parsed.form  !== match.parsed.form)  reasons.push('Form changed');
+      if (r.parsed.route !== match.parsed.route) reasons.push('Route changed');
+      if (r.parsed.prn   !== match.parsed.prn ||
+          r.parsed.indication !== match.parsed.indication)
+        reasons.push('PRN/Indication changed');
+      if (r.parsed.administration !== match.parsed.administration)
+        reasons.push('Administration changed');
+    }
+
+    if (match) {
+      const reasonText = reasons.length > 1
+                         ? 'Multiple changes'
+                         : (reasons[0] || 'Misc. Change');
+      html += `
+        <tr class="${crit ? 'critical' : ''}">
+          <td>${idx++}</td>
+          <td>${r.original}</td>
+          <td>${match.original}</td>
+          <td>${reasonText}</td>
+        </tr>
+      `;
+      added = added.filter(a => a !== match);
+      return;
+    }
+
+    // 6) pure removal
     html += `
       <tr class="${crit ? 'critical' : ''}">
         <td>${idx++}</td>
         <td>${r.original}</td>
-        <td>${match.original}</td>
-        <td>${reason}</td>
+        <td></td>
+        <td>Removed</td>
       </tr>
     `;
-    added = added.filter(a => a !== match);
-    return;
-  }
-
-  // pure removal
-  html += `
-    <tr class="${crit ? 'critical' : ''}">
-      <td>${idx++}</td>
-      <td>${r.original}</td>
-      <td></td>
-      <td>Removed</td>
-    </tr>
-  `;
-});
+  });
 
   // 3) unchanged (optional; you can remove this loop if you don’t want to list them)
   unchanged.forEach(u => {
