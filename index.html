@@ -938,6 +938,13 @@ function getChangeReason(orig, updated) {
         return 'Misc. Change';
     }
 
+   // —— EARLY EXIT —— if BOTH frequency AND time‐of‐day differ, flag as Multiple changes
+   const freqChanged = orig.frequency     && updated.frequency     && orig.frequency     !== updated.frequency;
+   const todChanged  = (orig.timeOfDay||'') !== (updated.timeOfDay||'');
+   if (freqChanged && todChanged) {
+       return 'Multiple changes';
+   }
+
     let changes = [];
 
     // 1) Dose change
@@ -958,7 +965,8 @@ function getChangeReason(orig, updated) {
     }
 
     // 3) Time of day change
-    if ((orig.timeOfDay || '') !== (updated.timeOfDay || '')) {
+    // only count a Time-of-Day change if both orders actually had a timeOfDay
+    if (orig.timeOfDay && updated.timeOfDay && orig.timeOfDay !== updated.timeOfDay) {
         changes.push('Time of day changed');
     }
 
@@ -1273,6 +1281,10 @@ const units = {
         });
     }
     // ──────────────────────────────────
+    // If they gave a time‐of‐day but no explicit freq, assume daily
+    if (!order.frequency && order.timeOfDay) {
+      order.frequency = 'daily';
+    }
 
 
         order.drug = orderStr.trim() || orderStr.split(/\s+/)[0] || '';
