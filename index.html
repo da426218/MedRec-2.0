@@ -355,28 +355,23 @@ table.changes-table th {
     }
     
     @media print {
-  /* hide header, buttons, progress bar, loading indicator */
-  header,
-  button,
-  .photo-actions,
-  .progress-bar,
-  #loading {
+  /* hide everything but the results screen */
+  header, button, .photo-actions, .progress-bar, #loading,
+  .screen:not(#results-screen) {
     display: none !important;
   }
-  /* hide all “screens” except the results screen */
-  .screen { display: none !important; }
   #results-screen { display: block !important; }
 
-  /* ensure the results table prints in full */
+  /* allow the table to grow and show all columns */
   #results-content {
-    display: block !important;
     overflow: visible !important;
-    margin: 0 !important;
+    -webkit-overflow-scrolling: auto !important;
     width: auto !important;
+    margin: 0 !important;
   }
   table.changes-table {
-    border-collapse: collapse !important;
     width: 100% !important;
+    border-collapse: collapse !important;
   }
   table.changes-table th,
   table.changes-table td {
@@ -1999,42 +1994,14 @@ added.forEach(a => {
 
 
 function printResults() {
-  const resultsDiv = document.getElementById('results-content').innerHTML;
-  const note       = document.querySelector('#results-screen p').innerHTML;
+  // 1) make sure we’re on the results screen
+  showScreen('results-screen');
 
-  const printHTML = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Print MedRec Results</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 20px; }
-          h2 { text-align: center; }
-          p  { text-align: center; }
-          .critical { color: red; font-weight: bold; }
-          table { width: 100%; border-collapse: collapse; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f0f0f0; }
-        </style>
-      </head>
-      <body>
-        <h2>Comparison Results</h2>
-        <p>${note}</p>
-        ${resultsDiv}
-      </body>
-    </html>
-  `;
-
-  const w = window.open('', '_blank');
-  w.document.open();
-  w.document.write(printHTML);
-  w.document.close();
-  w.focus();
-  w.print();
-  w.onafterprint = () => w.close();
+  // 2) give the browser a moment to apply your @media print CSS
+  setTimeout(() => {
+    window.print();
+  }, 100);
 }
-
 
     function startOver() {
       photo1Files = [];
