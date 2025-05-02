@@ -885,6 +885,26 @@ function mergeMultiLineOrders(lines) {
   });
   return merged;
 }
+
+/**
+ * Turn any raw order line into its canonical generic name
+ * so we can group “day 1 prednisone” and “day 2 Prednisone.”
+ */
+function normalizeMedicationName(name) {
+  if (!name) return "";
+  const lowerName = name.toLowerCase();
+  for (let med of criticalMeds) {
+    if (lowerName.includes(med)) return med;
+  }
+  for (const { generic, brands } of commonMedications) {
+    if (lowerName.includes(generic)) return generic;
+    if (brands.some(b => lowerName.includes(b.toLowerCase()))) {
+      return generic;
+    }
+  }
+  return lowerName;
+}
+
 /**
  * Collapse any “Day X … <drug> …” lines into one “pack” order.
  */
@@ -913,55 +933,58 @@ function mergeTaperPackOrders(lines) {
 }
 // ======= New helper to describe what changed ========
 function getChangeReason(orig, updated) {
-  if (orig.dose.value !== updated.dose.value ||
-      orig.dose.unit  !== updated.dose.unit) {
-    return 'Dose changed';
-  }
-  if (orig.frequency !== updated.frequency) {
-    return 'Frequency changed';
-  }
-// ─── time-of-day change (e.g. morning→evening) ───
-if ((orig.timeOfDay || '') !== (updated.timeOfDay || '')) {
-return 'Time of day changed';
- }
-  // ─── dosage form change (tablet vs capsule) ───
-  if ((orig.form || '') !== (updated.form || '')) {
-    return 'Form changed';
-  }
-  // ─── route change (PO vs IV etc) ───
-  if ((orig.route || '') !== (updated.route || '')) {
-    return 'Route changed';
-  }
- // ────────────────────────────────────────────────
-  if (orig.prn !== updated.prn ||
-      orig.indication !== updated.indication) {
-    return 'PRN/Indication changed';
-  }
-  return 'Misc. Change';
-}
-
-
-function normalizeMedicationName(name) {
-  if (!name) return "";
-  const lowerName = name.toLowerCase();
-
-  // 1) Critical meds stay as-is
-  for (let med of criticalMeds) {
-    if (lowerName.includes(med)) return med;
-  }
-
-  // 2) Generic or brand → generic
-  for (const {generic, brands} of commonMedications) {
-    if (lowerName.includes(generic))      return generic;
-    if (brands.some(b => lowerName.includes(b.toLowerCase()))) {
-      return generic;
+    // Guard against undefined/null properties
+    if (!orig || !updated || !orig.dose || !updated.dose) {
+        return 'Misc. Change';
     }
-  }
 
-  // 3) Fallback to raw text
-  return lowerName;
+    let changes = [];
+
+    // 1) Dose change
+    if (orig.dose.value !== updated.dose.value || orig.dose.unit !== updated.dose.unit) {
+        changes.push('Dose changed');
+    }
+
+    // 2) Frequency change
+    if (orig.frequency && updated.frequency && orig.frequency !== updated.frequency) {
+        // Only count as frequency change if it’s a clear frequency term
+        const frequencyTerms = ['daily', 'twice daily', 'three times daily', 'four times daily', 'every other day', 'immediately'];
+        const qhMatchOrig = orig.frequency.match(/^q(\d+)h$/);
+        const qhMatchUpdated = updated.frequency.match(/^q(\d+)h$/);
+        if ((frequencyTerms.includes(orig.frequency) && frequencyTerms.includes(updated.frequency)) ||
+            (qhMatchOrig && qhMatchUpdated && qhMatchOrig[1] !== qhMatchUpdated[1])) {
+            changes.push('Frequency changed');
+        }
+    }
+
+    // 3) Time of day change
+    if ((orig.timeOfDay || '') !== (updated.timeOfDay || '')) {
+        changes.push('Time of day changed');
+    }
+
+    // 4) Form change
+    if ((orig.form || '') !== (updated.form || '')) {
+        changes.push('Form changed');
+    }
+
+    // 5) Route change
+    if ((orig.route || '') !== (updated.route || '')) {
+        changes.push('Route changed');
+    }
+
+    // 6) PRN/Indication change
+    if (orig.prn !== updated.prn || (orig.indication || '') !== (updated.indication || '')) {
+        changes.push('PRN/Indication changed');
+    }
+
+    // Return appropriate reason
+    if (changes.length > 1) {
+        return 'Multiple changes';
+    } else if (changes.length === 1) {
+        return changes[0];
+    }
+    return 'Misc. Change';
 }
-
     function parseOrder(orderStr) {
       orderStr = orderStr.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
       orderStr = normalizeText(orderStr);
@@ -1805,159 +1828,164 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
       }
     }
 
-    function compareAndShowResults() {
-      let   { unchanged, removed, added } = compareOrders(meds1, meds2);
+function compareAndShowResults() {
+    let { unchanged, removed, added } = compareOrders(meds1, meds2);
 
+    // Build a numbered, four-column table of changes
+    let html = `
+        <table class="changes-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Original Order (Facility)</th>
+                    <th>New Order (Hospital)</th>
+                    <th>Suspected Change</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
 
-        // build a numbered, four-column table of changes
- let html = `
-    <table class="changes-table">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Original Order (Facility)</th>
-          <th>New Order (Hospital)</th>
-          <th>Suspected Change</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
+    let idx = 1;
 
-let idx = 1;
-  removed.forEach(r => {
-    const lowerRem = r.original.toLowerCase();
-    let match = null;
-    let changeType = null;
+    // Process removed orders (potential changes or removals)
+    removed.forEach(r => {
+        console.group(`🔍 Comparing removed: ${r.original}`);
+        console.log('   current added[]:', added.map(a => a.original));
+        const lowerRem = r.original.toLowerCase();
+        let match = null;
+        let changeType = null;
 
-    // 1) brand → generic?
-    const brandKey = Object.keys(brandToGenericMap).find(b => lowerRem.includes(b));
-    if (brandKey) {
-      const gen = brandToGenericMap[brandKey];
-      changeType = 'Generic Medication';
-      match = added.find(a =>
-        normalizeMedicationName(a.parsed.drug) === gen
-      );
-    }
+        // 1) Brand → generic?
+        const brandKey = Object.keys(brandToGenericMap).find(b => lowerRem.includes(b));
+        if (brandKey) {
+            changeType = 'Generic Medication';
+            const gen = brandToGenericMap[brandKey];
+            match = added.find(a => normalizeMedicationName(a.parsed.drug) === gen);
+        }
 
-    // 2) generic → brand?  ← exact‐word match so “Ultracet” is caught
-if (!changeType) {
-  const genKey = normalizeMedicationName(r.parsed.drug);
-  const brandList = genericToBrandMap[genKey] || [];
-  for (let brand of brandList) {
-    // \b…\b makes sure we match the whole word
-    const regex = new RegExp(`\\b${brand}\\b`, 'i');
-    const found = added.find(a => regex.test(a.original));
-    if (found) {
-      changeType = 'Brand Medication';
-      match = found;
-      break;
-    }
-  }
+        // 2) Generic → brand?
+        if (!match) {
+            const genKey = normalizeMedicationName(r.parsed.drug);
+            const brandList = genericToBrandMap[genKey] || [];
+            for (let brand of brandList) {
+                const regex = new RegExp(`\\b${brand}\\b`, 'i');
+                const found = added.find(a => regex.test(a.original));
+                if (found) {
+                    changeType = 'Brand Medication';
+                    match = found;
+                    break;
+                }
+            }
+        }
+
+        // 3) Substring match (fallback, less precise)
+        if (!match) {
+            const drugName = r.parsed.drug.toLowerCase();
+            match = added.find(a => a.original.toLowerCase().includes(drugName));
+            if (match) {
+                changeType = getChangeReason(r.parsed, match.parsed);
+                console.log(`   → substring matched "${drugName}" to`, match.original);
+            }
+        }
+
+        const crit = isCriticalOrder(r) || (match && isCriticalOrder(match));
+
+        // 4) Brand ↔ generic swap
+        if (match && (changeType === 'Generic Medication' || changeType === 'Brand Medication')) {
+            html += `
+                <tr class="${crit ? 'critical' : ''}">
+                    <td>${idx++}</td>
+                    <td>${r.original}</td>
+                    <td>${match.original}</td>
+                    <td>${changeType}</td>
+                </tr>
+            `;
+            added = added.filter(a => a !== match);
+            console.groupEnd();
+            return;
+        }
+
+        // 5) Dose / freq / form / route / PRN / admin reasons
+        if (match) {
+            // Use getChangeReason to determine the specific change
+            const reason = getChangeReason(r.parsed, match.parsed);
+            html += `
+                <tr class="${crit ? 'critical' : ''}">
+                    <td>${idx++}</td>
+                    <td>${r.original}</td>
+                    <td>${match.original}</td>
+                    <td>${reason}</td>
+                </tr>
+            `;
+            added = added.filter(a => a !== match);
+            console.groupEnd();
+            return;
+        }
+
+        // 6) Same-drug match
+        const sameDrug = added.find(a =>
+            normalizeMedicationName(a.parsed.drug) === normalizeMedicationName(r.parsed.drug)
+        );
+        if (sameDrug) {
+            const reason = getChangeReason(r.parsed, sameDrug.parsed);
+            html += `
+                <tr class="${crit ? 'critical' : ''}">
+                    <td>${idx++}</td>
+                    <td>${r.original}</td>
+                    <td>${sameDrug.original}</td>
+                    <td>${reason}</td>
+                </tr>
+            `;
+            added = added.filter(a => a !== sameDrug);
+            console.groupEnd();
+            return;
+        }
+
+        // 7) Pure removal
+        html += `
+            <tr class="${crit ? 'critical' : ''}">
+                <td>${idx++}</td>
+                <td>${r.original}</td>
+                <td></td>
+                <td>Removed</td>
+            </tr>
+        `;
+        console.groupEnd();
+    });
+
+    // Unchanged orders
+    unchanged.forEach(u => {
+        html += `
+            <tr>
+                <td>${idx++}</td>
+                <td>${u.original}</td>
+                <td>${u.original}</td>
+                <td>Unchanged</td>
+            </tr>
+        `;
+    });
+
+    // Added orders
+    added.forEach(a => {
+        const crit = isCriticalOrder(a);
+        html += `
+            <tr class="${crit ? 'critical' : ''}">
+                <td>${idx++}</td>
+                <td></td>
+                <td>${a.original}</td>
+                <td>Added</td>
+            </tr>
+        `;
+    });
+
+    html += `
+            </tbody>
+        </table>
+    `;
+
+    document.getElementById('results-content').innerHTML = html;
+    showScreen('results-screen');
 }
-
-    // 3) fallback by drug‐name match
-    if (!match) {
-      match = added.find(a =>
-        normalizeMedicationName(a.parsed.drug) ===
-        normalizeMedicationName(r.parsed.drug)
-      );
-    }
-
-    const crit = isCriticalOrder(r) || (match && isCriticalOrder(match));
-
-    // 4) If brand↔generic swap, emit that and skip
-    if (match && (changeType === 'Generic Medication' || changeType === 'Brand Medication')) {
-      html += `
-        <tr class="${crit ? 'critical' : ''}">
-          <td>${idx++}</td>
-          <td>${r.original}</td>
-          <td>${match.original}</td>
-          <td>${changeType}</td>
-        </tr>
-      `;
-      added = added.filter(a => a !== match);
-      return;
-    }
-
-    // 5) Otherwise, collect dose/frequency/etc. reasons
-    const reasons = [];
-    if (match) {
-      if (r.parsed.dose.value  !== match.parsed.dose.value ||
-          r.parsed.dose.unit   !== match.parsed.dose.unit)   reasons.push('Dose changed');
-      if ((r.parsed.timeOfDay || '') !== (match.parsed.timeOfDay || ''))
-        reasons.push('Time of day changed');
-      else if (r.parsed.frequency !== match.parsed.frequency)
-        reasons.push('Frequency changed');
-      if (r.parsed.form  !== match.parsed.form)  reasons.push('Form changed');
-      if (r.parsed.route !== match.parsed.route) reasons.push('Route changed');
-      if (r.parsed.prn   !== match.parsed.prn ||
-          r.parsed.indication !== match.parsed.indication)
-        reasons.push('PRN/Indication changed');
-      if (r.parsed.administration !== match.parsed.administration)
-        reasons.push('Administration changed');
-    }
-
-    if (match) {
-      const reasonText = reasons.length > 1
-                         ? 'Multiple changes'
-                         : (reasons[0] || 'Misc. Change');
-      html += `
-        <tr class="${crit ? 'critical' : ''}">
-          <td>${idx++}</td>
-          <td>${r.original}</td>
-          <td>${match.original}</td>
-          <td>${reasonText}</td>
-        </tr>
-      `;
-      added = added.filter(a => a !== match);
-      return;
-    }
-
-    // 6) pure removal
-    html += `
-      <tr class="${crit ? 'critical' : ''}">
-        <td>${idx++}</td>
-        <td>${r.original}</td>
-        <td></td>
-        <td>Removed</td>
-      </tr>
-    `;
-  });
-
-  // 3) unchanged (optional; you can remove this loop if you don’t want to list them)
-  unchanged.forEach(u => {
-    html += `
-      <tr>
-        <td>${idx++}</td>
-        <td>${u.original}</td>
-        <td>${u.original}</td>
-        <td>Unchanged</td>
-      </tr>
-    `;
-  });
-
-// 4) added
-added.forEach(a => {
-  const crit = isCriticalOrder(a);
-  html += `
-    <tr class="${crit ? 'critical' : ''}">
-      <td>${idx++}</td>
-      <td></td>
-      <td>${a.original}</td>
-      <td>Added</td>
-    </tr>
-  `;
-});
-
-  html += `
-      </tbody>
-    </table>
-  `;
-
-  document.getElementById('results-content').innerHTML = html;
-
-      showScreen('results-screen');
-    }
 
     async function exportToPDF() {
   // 1) grab your table
