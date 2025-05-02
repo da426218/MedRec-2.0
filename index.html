@@ -1798,20 +1798,21 @@ let idx = 1;
       );
     }
 
-    // 2) generic → brand?
-    if (!changeType) {
-      const genKey = normalizeMedicationName(r.parsed.drug);
-      const possibleBrands = genericToBrandMap[genKey] || [];
-      const brandFound = possibleBrands.find(b =>
-        added.some(a => a.original.toLowerCase().includes(b))
-      );
-      if (brandFound) {
-        changeType = 'Brand Medication';
-        match = added.find(a =>
-          a.original.toLowerCase().includes(brandFound)
-        );
-      }
+    // 2) generic → brand?  ← exact‐word match so “Ultracet” is caught
+if (!changeType) {
+  const genKey = normalizeMedicationName(r.parsed.drug);
+  const brandList = genericToBrandMap[genKey] || [];
+  for (let brand of brandList) {
+    // \b…\b makes sure we match the whole word
+    const regex = new RegExp(`\\b${brand}\\b`, 'i');
+    const found = added.find(a => regex.test(a.original));
+    if (found) {
+      changeType = 'Brand Medication';
+      match = found;
+      break;
     }
+  }
+}
 
     // 3) fallback by drug‐name match
     if (!match) {
