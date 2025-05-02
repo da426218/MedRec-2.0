@@ -2003,42 +2003,43 @@ added.forEach(a => {
 }
 
 
-    function printResults() {
-      const resultsDiv = document.getElementById('results-content').innerHTML;
-      const note = document.querySelector('#results-screen p').innerHTML;
-      const printContent = `
+function printResults() {
+  const resultsDiv = document.getElementById('results-content').innerHTML;
+  const note       = document.querySelector('#results-screen p').innerHTML;
+
+  const printHTML = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Print MedRec Results</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h2 { text-align: center; }
+          p  { text-align: center; }
+          .critical { color: red; font-weight: bold; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f0f0f0; }
+        </style>
+      </head>
+      <body>
         <h2>Comparison Results</h2>
         <p>${note}</p>
         ${resultsDiv}
-      `;
-      const iframe = document.createElement('iframe');
-      document.body.appendChild(iframe);
-      iframe.style.display = 'none';
-      const doc = iframe.contentWindow.document;
-      doc.open();
-      doc.write(`
-        <html>
-          <head>
-            <title>Print MedRec Results</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              h2 { text-align: center; }
-              p { text-align: center; }
-              .critical { color: red; font-weight: bold; }
-              ul { padding-left: 20px; }
-              li { margin: 5px 0; }
-            </style>
-          </head>
-          <body>
-            ${printContent}
-          </body>
-        </html>
-      `);
-      doc.close();
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      document.body.removeChild(iframe);
-    }
+      </body>
+    </html>
+  `;
+
+  const w = window.open('', '_blank');
+  w.document.open();
+  w.document.write(printHTML);
+  w.document.close();
+  w.focus();
+  w.print();
+  w.onafterprint = () => w.close();
+}
+
 
     function startOver() {
       photo1Files = [];
