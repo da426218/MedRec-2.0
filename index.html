@@ -360,6 +360,36 @@ table.changes-table th {
          overflow: visible !important;
          }
        }
+@media print {
+  /* undo flex layout so content flows normally */
+  body {
+    display: block !important;
+    min-height: auto !important;
+    background: white !important;
+  }
+  /* keep the header visible in print */
+  header {
+    position: static !important;
+    top: auto !important;
+    height: auto !important;
+    box-shadow: none !important;
+  }
+  /* hide all app screens except the results */
+  .screen { display: none !important; }
+  #results-screen { display: block !important; }
+  /* remove buttons, progress bar, photo actions, loading bar */
+  button,
+  .photo-actions,
+  .progress-bar,
+  #loading {
+    display: none !important;
+  }
+  /* make absolutely sure the table prints */
+  #results-content {
+    overflow: visible !important;
+  }
+}
+
   </style>
 
 </head>
