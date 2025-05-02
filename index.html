@@ -754,12 +754,11 @@ async function testCallOcr() {
 
 // ——— remove trailing junk from merged lines ———
 function pruneLine(line) {
-  // capture from start up through a dose+unit, plus optional route/frequency/prn
-  const re = /^(.*?(?:\d+(?:-\d+)?\s*(?:mg|mcg|tablet|tabs?|capsule|caps)|\bpo\b)(?:.*?\b(?:po|prn|daily|bid|tid|qid|at bedtime|morning|evening))?)/i;
+  // keep dose → form → route → freq → PRN → “for … pain” or “moderate pain”
+  const re = /^(.*?(?:\d+(?:-\d+)?\s*(?:mg|mcg|g|tablet|tabs?|capsule|capsules|drop|drops|puff|puffs)\b)(?:.*?\b(?:tablet|capsule|caplet)\b)?(?:.*?\b(?:po|sl|pr|iv|im|sc|subq)\b)?(?:.*?\b(?:q\d+h|every\s*\d+\s*hours?|daily|bid|tid|qid|at\s*bedtime|every\s*(?:morning|evening))\b)?(?:.*?\b(?:prn|as\s*needed)\b)?(?:.*?\b(?:for\s+)?(?:mild|moderate|severe)?\s*pain\b)?)/i;
   const m = line.match(re);
   return m ? m[1].trim() : line.trim();
 }
-
 
     function isLikelyOrderLine(line) {
       if (line.length < 3) return false;
