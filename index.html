@@ -965,10 +965,10 @@ function getChangeReason(orig, updated) {
     }
 
     // 3) Time of day change
-    // only count a Time-of-Day change if both orders actually had a timeOfDay
-    if (orig.timeOfDay && updated.timeOfDay && orig.timeOfDay !== updated.timeOfDay) {
-        changes.push('Time of day changed');
-    }
+// flag when one side has a time‐of‐day and the other doesn't, or they differ
+if ((orig.timeOfDay || updated.timeOfDay) && orig.timeOfDay !== updated.timeOfDay) {
+    changes.push('Time of day changed');
+}
 
     // 4) Form change
     if ((orig.form || '') !== (updated.form || '')) {
