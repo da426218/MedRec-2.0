@@ -752,6 +752,15 @@ async function testCallOcr() {
       return line.replace(/[^a-z0-9]+$/i, '').trim();
     }
 
+// ——— remove trailing junk from merged lines ———
+function pruneLine(line) {
+  // capture from start up through a dose+unit, plus optional route/frequency/prn
+  const re = /^(.*?(?:\d+(?:-\d+)?\s*(?:mg|mcg|tablet|tabs?|capsule|caps)|\bpo\b)(?:.*?\b(?:po|prn|daily|bid|tid|qid|at bedtime|morning|evening))?)/i;
+  const m = line.match(re);
+  return m ? m[1].trim() : line.trim();
+}
+
+
     function isLikelyOrderLine(line) {
       if (line.length < 3) return false;
       let alphaNumCount = (line.match(/[a-z0-9]/gi) || []).length;
@@ -1599,7 +1608,12 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
       let lines = text.split(/\r?\n+/).map(line => cleanLine(line));
 	lines = mergeMultiLineOrders(lines);
 	lines = mergeTaperPackOrders(lines);
-	lines = lines.filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+	// prune off any trailing non-order text
+	lines = lines.map(line => pruneLine(line));
+	lines = lines.filter(line => 
+		isLikelyOrderLine(line) && containsKnownMedication(line)
+		);
+
 
       console.log('Raw lines after filtering:', lines); // Debug log
       lines = [...new Set(lines)];
@@ -1641,7 +1655,11 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
           let lines = text.split(/\r?\n+/).map(line => cleanLine(line));
     	lines = mergeMultiLineOrders(lines);
 	lines = mergeTaperPackOrders(lines);
-    	lines = lines.filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+	// prune off any trailing non-order text
+	lines = lines.map(line => pruneLine(line));
+    	lines = lines.filter(line => 
+		isLikelyOrderLine(line) && containsKnownMedication(line)
+		);
 
       console.log('Raw lines after filtering:', lines); // Debug log
       lines = [...new Set(lines)];
@@ -1683,6 +1701,8 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
                       let lines = combinedText.split(/\r?\n+/).map(line => cleanLine(line));
       		lines = mergeMultiLineOrders(lines);
 		lines = mergeTaperPackOrders(lines);
+		// prune off any trailing non-order text
+		lines = lines.map(line => pruneLine(line));
      		lines = lines.filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
 
 
@@ -1729,6 +1749,8 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
                 let lines = combinedText.split(/\r?\n+/).map(line => cleanLine(line));
       		lines = mergeMultiLineOrders(lines);
 		lines = mergeTaperPackOrders(lines);
+		// prune off any trailing non-order text
+		lines = lines.map(line => pruneLine(line));
       		lines = lines.filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
 
           console.log('Raw lines from OCR:', lines); // Debug log
