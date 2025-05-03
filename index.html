@@ -775,10 +775,10 @@ async function testCallOcr() {
 // ——— remove trailing junk from merged lines ———
 function pruneLine(line) {
   // keep dose → form → route → freq → PRN → “for … pain” or “moderate pain”
-  const re = /^(.*?(?:\d+(?:-\d+)?\s*(?:mg|mcg|g|tablet|tabs?|capsule|capsules|drop|drops|puff|puffs)\b)(?:.*?\b(?:tablet|capsule|caplet)\b)?(?:.*?\b(?:po|sl|pr|iv|im|sc|subq)\b)?(?:.*?\b(?:q\d+h|every\s*\d+\s*hours?|daily|bid|tid|qid|at\s*bedtime|every\s*(?:morning|evening))\b)?(?:.*?\b(?:prn|as\s*needed)\b)?(?:.*?\b(?:for\s+)?(?:mild|moderate|severe)?\s*pain\b)?)/i;
-  const m = line.match(re);
-  return m ? m[1].trim() : line.trim();
-}
+  // only strip off trailing garbage like “;” or OCR noise, but preserve any
+  // remaining words (e.g. “for hypertension” or “heart failure”)
+  return line.trim();
+ }
 
     function isLikelyOrderLine(line) {
       if (line.length < 3) return false;
@@ -844,15 +844,18 @@ function containsKnownMedication(line) {
     .replace(/\bstat\b/g,     'immediately')
     // ————————————————————————————————
 
+
     // your original word-to-digit and cleanup steps
-    .replace(/\bone\b/g,   '1')
-    .replace(/\btwo\b/g,   '2')
-    .replace(/\bthree\b/g, '3')
-    .replace(/\bfour\b/g,  '4')
-    .replace(/\bfive\b/g,  '5');
+.replace(/\bone\b(?!\s+times)/g,   '1')
+.replace(/\btwo\b(?!\s+times)/g,   '2')
+.replace(/\bthree\b(?!\s+times)/g, '3')
+.replace(/\bfour\b(?!\s+times)/g,  '4')
+.replace(/\bfive\b(?!\s+times)/g,  '5')
+
 
   return text
     .replace(/p\.?o\.?/g, 'po')
+    .replace(/\bby mouth\b/g, 'po')
     .replace(/q\.?d\.?/g, 'daily')
     .replace(/b\.?i\.?d\.?/g, 'twice daily')
     .replace(/\bqhs\b/g, 'at bedtime')
@@ -933,66 +936,54 @@ function mergeTaperPackOrders(lines) {
 }
 // ======= New helper to describe what changed ========
 function getChangeReason(orig, updated) {
-    // Guard against undefined/null properties
-    if (!orig || !updated || !orig.dose || !updated.dose) {
-        return 'Misc. Change';
-    }
+  /* ---------- 1. early guard rails ---------- */
+  if (!orig || !updated) return 'Misc. Change';
 
-   // —— EARLY EXIT —— if BOTH frequency AND time‐of‐day differ, flag as Multiple changes
-   const freqChanged = orig.frequency     && updated.frequency     && orig.frequency     !== updated.frequency;
-   const todChanged  = (orig.timeOfDay||'') !== (updated.timeOfDay||'');
-   if (freqChanged && todChanged) {
-       return 'Multiple changes';
-   }
+  /* ---------- 2. helpers ---------- */
+  const norm = (s = '') => s.toLowerCase().trim().replace(/\s+/g, ' ');
+  const add  = label => { if (!changes.includes(label)) changes.push(label); };
 
-    let changes = [];
+  /* ---------- 3.   detect each dimension ---------- */
+  const changes = [];
 
-    // 1) Dose change
-    if (orig.dose.value !== updated.dose.value || orig.dose.unit !== updated.dose.unit) {
-        changes.push('Dose changed');
-    }
+/* 3‑a Dose ------------------------------------------------- */
+/* only flag a dose change if **both** sides actually have a dose */
+if (orig.dose?.value != null && updated.dose?.value != null &&
+   (orig.dose.value !== updated.dose.value ||
+    orig.dose.unit  !== updated.dose.unit))   add('Dose changed');
 
-    // 2) Frequency change
-    if (orig.frequency && updated.frequency && orig.frequency !== updated.frequency) {
-        // Only count as frequency change if it’s a clear frequency term
-        const frequencyTerms = ['daily', 'twice daily', 'three times daily', 'four times daily', 'every other day', 'immediately'];
-        const qhMatchOrig = orig.frequency.match(/^q(\d+)h$/);
-        const qhMatchUpdated = updated.frequency.match(/^q(\d+)h$/);
-        if ((frequencyTerms.includes(orig.frequency) && frequencyTerms.includes(updated.frequency)) ||
-            (qhMatchOrig && qhMatchUpdated && qhMatchOrig[1] !== qhMatchUpdated[1])) {
-            changes.push('Frequency changed');
-        }
-    }
+  /* 3‑b Frequency ------------------------------------------- */
+  if (orig.frequency && updated.frequency && norm(orig.frequency) !== norm(updated.frequency)) {
+    add('Frequency changed');
+  }
 
-    // 3) Time of day change
-// flag when one side has a time‐of‐day and the other doesn't, or they differ
-if ((orig.timeOfDay || updated.timeOfDay) && orig.timeOfDay !== updated.timeOfDay) {
-    changes.push('Time of day changed');
+  /* 3‑c Time‑of‑day ----------------------------------------- */
+  if (norm(orig.timeOfDay) !== norm(updated.timeOfDay)) {
+    add('Time of day changed');
+  }
+
+/* 3‑d Form / Route ---------------------------------------- */
+/* …same idea: we compare only when **both** values are present */
+if (orig.form && updated.form && norm(orig.form) !== norm(updated.form))
+    add('Form changed');
+
+if (orig.route && updated.route && norm(orig.route) !== norm(updated.route))
+    add('Route changed');
+
+  /* 3‑e PRN flag -------------------------------------------- */
+  if (orig.prn !== updated.prn)                add('PRN changed');
+
+  /* 3‑f Indication ------------------------------------------ */
+  if (norm(orig.indication) !== norm(updated.indication)) {
+    add('Indication changed');
+  }
+
+  /* ---------- 4. final decision ---------- */
+  if (changes.length === 0) return 'Misc. Change';
+  if (changes.length === 1) return changes[0];
+  return 'Multiple changes';
 }
 
-    // 4) Form change
-    if ((orig.form || '') !== (updated.form || '')) {
-        changes.push('Form changed');
-    }
-
-    // 5) Route change
-    if ((orig.route || '') !== (updated.route || '')) {
-        changes.push('Route changed');
-    }
-
-    // 6) PRN/Indication change
-    if (orig.prn !== updated.prn || (orig.indication || '') !== (updated.indication || '')) {
-        changes.push('PRN/Indication changed');
-    }
-
-    // Return appropriate reason
-    if (changes.length > 1) {
-        return 'Multiple changes';
-    } else if (changes.length === 1) {
-        return changes[0];
-    }
-    return 'Misc. Change';
-}
     function parseOrder(orderStr) {
       orderStr = orderStr.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
       orderStr = normalizeText(orderStr);
@@ -1257,19 +1248,30 @@ const units = {
       order.frequency = `q${qhMatch[1]}h`;
       orderStr = orderStr.replace(qhMatch[0], '').trim();
     } else {
-      // 2) named intervals (daily, bid, tid, qod, stat…)
+     
+ // 2) named intervals (daily, bid, tid, qod, stat…)
       const freqMapping = {
-        "once daily":        "daily",
-        "daily":             "daily",
-        "twice daily":       "twice daily",
-        "bid":               "twice daily",
-        "three times daily": "three times daily",
-        "tid":               "three times daily",
-        "four times daily":  "four times daily",
-        "qid":               "four times daily",
-        "every other day":   "every other day",
-        "stat":              "immediately"
-      };
+  "once daily":        "daily",
+  "1 times daily":     "daily",            // NEW
+
+  "daily":             "daily",
+
+  "twice daily":       "twice daily",
+  "2 times daily":     "twice daily",      // NEW
+  "bid":               "twice daily",
+
+  "three times daily": "three times daily",
+  "3 times daily":     "three times daily",// NEW
+  "tid":               "three times daily",
+
+  "four times daily":  "four times daily",
+  "4 times daily":     "four times daily", // NEW
+  "qid":               "four times daily",
+
+  "every other day":   "every other day",
+  "stat":              "immediately"
+};
+
       // longest keys first so “three times daily” beats “daily”
       Object.keys(freqMapping)
         .sort((a, b) => b.length - a.length)
@@ -1286,6 +1288,15 @@ const units = {
       order.frequency = 'daily';
     }
 
+    // ==== NEW: capture anything left as a general indication ====
+    if (!order.indication) {
+      const tokens = orderStr.trim().split(/\s+/);
+      // if there's more than just the drug name, treat the rest as an "indication"
+      if (tokens.length > 1) {
+        order.indication = tokens.slice(1).join(' ');
+        orderStr = tokens[0];
+      }
+    }
 
         order.drug = orderStr.trim() || orderStr.split(/\s+/)[0] || '';
 
@@ -1406,7 +1417,10 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
         for (let i = 0; i < list2.length; i++) {
           if (!matched2[i] && ordersAreEqual(orderObj1.parsed, list2[i].parsed)) {
             matched2[i] = true;
-            unchanged.push(orderObj1);
+            unchanged.push({             //  ← NEW: remember BOTH originals
+                              orig: orderObj1,           //     from the facility list
+                              new : list2[i]             //     from the hospital list
+                              });
             found = true;
             break;
           }
@@ -1663,7 +1677,7 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
 	lines = mergeMultiLineOrders(lines);
 	lines = mergeTaperPackOrders(lines);
 	// prune off any trailing non-order text
-	lines = lines.map(line => pruneLine(line));
+	// lines = lines.map(line => pruneLine(line));
 	lines = lines.filter(line => 
 		isLikelyOrderLine(line) && containsKnownMedication(line)
 		);
@@ -1710,7 +1724,7 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
     	lines = mergeMultiLineOrders(lines);
 	lines = mergeTaperPackOrders(lines);
 	// prune off any trailing non-order text
-	lines = lines.map(line => pruneLine(line));
+	// lines = lines.map(line => pruneLine(line));
     	lines = lines.filter(line => 
 		isLikelyOrderLine(line) && containsKnownMedication(line)
 		);
@@ -1756,7 +1770,7 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
       		lines = mergeMultiLineOrders(lines);
 		lines = mergeTaperPackOrders(lines);
 		// prune off any trailing non-order text
-		lines = lines.map(line => pruneLine(line));
+		// lines = lines.map(line => pruneLine(line));
      		lines = lines.filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
 
 
@@ -1804,7 +1818,7 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
       		lines = mergeMultiLineOrders(lines);
 		lines = mergeTaperPackOrders(lines);
 		// prune off any trailing non-order text
-		lines = lines.map(line => pruneLine(line));
+		// lines = lines.map(line => pruneLine(line));
       		lines = lines.filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
 
           console.log('Raw lines from OCR:', lines); // Debug log
@@ -1966,16 +1980,16 @@ function compareAndShowResults() {
     });
 
     // Unchanged orders
-    unchanged.forEach(u => {
-        html += `
-            <tr>
-                <td>${idx++}</td>
-                <td>${u.original}</td>
-                <td>${u.original}</td>
-                <td>Unchanged</td>
-            </tr>
-        `;
-    });
+unchanged.forEach(u => {
+    html += `
+        <tr>
+            <td>${idx++}</td>
+            <td>${u.orig.original}</td>
+            <td>${u.new.original}</td>
+            <td>Unchanged</td>
+        </tr>
+    `;
+});
 
     // Added orders
     added.forEach(a => {
