@@ -1272,6 +1272,17 @@ const units = {
       orderStr = orderStr.replace(qhMatch[0], '').trim();
     } else {
      
+    //=== STEP‑FREQFIX  recognise “every 4 hours” style =========
+    if (!order.frequency) {
+      const everyHours = orderStr.match(/\bevery\s*(\d+)\s*hours?\b/i);
+      if (everyHours) {
+        order.frequency = `q${everyHours[1]}h`;
+        orderStr = orderStr.replace(everyHours[0], '').trim();
+      }
+    }
+    //=== END STEP‑FREQFIX ======================================
+
+
  // 2) named intervals (daily, bid, tid, qod, stat…)
       const freqMapping = {
   "once daily":        "daily",
