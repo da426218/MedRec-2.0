@@ -1880,6 +1880,15 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
 function compareAndShowResults() {
     let { unchanged, removed, added } = compareOrders(meds1, meds2);
 
+//=== STEP‑FIX  skip any blank or junk entries =========================
+const notBlank = obj =>
+  obj && obj.original && obj.original.trim().length > 0;
+
+unchanged = unchanged.filter(pair => notBlank(pair.orig) && notBlank(pair.new));
+removed   = removed  .filter(notBlank);
+added     = added    .filter(notBlank);
+//=== END STEP‑FIX ======================================================
+
     // Build a numbered, four-column table of changes
     let html = `
         <table class="changes-table">
