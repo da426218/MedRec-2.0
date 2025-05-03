@@ -705,7 +705,11 @@ const functions = firebase.functions(app);
       for (let file of files) {
         try {
           const result = await processFile(file);
-          allText += "\n" + result.text;
+//=== STEP 2  cleaned with keepOrderLines
+const cleaned = keepOrderLines(result.text);
+allText += "\n" + cleaned.join("\n");
+//=== END STEP 2
+
           if (result.confidence < 0.8) {
             lowConfidence = true;
           }
@@ -768,6 +772,24 @@ async function testCallOcr() {
     console.error('Error in testCallOcr:', err);
   }
 }
+//=== STEP 1  keepOrderLines helper =========================
+function keepOrderLines(rawText) {
+  const DEBUG_JUNK = false;   // flip to true to see what you drop
+
+  return rawText
+    .split(/\r?\n+/)                 // → separate lines
+    .map(line => cleanLine(line))    // → trim weird endings
+    .filter(line => {
+      const keep =
+        isLikelyOrderLine(line) &&   // letters + numbers?
+        containsKnownMedication(line) && // matches drug list?
+        /\d/.test(line);             // at least one digit
+      if (!keep && DEBUG_JUNK) console.log('🗑️', line);
+      return keep;
+    });
+}
+//=== END STEP 1 ============================================
+
     function cleanLine(line) {
       return line.replace(/[^a-z0-9]+$/i, '').trim();
     }
@@ -781,10 +803,11 @@ function pruneLine(line) {
  }
 
     function isLikelyOrderLine(line) {
-      if (line.length < 3) return false;
-      let alphaNumCount = (line.match(/[a-z0-9]/gi) || []).length;
-      let ratio = alphaNumCount / line.length;
-      return ratio >= 0.4;
+      //=== STEP 3  stricter test
+if (line.length < 5) return false;
+const good = (line.match(/[a-z0-9]/gi) || []).length;
+return good / line.length >= 0.5;
+//=== END STEP 3
     }
 
 function containsKnownMedication(line) {
@@ -1771,7 +1794,7 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
 		lines = mergeTaperPackOrders(lines);
 		// prune off any trailing non-order text
 		// lines = lines.map(line => pruneLine(line));
-     		lines = lines.filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+//=== STEP 4  removed – keepOrderLines already filtered
 
 
           console.log('Raw lines from OCR:', lines); // Debug log
@@ -1819,7 +1842,7 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
 		lines = mergeTaperPackOrders(lines);
 		// prune off any trailing non-order text
 		// lines = lines.map(line => pruneLine(line));
-      		lines = lines.filter(line => isLikelyOrderLine(line) && containsKnownMedication(line));
+//=== STEP 4  removed – keepOrderLines already filtered
 
           console.log('Raw lines from OCR:', lines); // Debug log
           lines = [...new Set(lines)];
