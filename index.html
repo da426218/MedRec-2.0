@@ -619,6 +619,7 @@ const functions = firebase.functions(app);
       { generic: "omeprazole", brands: ["Prilosec"] },
       { generic: "oxycodone", brands: ["OxyContin", "Roxicodone"] },
       { generic: "pantoprazole", brands: ["Protonix"] },
+               {   generic:    "polyethylene glycol",  brands: ["MiraLAX","GaviLAX","GlycoLax","PEG 3350"] },
       { generic: "pravastatin", brands: ["Pravachol"] },
       { generic: "prednisone", brands: ["Deltasone"] },
       { generic: "propranolol", brands: ["Inderal"] },
@@ -776,14 +777,22 @@ async function testCallOcr() {
 function keepOrderLines(rawText) {
   const DEBUG_JUNK = false;   // flip to true to see what you drop
 
+//=== STEP‑SPLITMULTI  ⬇︎ break “A … B …” lines into two =================
+rawText = rawText
+  .replace(/\s{2,}/g, '\n')               // two+ spaces  → new line
+  .replace(/(?:,|;|\band\b)/gi, '\n');    // commas/“and” → new line
+//=== END STEP‑SPLITMULTI =================================================
+
   return rawText
     .split(/\r?\n+/)                 // → separate lines
     .map(line => cleanLine(line))    // → trim weird endings
+  .flatMap(splitConcatOrders)      // → split “lisinopril … polyethylene …”
     .filter(line => {
       const keep =
         isLikelyOrderLine(line) &&   // letters + numbers?
-        containsKnownMedication(line) && // matches drug list?
-        /\d/.test(line);             // at least one digit
+       ( containsKnownMedication(line) ||    // ↖ try drug list first
+         /\d+\s*(mg|mcg|g|mL|units|tablet|capsule|puff|drop)\b/i.test(line) )
+        && /\d/.test(line);          // must still have a digit
       if (!keep && DEBUG_JUNK) console.log('🗑️', line);
       return keep;
     });
@@ -829,7 +838,7 @@ function containsKnownMedication(line) {
     function normalizeText(str) {
   let text = str.toLowerCase()
     // common shorthand → full text
-    .replace(/\bsob\b/g, 'shortness of breath')
+    .replace(/\bsob\b/gi, 'shortness of breath')
     .replace(/\bnpo\b/g, 'nothing by mouth')
     .replace(/\bac\b/g, 'before meals')
     .replace(/\bpc\b/g, 'after meals')
@@ -893,6 +902,21 @@ function containsKnownMedication(line) {
     .trim();
 }
 
+/* ---------- break a single line that actually contains TWO orders ---------- */
+function splitConcatOrders(line){
+  // look for the 1st complete dose‑and‑frequency pattern,
+  // then decide if the tail of the line is a new drug
+  const freqTok = /\b(?:daily|at bedtime|every [^\s]+|q\d+h|bid|tid|qid)\b/ig;
+  let m;
+  while ((m = freqTok.exec(line)) !== null) {
+    const tail = line.slice(m.index + m[0].length);
+    if (/\b\d+\s*(?:mg|mcg|g|tablet[s]?|capsule[s]?|puff[s]?|drop[s]?)\b/i.test(tail)){
+      return [ line.slice(0, m.index + m[0].length).trim(),
+               tail.trim() ];
+    }
+  }
+  return [ line ];          // nothing to split → return original line
+}
 
 // ── new helper: merge continuation lines into the previous order ──
 function mergeMultiLineOrders(lines) {
@@ -957,55 +981,175 @@ function mergeTaperPackOrders(lines) {
   });
   return result;
 }
+
+/* ---------- helper: are these the SAME DRUG? --------- */
+function sameDrugName(a, b){
+  return normalizeMedicationName(a.parsed?.drug || a.drug) ===
+         normalizeMedicationName(b.parsed?.drug || b.drug);
+}
+
 // ======= New helper to describe what changed ========
 function getChangeReason(orig, updated) {
-  /* ---------- 1. early guard rails ---------- */
+  /* 1) early guard rails */
   if (!orig || !updated) return 'Misc. Change';
 
-  /* ---------- 2. helpers ---------- */
-  const norm = (s = '') => s.toLowerCase().trim().replace(/\s+/g, ' ');
-  const add  = label => { if (!changes.includes(label)) changes.push(label); };
+  // ---- QUICK EXIT for taper‑/burst packs --------------------------
+  if (/\bday\s*\d+\b/i.test(orig.drug) || /\bday\s*\d+\b/i.test(updated.drug)) {
+    return 'Multiple changes';
+  }
+  // -----------------------------------------------------------------
 
-  /* ---------- 3.   detect each dimension ---------- */
-  const changes = [];
 
-/* 3‑a Dose ------------------------------------------------- */
-/* only flag a dose change if **both** sides actually have a dose */
-if (orig.dose?.value != null && updated.dose?.value != null &&
-   (orig.dose.value !== updated.dose.value ||
-    orig.dose.unit  !== updated.dose.unit))   add('Dose changed');
+  /* 2) helpers */
+  const norm   = (s = '') => s.toLowerCase().trim().replace(/\s+/g, ' ');
+  // treat "", "daily", "q24h" all as "daily"
+  const canon = f => {
+    f = norm(f);
+    return (f === '' || f === 'daily' || f === 'q24h') ? 'daily' : f;
+  };
+  // ---- helper: treat blank vs filled as “same” ----
+  const sameOrBlank = (a, b) => {
+  return a === b || !a || !b;   // true if identical OR either side empty
+  };
 
-  /* 3‑b Frequency ------------------------------------------- */
-  if (orig.frequency && updated.frequency && norm(orig.frequency) !== norm(updated.frequency)) {
-    add('Frequency changed');
+
+  /* 3) Check for specific single changes first */
+
+/* 3‑a) Time‑of‑day change ONLY */
+const isOnlyTimeOfDayChanged = (
+  norm(orig.timeOfDay) !== norm(updated.timeOfDay) &&          // TOD differs
+  canon(orig.frequency) === canon(updated.frequency) &&        // same freq
+  (orig.dose?.value === updated.dose?.value &&                 // same dose
+   orig.dose?.unit  === updated.dose?.unit) &&
+  sameOrBlank(norm(orig.form),  norm(updated.form)) &&         // form blank‑safe
+  sameOrBlank(norm(orig.route), norm(updated.route)) &&        // route blank‑safe
+  orig.prn === updated.prn &&                                  // same PRN flag
+  norm(orig.indication) === norm(updated.indication)           // same indication
+);
+if (isOnlyTimeOfDayChanged) return 'Time of day changed';
+
+  let changes = [];
+  const add = label => { if (!changes.includes(label)) changes.push(label); };
+
+/* 3‑b) Brand ↔ Generic swap
+   ‑‑ only when one string contains a **known brand name**
+   ‑‑ AND the other contains its generic.
+*/
+{
+  const genA = normalizeMedicationName(orig.drug);
+  const genB = normalizeMedicationName(updated.drug);
+
+  if (genA === genB) {                       // both map to same generic
+    const isBrandA = brandToGenericMap[norm(orig.drug)];
+    const isBrandB = brandToGenericMap[norm(updated.drug)];
+    // exactly one side is a recognised brand
+    if ( Boolean(isBrandA) !== Boolean(isBrandB) ) {
+      add('Brand/Generic changed');
+    }
+  }
+}
+
+
+/* -----------------------------------------------------------
+   3‑c) Dose
+   — Flag dose differences UNLESS both orders are clearly
+     “inhaled” (neb, inhaler, MDI, DPI, puffs…)
+     → those already raise Form / Route alerts and a second
+       “Dose changed” just clutters the report.
+----------------------------------------------------------- */
+const isInhaledOrder = o => {
+  const f = norm(o.form);
+  const r = norm(o.route);
+  return /inhal|puff|neb|mdi|dpi/.test(f) || /inhal/.test(r);
+};
+
+const doseDiff =
+  (orig.dose?.value ?? null) !== (updated.dose?.value ?? null) ||
+  (orig.dose?.unit  ?? '')  !== (updated.dose?.unit  ?? '');
+
+if (doseDiff && !(isInhaledOrder(orig) && isInhaledOrder(updated))) {
+
+  add('Dose changed');
+}
+
+
+  /* 3-d) Frequency ------------------------------------------- */
+  const fA = canon(orig.frequency);     // ← already normalised
+  const fB = canon(updated.frequency);    // ←
+  if (fA !== fB) {
+    /* ---- real vs phantom change? ----
+        If one side is blank / “q24h” / “daily” (all canon → “daily”)
+        and the other is also “daily”, that is *not* a genuine change.
+     */
+    const trivial =
+      (fA === 'daily' && fB === 'daily');
+
+    if (!trivial) add('Frequency changed');
   }
 
-  /* 3‑c Time‑of‑day ----------------------------------------- */
-  if (norm(orig.timeOfDay) !== norm(updated.timeOfDay)) {
-    add('Time of day changed');
-  }
 
-/* 3‑d Form / Route ---------------------------------------- */
-/* …same idea: we compare only when **both** values are present */
-if (orig.form && updated.form && norm(orig.form) !== norm(updated.form))
-    add('Form changed');
+  /* 3‑e) Time‑of‑day */
+if (norm(orig.timeOfDay) !== norm(updated.timeOfDay)) {
+  add('Time of day changed');
+}
 
-if (orig.route && updated.route && norm(orig.route) !== norm(updated.route))
-    add('Route changed');
+/* 3‑f) Form / Route  – normal case = both sides present & different,
+         BUT raise a flag if an inhaled form/route appears on one side only */
+const isInhalWord = s => /inhal|puff|neb|mdi|dpi/i.test(norm(s || ''));
 
-  /* 3‑e PRN flag -------------------------------------------- */
-  if (orig.prn !== updated.prn)                add('PRN changed');
+/* --- FORM --- */
+if (
+  (orig.form  && updated.form  && norm(orig.form)  !== norm(updated.form)) ||
+    (isInhalWord(orig.form) !== isInhalWord(updated.form))
+) {
+  add('Form changed');
+}
 
-  /* 3‑f Indication ------------------------------------------ */
+/* --- ROUTE --- */
+if (
+  (orig.route && updated.route && norm(orig.route) !== norm(updated.route)) ||
+  (/inhal/i.test(norm(orig.route || '')) !== /inhal/i.test(norm(updated.route || '')))  // ← NEW
+) {
+  add('Route changed');
+}
+
+/* 3‑g) PRN flag */
+if (orig.prn !== updated.prn) {
+  add('PRN changed');
+}
+
+  /* 3-h) Indication */
   if (norm(orig.indication) !== norm(updated.indication)) {
     add('Indication changed');
   }
 
-  /* ---------- 4. final decision ---------- */
-  if (changes.length === 0) return 'Misc. Change';
-  if (changes.length === 1) return changes[0];
+    /* 4) Demote bogus “Frequency changed” when it’s just a TOD tweak */
+  if (
+    changes.includes('Frequency changed') &&
+    changes.includes('Time of day changed') &&
+    canon(orig.frequency) === 'daily' &&
+    canon(updated.frequency) === 'daily'
+  ) {
+    changes = changes.filter(c => c !== 'Frequency changed');
+  }
+
+  /* 4‑b) Collapse the inhaler double‑hit
+          (we don’t want both “Form changed” **and** “Route changed”
+          for the same inhaler swap)                              */
+  if (
+    changes.includes('Form changed') &&
+    changes.includes('Route changed')
+  ) {
+    // keep one — here we keep “Form changed”
+    changes = changes.filter(c => c !== 'Route changed');
+  }
+
+  /* 5) final decision */
+  if (changes.length === 0)  return 'Misc. Change';
+  if (changes.length === 1)  return changes[0];
   return 'Multiple changes';
 }
+
 
     function parseOrder(orderStr) {
       orderStr = orderStr.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
@@ -1026,7 +1170,7 @@ let order = {
 // ——— EXTRACT TIME-OF-DAY ———
 {
   const todMatch = orderStr.match(
-    /\b(?:in the\s*)?(every\s*(morning|evening)|at\s*bedtime|bedtime|night|morning|evening)\b/i
+/\b(?:in the\s*)?(each\s*(morning|evening|night)|every\s*(morning|evening)|at\s*bedtime|bedtime|night|morning|evening)\b/i
   );
   if (todMatch) {
     // todMatch[1] will catch "every evening" or "at bedtime"; fallback to todMatch[0] otherwise
@@ -1081,6 +1225,16 @@ if (indicMatch) {
   order.indication =
     (indicMatch[1] ? indicMatch[1].toLowerCase() + " " : "") + "pain";
   orderStr = orderStr.replace(indicMatch[0], "").trim();
+}
+
+// ——— TRACK RESPIRATORY INDICATION (shortness of breath / “SOB”) ———
+if (!order.indication) {
+  // note: “SOB” is already expanded to “shortness of breath” in normalizeText()
+  const sobMatch = orderStr.match(/\bshortness of breath\b/i);
+  if (sobMatch) {
+    order.indication = 'shortness of breath';
+    orderStr = orderStr.replace(sobMatch[0], '').trim();
+  }
 }
 
 // ——— ADD for combo doses like “10-325 mg” ———
@@ -1211,11 +1365,42 @@ const units = {
           }
         }
      // ——— DETECT TABLET vs CAPSULE ———
-     const formMatch = orderStr.match(/\b(caplet|capsule|tablet)\b/i);
-     if (formMatch) {
-       order.form = formMatch[1].toLowerCase();    // “tablet” or “capsule” or “caplet”
-       orderStr = orderStr.replace(formMatch[0], '').trim();
-     }
+//=== STEP‑FORMFIX  ⬇︎ recognise dosage‑form words ======================
+const formMatch = orderStr.match(
+  /\b(chewable\s+tablet|delayed[-\s]?release\s+tablet|tablet|caplet|capsule|patch(?:es)?|lozenge|suppository|spray|puff|drop|solution|suspension|elixir|syrup|cream|ointment|gel|inhaler)\b/i
+);
+if (formMatch) {
+  const raw = formMatch[1].toLowerCase();
+
+  /* map every synonym → one canonical word */
+  let form = 'other';              // fallback
+
+       // group synonyms on ONE line each
+  if (raw.includes('tablet'))          form = 'tablet';
+  else if (raw.includes('caplet'))     form = 'caplet';
+  else if (raw.includes('capsule'))    form = 'capsule';
+  else if (raw.includes('patch'))      form = 'patch';
+  else if (raw.includes('lozenge'))    form = 'lozenge';
+  else if (raw.includes('suppository'))form = 'suppository';
+  else if (raw.includes('spray'))      form = 'spray';
+  else if (raw.includes('puff'))       form = 'puff';
+  else if (raw.includes('drop'))       form = 'drop';
+  else if (raw.includes('suspension')) form = 'suspension';
+  else if (raw.includes('solution') ||
+           raw.includes('elixir')   ||
+           raw.includes('syrup'))   form = 'solution';
+  else if (raw.includes('cream'))      form = 'cream';
+  else if (raw.includes('ointment'))   form = 'ointment';
+  else if (raw.includes('gel'))        form = 'gel';
+  else if (raw.includes('inhaler'))    form = 'inhaler';
+
+  order.form = form;
+
+  /* strip the dosage‑form word so it won’t confuse later parsing */
+  orderStr = orderStr.replace(formMatch[0], '').trim();
+}
+//=== END STEP‑FORMFIX ===================================================
+
      // ——————————————————————————————
 
         // Define routes with their possible variations
@@ -1308,29 +1493,30 @@ const units = {
 
       // longest keys first so “three times daily” beats “daily”
       Object.keys(freqMapping)
-        .sort((a, b) => b.length - a.length)
-        .forEach(key => {
-          if (!order.frequency && orderStr.toLowerCase().includes(key)) {
-            order.frequency = freqMapping[key];
-            orderStr = orderStr.replace(new RegExp(key, 'i'), '').trim();
-          }
-        });
+  .sort((a, b) => b.length - a.length)
+  .forEach(key => {
+    // — use word‑boundaries so “stat” doesn’t hit simvaSTATin —
+    const pattern = new RegExp(`\\b${key.replace(/\s+/g, '\\s+')}\\b`, 'i');
+    if (!order.frequency && pattern.test(orderStr)) {
+      order.frequency = freqMapping[key];
+      orderStr = orderStr.replace(pattern, '').trim();
     }
+  });
+    }
+
     // ──────────────────────────────────
     // If they gave a time‐of‐day but no explicit freq, assume daily
     if (!order.frequency && order.timeOfDay) {
       order.frequency = 'daily';
     }
 
-    // ==== NEW: capture anything left as a general indication ====
-    if (!order.indication) {
-      const tokens = orderStr.trim().split(/\s+/);
-      // if there's more than just the drug name, treat the rest as an "indication"
-      if (tokens.length > 1) {
-        order.indication = tokens.slice(1).join(' ');
-        orderStr = tokens[0];
-      }
+    // ==== NEW: capture a real indication only when the keyword “for” is present ====
+    if (!order.indication && /\bfor\b/i.test(orderStr)) {
+    const parts = orderStr.split(/\bfor\b/i);
+    orderStr          = parts[0].trim();        // everything before “for” is the drug
+    order.indication  = parts[1].trim();        // everything after  “for” is the indication
     }
+
 
         order.drug = orderStr.trim() || orderStr.split(/\s+/)[0] || '';
 
@@ -1402,17 +1588,27 @@ const units = {
   // 3) route
   if (a.route !== b.route) return false;
 
-    // 4) frequency (“qXh” exact or fuzzy)
-  const qA = a.frequency.match(/^q(\d+)h$/);
-  const qB = b.frequency.match(/^q(\d+)h$/);
-  if (qA && qB) {
-    if (+qA[1] !== +qB[1]) return false;
-  } else {
-    const freqSim = (a.frequency && b.frequency)
-      ? similarity(a.frequency, b.frequency)
-      : (a.frequency === b.frequency ? 1 : 0);
-    if (freqSim < 0.85) return false;
-  }
+    /// 4) frequency  — treat “daily”, “q24h”, and blank as the same
+	const canonFreq = f => {
+ 	 f = (f || '').toLowerCase().trim();
+ 	 return (f === '' || f === 'daily' || f === 'q24h') ? 'daily' : f;
+	};
+
+	const fA = canonFreq(a.frequency);
+	const fB = canonFreq(b.frequency);
+
+	// exact “qNh” forms (q4h, q6h, …) must match numerically
+	const qA = fA.match(/^q(\d+)h$/);
+	const qB = fB.match(/^q(\d+)h$/);
+
+	if (qA && qB) {
+  	if (+qA[1] !== +qB[1]) return false;
+	} else if (fA !== fB) {
+  	// fall back to fuzzy text similarity for phrases like “twice daily”
+  	const freqSim = similarity(fA, fB);
+  	if (freqSim < 0.85) return false;
+}
+
 
   // ─── normalize time-of-day equivalence ───
   const normalizeTOD = t => {
@@ -1464,6 +1660,18 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
       for (let i = 0; i < list2.length; i++) {
         if (!matched2[i]) added.push(list2[i]);
       }
+//=== STEP‑MERGESAME  ⬇︎ stop double‑counting identical meds =============
+for (let i = removed.length - 1; i >= 0; i--) {
+  const r = removed[i];
+  const j = added.findIndex(a => ordersAreEqual(r.parsed, a.parsed));
+  if (j !== -1) {
+    unchanged.push({ orig: r, new: added[j] });
+    removed.splice(i, 1);          // pull it from “removed”
+    added.splice(j, 1);            // pull it from “added”
+  }
+}
+//=== END STEP‑MERGESAME ===============================================
+
       return { unchanged, removed, added };
     }
 
@@ -1890,6 +2098,30 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
 
 function compareAndShowResults() {
     let { unchanged, removed, added } = compareOrders(meds1, meds2);
+    // === STEP‑MERGE‑REMOVED‑ADDED ==================================
+const merged = [];               // finished pairs land here
+const stillAdded  = [];          // what survives the pass
+
+// quick lookup of Hospital list by drug name
+const addedMap = Object.create(null);
+added.forEach(a => {
+ addedMap[ normalizeMedicationName(a.original) ] = a;   // ① use original text
+});
+
+removed = removed.filter(r => {
+  const key   = normalizeMedicationName(r.original);
+  const match = addedMap[key];
+  if (match) {
+    merged.push({ orig:r, new:match, reason:getChangeReason(r.parsed, match.parsed) });
+    // don’t let it appear later as an “Added”
+    delete addedMap[key];
+    return false;                 // <- REMOVE from “removed”
+  }
+  return true;                    // keep in “removed”
+});
+added = Object.values(addedMap);   // only the ones not merged
+// === END STEP‑MERGE‑REMOVED‑ADDED ==============================
+
 
 //=== STEP‑FIX  skip any blank or junk entries =========================
 const notBlank = obj =>
@@ -1917,7 +2149,20 @@ added     = added    .filter(notBlank);
     let idx = 1;
 
     // Process removed orders (potential changes or removals)
-    removed.forEach(r => {
+
+// ‑‑‑ FIRST: show the neatly‑merged pairs ‑‑‑
+merged.forEach(pair => {
+  const crit = isCriticalOrder(pair.orig) || isCriticalOrder(pair.new);
+  html += `
+    <tr class="${crit ? 'critical' : ''}">
+      <td>${idx++}</td>
+      <td>${pair.orig.original}</td>
+      <td>${pair.new.original}</td>
+      <td>${pair.reason}</td>
+    </tr>`;
+});
+    
+removed.forEach(r => {
         console.group(`🔍 Comparing removed: ${r.original}`);
         console.log('   current added[]:', added.map(a => a.original));
         const lowerRem = r.original.toLowerCase();
@@ -2022,17 +2267,21 @@ added     = added    .filter(notBlank);
         console.groupEnd();
     });
 
-    // Unchanged orders
-unchanged.forEach(u => {
-    html += `
-        <tr>
-            <td>${idx++}</td>
-            <td>${u.orig.original}</td>
-            <td>${u.new.original}</td>
-            <td>Unchanged</td>
-        </tr>
-    `;
-});
+    // Unchanged ‑‑→ now re‑evaluate for brand/generic etc.
+    unchanged.forEach(u => {
+       const reason = getChangeReason(u.orig.parsed, u.new.parsed);
+       const label  = (reason === 'Misc. Change') ? 'Unchanged' : reason;
+
+       html += `
+           <tr${isCriticalOrder(u.orig)||isCriticalOrder(u.new) ? ' class="critical"' : ''}>
+                <td>${idx++}</td>
+                 <td>${u.orig.original}</td>
+                 <td>${u.new.original}</td>
+                 <td>${label}</td>
+             </tr>
+        `;
+      });
+
 
     // Added orders
     added.forEach(a => {
