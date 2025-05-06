@@ -800,8 +800,12 @@ rawText = rawText
 //=== END STEP 1 ============================================
 
     function cleanLine(line) {
-      return line.replace(/[^a-z0-9]+$/i, '').trim();
-    }
+  	// 1) drop any “number.” or “number)” at the start
+  	line = line.replace(/^\s*\d+[\.\)]\s*/, '');
+  	// 2) remove trailing non-alphanumeric junk and trim
+  	return line.replace(/[^a-z0-9]+$/i, '').trim();
+}
+
 
 // ——— remove trailing junk from merged lines ———
 function pruneLine(line) {
@@ -837,6 +841,21 @@ function containsKnownMedication(line) {
 
     function normalizeText(str) {
   let text = str.toLowerCase()
+  .replace(
+    /\b(\d+)\s*[x×]\s*(?:\/|per)\s*(?:day|daily)\b/gi,
+    (match, n) => ({
+      '1':'once daily','2':'twice daily','3':'three times daily',
+      '4':'four times daily','5':'five times daily','6':'six times daily',
+      '7':'seven times daily','8':'eight times daily','9':'nine times daily',
+      '10':'ten times daily'
+    }[n] || match)
+  )
+    .replace(
+     /\bevery\s*(\d+)\s*hours?\s+as\s*needed\b/gi,
+      (_, n) => `q${n}h prn`
+  )
+
+
     // common shorthand → full text
     .replace(/\bsob\b/gi, 'shortness of breath')
     .replace(/\bnpo\b/g, 'nothing by mouth')
@@ -852,7 +871,7 @@ function containsKnownMedication(line) {
     .replace(/\bevery\s*day\b/g,         'daily')
     .replace(/\bper\s*day\b/g,           'daily')
     .replace(/\bdaily\b/g,               'daily')
-    .replace(/\bonce\s*(?:a|per)?\s*day\b/g, 'daily')
+    .replace(/\bonce\s*(?:a|per)?\s*(?:day|daily)\b/gi, 'daily')
 
     .replace(/\btwice\s*(?:a|per)?\s*day\b/g, 'twice daily')
     .replace(/\bbi-?daily\b/g,               'twice daily')
@@ -874,11 +893,21 @@ function containsKnownMedication(line) {
 
     .replace(/\bnow\b/g,      'immediately')
     .replace(/\bstat\b/g,     'immediately')
+    .replace(/\bevery\s*(\d+)\s*hrs?\b/gi, 'q$1h')
+    .replace(/\bq(\d+)\s*hr?s?\b/gi,       'q$1h')
+    .replace(/\beach\s*day\b/gi,           'daily')
+    .replace(/\bprn\s*(?:as\s*)?/gi,       'prn ')
+    .replace(/\bhs\b/gi,                   'at bedtime')
+    .replace(/\btab\.?\b/gi, 'tablet')
+    .replace(/\bcap\.?\b/gi, 'capsule')
+
+
     // ————————————————————————————————
 
 
     // your original word-to-digit and cleanup steps
 .replace(/\bone\b(?!\s+times)/g,   '1')
+.replace(/\bonce\s*daily\b/gi, 'daily')
 .replace(/\btwo\b(?!\s+times)/g,   '2')
 .replace(/\bthree\b(?!\s+times)/g, '3')
 .replace(/\bfour\b(?!\s+times)/g,  '4')
@@ -897,7 +926,7 @@ function containsKnownMedication(line) {
     .replace(/hrs/g, 'hours')
     .replace(/μg/g, 'mcg')
     .replace(/ml/g, 'mL')
-    .replace(/[^\w\s\/-]/g, '')
+    .replace(/[^\w\s\/.\-]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -1063,14 +1092,13 @@ const isInhaledOrder = o => {
   return /inhal|puff|neb|mdi|dpi/.test(f) || /inhal/.test(r);
 };
 
-const doseDiff =
-  (orig.dose?.value ?? null) !== (updated.dose?.value ?? null) ||
-  (orig.dose?.unit  ?? '')  !== (updated.dose?.unit  ?? '');
-
-if (doseDiff && !(isInhaledOrder(orig) && isInhaledOrder(updated))) {
-
-  add('Dose changed');
-}
+  // 3-c) Dose — allow tiny diffs once everything is in mg
+  const sameUnit = (orig.dose?.unit ?? '') === (updated.dose?.unit ?? '');
+  const sameValue = sameUnit &&
+    Math.abs((orig.dose?.value || 0) - (updated.dose?.value || 0)) < 0.001;
+  if (!sameValue && !(isInhaledOrder(orig) && isInhaledOrder(updated))) {
+    add('Dose changed');
+  }
 
 
   /* 3-d) Frequency ------------------------------------------- */
@@ -1098,12 +1126,10 @@ if (norm(orig.timeOfDay) !== norm(updated.timeOfDay)) {
 const isInhalWord = s => /inhal|puff|neb|mdi|dpi/i.test(norm(s || ''));
 
 /* --- FORM --- */
-if (
-  (orig.form  && updated.form  && norm(orig.form)  !== norm(updated.form)) ||
-    (isInhalWord(orig.form) !== isInhalWord(updated.form))
-) {
+if (norm(orig.form) !== norm(updated.form)) {
   add('Form changed');
 }
+
 
 /* --- ROUTE --- */
 if (
@@ -1220,10 +1246,18 @@ if (/\bprn\b/i.test(orderStr)) {
 }
 
 // ——— TRACK PAIN INDICATION ———
-const indicMatch = orderStr.match(/\b(?:for\s+)?(?:(mild|moderate|severe)\s+)?pain\b/i);
+// capture **any** adjective(s) before “pain” (eg. “chronic pain”, “severe acute pain”)
+
+const indicMatch = orderStr.match(
+  /\b(?:for\s+)?((?:[a-zA-Z]+(?:\s+[a-zA-Z]+)*)?)\s*pain\b/i
+);
 if (indicMatch) {
-  order.indication =
-    (indicMatch[1] ? indicMatch[1].toLowerCase() + " " : "") + "pain";
+  // group 1 is everything before “pain”, possibly empty
+  const qualifier = indicMatch[1].trim();   // e.g. "chronic", "severe acute", or ""
+  order.indication = qualifier
+    ? qualifier.toLowerCase() + " pain"
+    : "pain";
+  // remove the matched phrase (e.g. “chronic pain” or just “pain”)
   orderStr = orderStr.replace(indicMatch[0], "").trim();
 }
 
@@ -1289,21 +1323,21 @@ if (comboMatch) {
           orderStr = orderStr.replace(sprayPerNostril[0], '').trim();
         }
 
-        // 2. Generic unit pattern
-        // allow decimal doses, e.g. 0.125 mg
-	const unitRegex = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${Object.values(unitVariants).flat().join('|')})\\b`, 'i');
-        const unitMatch = orderStr.match(unitRegex);
-        if (unitMatch && !order.dose.value) {
-          const qty = parseInt(unitMatch[1], 10);
-          const rawUnit = unitMatch[2].toLowerCase();
-          const stdUnit = Object.entries(unitVariants).find(([key, arr]) => arr.includes(rawUnit))?.[0];
-          if (stdUnit) {
-            order.dose = { value: qty, unit: stdUnit, total: qty };
-            orderStr = orderStr.replace(unitMatch[0], '').trim();
-          } else {
-            console.warn('No standard unit found for:', rawUnit, 'in:', orderStr);
-          }
-        }
+        // 2. Dose unit pattern (ignore form words)
+const doseUnits = ['mcg','μg','ug','mg','g','mL','ml','cc','unit','IU','units','tsp','tbsp','drop','spray','puff'];
+const doseRegex = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${doseUnits.join('|')})\\b`, 'i');
+const doseMatch = orderStr.match(doseRegex);
+if (doseMatch && !order.dose.value) {
+  const qty = parseFloat(doseMatch[1]);
+  let raw = doseMatch[2].toLowerCase();
+  // normalize synonyms
+  if (raw==='μg'||raw==='ug') raw='mcg';
+  else if (raw==='ml'||raw==='cc') raw='mL';
+  else if (['unit','iu','units'].includes(raw)) raw='unit';
+  order.dose = { value: qty, unit: raw, total: qty };
+  orderStr = orderStr.replace(doseMatch[0], '').trim();
+}
+
 
         // 3. Fallback to standard dose extraction
         if (!order.dose.value) {
@@ -1364,8 +1398,29 @@ const units = {
             }
           }
         }
-     // ——— DETECT TABLET vs CAPSULE ———
-//=== STEP‑FORMFIX  ⬇︎ recognise dosage‑form words ======================
+// ——— weight-unit conversions → mg ———
+if (order.dose.unit === 'mcg') {
+  // 1 mcg = 0.001 mg
+  order.dose.value     = order.dose.value    / 1000;
+  if (order.dose.total != null) order.dose.total = order.dose.total / 1000;
+  order.dose.unit      = 'mg';
+}
+else if (order.dose.unit === 'g') {
+  // 1 g = 1000 mg
+  order.dose.value     = order.dose.value    * 1000;
+  if (order.dose.total != null) order.dose.total = order.dose.total * 1000;
+  order.dose.unit      = 'mg';
+}
+// ——— normalize any remaining mcg/g glitch ———
+if (order.dose.unit === 'mg') {
+  // round to three decimals so 0.1 and 0.100 match exactly
+  order.dose.value = Math.round(order.dose.value * 1000) / 1000;
+  if (order.dose.total != null) order.dose.total = Math.round(order.dose.total * 1000) / 1000;
+}
+     
+// ——— DETECT TABLET vs CAPSULE ———
+
+//=== STEP-FORMFIX  ⬇︎ recognise dosage-form words ======================
 const formMatch = orderStr.match(
   /\b(chewable\s+tablet|delayed[-\s]?release\s+tablet|tablet|caplet|capsule|patch(?:es)?|lozenge|suppository|spray|puff|drop|solution|suspension|elixir|syrup|cream|ointment|gel|inhaler)\b/i
 );
@@ -1373,33 +1428,81 @@ if (formMatch) {
   const raw = formMatch[1].toLowerCase();
 
   /* map every synonym → one canonical word */
-  let form = 'other';              // fallback
+  let form = 'other';  // fallback
 
-       // group synonyms on ONE line each
-  if (raw.includes('tablet'))          form = 'tablet';
-  else if (raw.includes('caplet'))     form = 'caplet';
-  else if (raw.includes('capsule'))    form = 'capsule';
-  else if (raw.includes('patch'))      form = 'patch';
-  else if (raw.includes('lozenge'))    form = 'lozenge';
-  else if (raw.includes('suppository'))form = 'suppository';
-  else if (raw.includes('spray'))      form = 'spray';
-  else if (raw.includes('puff'))       form = 'puff';
-  else if (raw.includes('drop'))       form = 'drop';
-  else if (raw.includes('suspension')) form = 'suspension';
-  else if (raw.includes('solution') ||
-           raw.includes('elixir')   ||
-           raw.includes('syrup'))   form = 'solution';
-  else if (raw.includes('cream'))      form = 'cream';
-  else if (raw.includes('ointment'))   form = 'ointment';
-  else if (raw.includes('gel'))        form = 'gel';
-  else if (raw.includes('inhaler'))    form = 'inhaler';
+  // 1) chewable tablet first
+  if (raw.includes('chewable tablet')) {
+    form = 'chewable tablet';
+
+  // 2) delayed-release next
+  } else if (
+    raw.includes('delayed-release tablet') ||
+    raw.includes('delayed release tablet')
+  ) {
+    form = 'delayed-release tablet';
+
+  // 3) plain tablet
+  } else if (raw.includes('tablet')) {
+    form = 'tablet';
+
+  } else if (raw.includes('caplet')) {
+    form = 'caplet';
+
+  } else if (raw.includes('capsule')) {
+    form = 'capsule';
+
+  } else if (raw.includes('patch')) {
+    form = 'patch';
+
+  } else if (raw.includes('lozenge')) {
+    form = 'lozenge';
+
+  } else if (raw.includes('suppository')) {
+    form = 'suppository';
+
+  } else if (raw.includes('spray')) {
+    form = 'spray';
+
+  } else if (raw.includes('puff')) {
+    form = 'puff';
+
+  } else if (raw.includes('drop')) {
+    form = 'drop';
+
+  } else if (raw.includes('suspension')) {
+    form = 'suspension';
+
+  } else if (
+    raw.includes('solution') ||
+    raw.includes('elixir') ||
+    raw.includes('syrup')
+  ) {
+    form = 'solution';
+
+  } else if (raw.includes('cream')) {
+    form = 'cream';
+
+  } else if (raw.includes('ointment')) {
+    form = 'ointment';
+
+  } else if (raw.includes('gel')) {
+    form = 'gel';
+
+  } else if (raw.includes('inhaler')) {
+    form = 'inhaler';
+  }
 
   order.form = form;
 
-  /* strip the dosage‑form word so it won’t confuse later parsing */
+  /* strip the dosage-form word so it won’t confuse later parsing */
   orderStr = orderStr.replace(formMatch[0], '').trim();
+
+  ['tablet','tablets','capsule','capsules','caplet'].forEach(s => {
+    orderStr = orderStr.replace(new RegExp(`\\b${s}\\b`, 'gi'), '').trim();
+  });
+
 }
-//=== END STEP‑FORMFIX ===================================================
+//=== END STEP-FORMFIX ===================================================
 
      // ——————————————————————————————
 
@@ -1469,27 +1572,30 @@ if (formMatch) {
 
 
  // 2) named intervals (daily, bid, tid, qod, stat…)
-      const freqMapping = {
+const freqMapping = {
   "once daily":        "daily",
-  "1 times daily":     "daily",            // NEW
+  "once a day":        "daily",    // ← NEW
+
+  "1 times daily":     "daily",
 
   "daily":             "daily",
 
   "twice daily":       "twice daily",
-  "2 times daily":     "twice daily",      // NEW
+  "2 times daily":     "twice daily",
   "bid":               "twice daily",
 
   "three times daily": "three times daily",
-  "3 times daily":     "three times daily",// NEW
+  "3 times daily":     "three times daily",
   "tid":               "three times daily",
 
   "four times daily":  "four times daily",
-  "4 times daily":     "four times daily", // NEW
+  "4 times daily":     "four times daily",
   "qid":               "four times daily",
 
   "every other day":   "every other day",
   "stat":              "immediately"
 };
+
 
       // longest keys first so “three times daily” beats “daily”
       Object.keys(freqMapping)
@@ -1518,7 +1624,15 @@ if (formMatch) {
     }
 
 
-        order.drug = orderStr.trim() || orderStr.split(/\s+/)[0] || '';
+                // — after all your stripping out of dose/route/freq/prn/etc —
+// split the remaining text into the drug name + anything else
+const parts = orderStr.trim().split(/\s+/);
+order.drug = parts[0] || '';
+// if you haven’t already set an indication, capture whatever follows
+if (!order.indication && parts.length > 1) {
+  order.indication = parts.slice(1).join(' ');
+}
+
 
         // Debugging for all orders
         console.log('Parsed order:', { original: orderStr, parsed: order });
@@ -2098,29 +2212,35 @@ for (let i = removed.length - 1; i >= 0; i--) {
 
 function compareAndShowResults() {
     let { unchanged, removed, added } = compareOrders(meds1, meds2);
-    // === STEP‑MERGE‑REMOVED‑ADDED ==================================
-const merged = [];               // finished pairs land here
-const stillAdded  = [];          // what survives the pass
-
-// quick lookup of Hospital list by drug name
+    
+//=== STEP-MERGE-REMOVED-ADDED (enhanced) ======================
+const merged = [];
 const addedMap = Object.create(null);
 added.forEach(a => {
- addedMap[ normalizeMedicationName(a.original) ] = a;   // ① use original text
+  addedMap[ normalizeMedicationName(a.original) ] = a;
 });
 
 removed = removed.filter(r => {
   const key   = normalizeMedicationName(r.original);
   const match = addedMap[key];
-  if (match) {
-    merged.push({ orig:r, new:match, reason:getChangeReason(r.parsed, match.parsed) });
-    // don’t let it appear later as an “Added”
+  if (!match) return true;
+
+  // 2-a) if the only difference is form, force a single "Form changed"
+  const reason = getChangeReason(r.parsed, match.parsed);
+  if (reason === 'Form changed') {
+    merged.push({ orig:r, new:match, reason:'Form changed' });
     delete addedMap[key];
-    return false;                 // <- REMOVE from “removed”
+    return false;
   }
-  return true;                    // keep in “removed”
+
+  // 2-b) otherwise fall back to your old logic
+  merged.push({ orig:r, new:match, reason });
+  delete addedMap[key];
+  return false;
 });
-added = Object.values(addedMap);   // only the ones not merged
-// === END STEP‑MERGE‑REMOVED‑ADDED ==============================
+
+added = Object.values(addedMap);
+//=== END STEP-MERGE-REMOVED-ADDED ==============================
 
 
 //=== STEP‑FIX  skip any blank or junk entries =========================
@@ -2272,8 +2392,8 @@ removed.forEach(r => {
        const reason = getChangeReason(u.orig.parsed, u.new.parsed);
        const label  = (reason === 'Misc. Change') ? 'Unchanged' : reason;
 
-       html += `
-           <tr${isCriticalOrder(u.orig)||isCriticalOrder(u.new) ? ' class="critical"' : ''}>
+      html += `
+    <tr${label !== 'Unchanged' && (isCriticalOrder(u.orig)||isCriticalOrder(u.new)) ? ' class="critical"' : ''}>
                 <td>${idx++}</td>
                  <td>${u.orig.original}</td>
                  <td>${u.new.original}</td>
