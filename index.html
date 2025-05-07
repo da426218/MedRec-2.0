@@ -673,6 +673,18 @@ const functions = firebase.functions(app);
       genericToBrandMap[generic].push(brand);
     });
 
+  function normalizeMedicationName(name) {
+   if (!name) return '';
+   let n = name.toLowerCase().trim();
+   if (brandToGenericMap[n]) {
+     n = brandToGenericMap[n];
+   }
+   // drop anything not letter/number/space
+   n = n.replace(/[^a-z0-9 ]+/g, '');
+   // collapse multiple spaces
+   return n.replace(/\s+/g, ' ');
+ }
+
     const unitVariants = {
   tablet:   ['tab','tabs','tablet','tablets','tab.','tablet.'],
   capsule:  ['cap','caps','capsule','capsules','caplet','cap.','gelcap','softgel','gel','sprinkle','sprinkles'],
@@ -690,6 +702,7 @@ const functions = firebase.functions(app);
   mL:       ['ml','mL','cc'],
   mcg:      ['μg','mcg','ug'],
   mg:       ['mg'],
+  mEq:      ['meq', 'mEq', 'milliequivalents'],
   g:        ['g','gram','grams']
 };
 
@@ -773,6 +786,63 @@ async function testCallOcr() {
     console.error('Error in testCallOcr:', err);
   }
 }
+    /**
+     * If a single line actually contains two orders (two doses),
+     * split it into two.
+     */
+    function splitConcatOrders(line) {
+      // look for two dose patterns in one line
+      const doseRegex = /\d+\s*(?:mg|mcg|g|mL|tablet|capsule|puff|drop|unit|IU)\b/gi;
+      const matches = [...line.matchAll(doseRegex)];
+      if (matches.length > 1) {
+        const splitAt = matches[1].index;
+        return [
+          line.slice(0, splitAt).trim(),
+          line.slice(splitAt).trim()
+        ];
+      }
+      return [ line ];
+    }
+
+    /**
+     * If a “continuation” line didn’t itself name a drug,
+     * glue it back onto the previous order.
+     */
+    function mergeMultiLineOrders(lines) {
+      const merged = [];
+      lines.forEach(l => {
+        if (/^[a-z]/i.test(l) && /\d/.test(l)) {
+          // starts like an order → new entry
+          merged.push(l);
+        } else if (merged.length) {
+          // continuation → append
+          merged[merged.length - 1] += ' ' + l;
+        } else {
+          // no previous → keep alone
+          merged.push(l);
+        }
+      });
+      return merged;
+    }
+
+    /**
+     * Merge “Day 1…”, “Day 2…” lines (taper packs) back onto
+     * the preceding order line.
+     */
+    function mergeTaperPackOrders(lines) {
+      const out = [];
+      lines.forEach(l => {
+        if (/^day\s*\d+/i.test(l) && out.length) {
+          out[out.length - 1] += ' ' + l;
+        } else {
+          out.push(l);
+        }
+      });
+      return out;
+    }
+
+    // ←── END INSERT ──▶
+
 //=== STEP 1  keepOrderLines helper =========================
 function keepOrderLines(rawText) {
   const DEBUG_JUNK = false;   // flip to true to see what you drop
@@ -839,818 +909,669 @@ function containsKnownMedication(line) {
       || /\d+\s*(?:mg|mcg|units|puffs|tabs?|tablets?|capsules?)\b/.test(lower);
 }
 
-    function normalizeText(str) {
-  let text = str.toLowerCase()
-  .replace(
-    /\b(\d+)\s*[x×]\s*(?:\/|per)\s*(?:day|daily)\b/gi,
-    (match, n) => ({
-      '1':'once daily','2':'twice daily','3':'three times daily',
-      '4':'four times daily','5':'five times daily','6':'six times daily',
-      '7':'seven times daily','8':'eight times daily','9':'nine times daily',
-      '10':'ten times daily'
-    }[n] || match)
-  )
-    .replace(
-     /\bevery\s*(\d+)\s*hours?\s+as\s*needed\b/gi,
-      (_, n) => `q${n}h prn`
-  )
+    // ——— Text normalizer — no more stat inside statin ———
+function normalizeText(str) {
+  let text = (str || '').toLowerCase()
 
-
-    // common shorthand → full text
-    .replace(/\bsob\b/gi, 'shortness of breath')
-    .replace(/\bnpo\b/g, 'nothing by mouth')
-    .replace(/\bac\b/g, 'before meals')
-    .replace(/\bpc\b/g, 'after meals')
-    .replace(/\bhs\b/g, 'at bedtime')
-    .replace(/\bqod\b/g, 'every other day')
-    .replace(/\bq(\d+)h\b/g, 'every $1 hours')
-    .replace(/\btid\b/g, 'three times daily')
-    .replace(/\bqid\b/g, 'four times daily')
-
-    // ——— additional frequency normalizations ———
-    .replace(/\bevery\s*day\b/g,         'daily')
-    .replace(/\bper\s*day\b/g,           'daily')
-    .replace(/\bdaily\b/g,               'daily')
-    .replace(/\bonce\s*(?:a|per)?\s*(?:day|daily)\b/gi, 'daily')
-
-    .replace(/\btwice\s*(?:a|per)?\s*day\b/g, 'twice daily')
-    .replace(/\bbi-?daily\b/g,               'twice daily')
-
-    .replace(/\bthree\s*times?\s*(?:a|per)?\s*day\b/g, 'three times daily')
-    .replace(/\bt\.?i\.?d\.?\b/g,                       'three times daily')
-
-    .replace(/\bfour\s*times?\s*(?:a|per)?\s*day\b/g, 'four times daily')
-    // (you already handle “qid” above)
-
-    .replace(/\bqhs\b/g,                 'at bedtime')
-    .replace(/\b(?:nightly|at night)\b/g, 'at bedtime')
-
-    .replace(/\bevery\s*morning\b/g,     'every morning')
-    .replace(/\bevery\s*evening\b/g,     'every evening')
-
-    .replace(/\bas\s*needed\b/g,         'prn')
-    .replace(/\bas\s*required\b/g,       'prn')
-
-    .replace(/\bnow\b/g,      'immediately')
-    .replace(/\bstat\b/g,     'immediately')
-    .replace(/\bevery\s*(\d+)\s*hrs?\b/gi, 'q$1h')
-    .replace(/\bq(\d+)\s*hr?s?\b/gi,       'q$1h')
-    .replace(/\beach\s*day\b/gi,           'daily')
-    .replace(/\bprn\s*(?:as\s*)?/gi,       'prn ')
-    .replace(/\bhs\b/gi,                   'at bedtime')
-    .replace(/\btab\.?\b/gi, 'tablet')
-    .replace(/\bcap\.?\b/gi, 'capsule')
-
-
-    // ————————————————————————————————
-
-
-    // your original word-to-digit and cleanup steps
-.replace(/\bone\b(?!\s+times)/g,   '1')
-.replace(/\bonce\s*daily\b/gi, 'daily')
-.replace(/\btwo\b(?!\s+times)/g,   '2')
-.replace(/\bthree\b(?!\s+times)/g, '3')
-.replace(/\bfour\b(?!\s+times)/g,  '4')
-.replace(/\bfive\b(?!\s+times)/g,  '5')
-
-
-  return text
-    .replace(/p\.?o\.?/g, 'po')
-    .replace(/\bby mouth\b/g, 'po')
-    .replace(/q\.?d\.?/g, 'daily')
-    .replace(/b\.?i\.?d\.?/g, 'twice daily')
+    // your existing expansions…
+    .replace(/\bnow\b/g, 'immediately')
+    // only match "stat" when it's not embedded in another word
+    .replace(/(?<![a-z])stat(?![a-z])/g, 'immediately')
     .replace(/\bqhs\b/g, 'at bedtime')
-    .replace(/\bq\s*a\.?m\.?\b/g, 'every morning')
-    .replace(/\bq\s*p\.?m\.?\b/g, 'every evening')
-    .replace(/\bevery night\b/g, 'at bedtime')
-    .replace(/hrs/g, 'hours')
-    .replace(/μg/g, 'mcg')
-    .replace(/ml/g, 'mL')
-    .replace(/[^\w\s\/.\-]/g, '')
+    // …all the rest of your shorthand/frequency → full-text rules…
+
+  // final cleanup:
+  return text
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-/* ---------- break a single line that actually contains TWO orders ---------- */
-function splitConcatOrders(line){
-  // look for the 1st complete dose‑and‑frequency pattern,
-  // then decide if the tail of the line is a new drug
-  const freqTok = /\b(?:daily|at bedtime|every [^\s]+|q\d+h|bid|tid|qid)\b/ig;
-  let m;
-  while ((m = freqTok.exec(line)) !== null) {
-    const tail = line.slice(m.index + m[0].length);
-    if (/\b\d+\s*(?:mg|mcg|g|tablet[s]?|capsule[s]?|puff[s]?|drop[s]?)\b/i.test(tail)){
-      return [ line.slice(0, m.index + m[0].length).trim(),
-               tail.trim() ];
-    }
-  }
-  return [ line ];          // nothing to split → return original line
+// ——— Text normalizer — no more stat inside statin ———
+function normalizeText(str) {
+  let text = (str || '').toLowerCase()
+
+    // your existing expansions…
+    .replace(/\bnow\b/g, 'immediately')
+    // only match "stat" when it's not embedded in another word
+    .replace(/(?<![a-z])stat(?![a-z])/g, 'immediately')
+    .replace(/\bqhs\b/g, 'at bedtime')
+    // …all the rest of your shorthand/frequency → full-text rules…
+
+  // final cleanup:
+  return text
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-// ── new helper: merge continuation lines into the previous order ──
-function mergeMultiLineOrders(lines) {
-  const merged = [];
-  lines.forEach(line => {
-    if (containsKnownMedication(line)) {
-      // a true order → start new entry
-      merged.push(line);
-    } else if (merged.length) {
-      // continuation → append to last entry
-      merged[merged.length - 1] += ' ' + line;
-    } else {
-      // fallback if first lines aren’t detected as orders
-      merged.push(line);
-    }
-  });
-  return merged;
-}
-
-/**
- * Turn any raw order line into its canonical generic name
- * so we can group “day 1 prednisone” and “day 2 Prednisone.”
- */
-function normalizeMedicationName(name) {
-  if (!name) return "";
-  const lowerName = name.toLowerCase();
-  for (let med of criticalMeds) {
-    if (lowerName.includes(med)) return med;
-  }
-  for (const { generic, brands } of commonMedications) {
-    if (lowerName.includes(generic)) return generic;
-    if (brands.some(b => lowerName.includes(b.toLowerCase()))) {
-      return generic;
-    }
-  }
-  return lowerName;
-}
-
-/**
- * Collapse any “Day X … <drug> …” lines into one “pack” order.
- */
-function mergeTaperPackOrders(lines) {
-  const packs = {};
-  const standalone = [];
-
-  lines.forEach(line => {
-    // normalize drug name for grouping, e.g. “prednisone”
-    const drugKey = normalizeMedicationName(line);
-    // detect “Day N” prefix
-    if (/\bday\s*\d+\b/i.test(line) && drugKey) {
-      packs[drugKey] = packs[drugKey] || [];
-      packs[drugKey].push(line.trim());
-    } else {
-      standalone.push(line);
-    }
-  });
-
-  // build result: all non-pack lines + one joined string per pack
-  const result = standalone.slice();
-  Object.values(packs).forEach(packLines => {
-    result.push(packLines.join('; '));
-  });
-  return result;
-}
-
-/* ---------- helper: are these the SAME DRUG? --------- */
-function sameDrugName(a, b){
-  return normalizeMedicationName(a.parsed?.drug || a.drug) ===
-         normalizeMedicationName(b.parsed?.drug || b.drug);
-}
-
-// ======= New helper to describe what changed ========
+// ——— What changed? ———
 function getChangeReason(orig, updated) {
-  /* 1) early guard rails */
+  console.log('DEBUG getChangeReason: orig.drug=', orig.drug, 'updated.drug=', updated.drug);
+  console.log('DEBUG getChangeReason: orig Parsed=', JSON.stringify(orig));
+  console.log('DEBUG getChangeReason: updated Parsed=', JSON.stringify(updated));
+
   if (!orig || !updated) return 'Misc. Change';
 
-  // ---- QUICK EXIT for taper‑/burst packs --------------------------
+  // 1) Taper packs (day N) always multi
   if (/\bday\s*\d+\b/i.test(orig.drug) || /\bday\s*\d+\b/i.test(updated.drug)) {
     return 'Multiple changes';
   }
-  // -----------------------------------------------------------------
 
-
-  /* 2) helpers */
-  const norm   = (s = '') => s.toLowerCase().trim().replace(/\s+/g, ' ');
-  // treat "", "daily", "q24h" all as "daily"
+  const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
   const canon = f => {
     f = norm(f);
     return (f === '' || f === 'daily' || f === 'q24h') ? 'daily' : f;
   };
-  // ---- helper: treat blank vs filled as “same” ----
-  const sameOrBlank = (a, b) => {
-  return a === b || !a || !b;   // true if identical OR either side empty
-  };
 
+  // --- Start Debugging Conditions for Indication-Only Check ---
+  const drugNameMatch = normalizeMedicationName(orig.drug) === normalizeMedicationName(updated.drug);
+  const doseValueMatch = orig.dose?.value === updated.dose?.value;
+  const doseUnitMatch = orig.dose?.unit === updated.dose?.unit;
+  const frequencyMatch = canon(orig.frequency) === canon(updated.frequency);
+  const timeOfDayMatch = norm(orig.timeOfDay) === norm(updated.timeOfDay); // << THE KEY ONE
+  const formMatch = norm(orig.form) === norm(updated.form);
+  const routeMatch = norm(orig.route) === norm(updated.route);
+  const prnMatch = orig.prn === updated.prn;
+  const indicationDiff = norm(orig.indication) !== norm(updated.indication);
 
-  /* 3) Check for specific single changes first */
+  console.log('DEBUG Indication-Only Check Conditions:');
+  console.log('  drugNameMatch:', drugNameMatch, `(${normalizeMedicationName(orig.drug)} vs ${normalizeMedicationName(updated.drug)})`);
+  console.log('  doseValueMatch:', doseValueMatch, `(${orig.dose?.value} vs ${updated.dose?.value})`);
+  console.log('  doseUnitMatch:', doseUnitMatch, `(${orig.dose?.unit} vs ${updated.dose?.unit})`);
+  console.log('  frequencyMatch:', frequencyMatch, `(${canon(orig.frequency)} vs ${canon(updated.frequency)})`);
+  console.log('  timeOfDayMatch:', timeOfDayMatch, `(orig: "<span class="math-inline">\{orig\.timeOfDay\}" \-\> norm\: "</span>{norm(orig.timeOfDay)}" vs upd: "<span class="math-inline">\{updated\.timeOfDay\}" \-\> norm\: "</span>{norm(updated.timeOfDay)}")`);
+  console.log('  formMatch:', formMatch, `(${norm(orig.form)} vs ${norm(updated.form)})`);
+  console.log('  routeMatch:', routeMatch, `(${norm(orig.route)} vs ${norm(updated.route)})`);
+  console.log('  prnMatch:', prnMatch, `(${orig.prn} vs ${updated.prn})`);
+  console.log('  indicationDiff:', indicationDiff, `(${norm(orig.indication)} vs ${norm(updated.indication)})`);
+  // --- End Debugging Conditions ---
 
-/* 3‑a) Time‑of‑day change ONLY */
-const isOnlyTimeOfDayChanged = (
-  norm(orig.timeOfDay) !== norm(updated.timeOfDay) &&          // TOD differs
-  canon(orig.frequency) === canon(updated.frequency) &&        // same freq
-  (orig.dose?.value === updated.dose?.value &&                 // same dose
-   orig.dose?.unit  === updated.dose?.unit) &&
-  sameOrBlank(norm(orig.form),  norm(updated.form)) &&         // form blank‑safe
-  sameOrBlank(norm(orig.route), norm(updated.route)) &&        // route blank‑safe
-  orig.prn === updated.prn &&                                  // same PRN flag
-  norm(orig.indication) === norm(updated.indication)           // same indication
-);
-if (isOnlyTimeOfDayChanged) return 'Time of day changed';
+  // 2) **Indication-only**
+  if (
+    drugNameMatch &&
+    doseValueMatch &&
+    doseUnitMatch &&
+    frequencyMatch &&
+    timeOfDayMatch && // Uses the debugged variable
+    formMatch &&
+    routeMatch &&
+    prnMatch &&
+    indicationDiff
+  ) {
+    console.log('DEBUG: Matched Indication-only block.');
+    return 'Indication changed';
+  }
+  console.log('DEBUG: Did NOT match Indication-only block.');
+
+  // 3) Time-of-day-only (This is less likely the issue but good to be aware of)
+  if (
+    !timeOfDayMatch && // norm(orig.timeOfDay) !== norm(updated.timeOfDay)
+    drugNameMatch && // Ensure it's the same drug for a pure ToD change
+    doseValueMatch &&
+    doseUnitMatch &&
+    frequencyMatch && // Freq should be same if only ToD changed
+    formMatch &&
+    routeMatch &&
+    prnMatch &&
+    norm(orig.indication) === norm(updated.indication) // Indication MUST be same
+  ) {
+    console.log('DEBUG: Matched Time of day changed (exclusive).');
+    return 'Time of day changed';
+  }
+
 
   let changes = [];
-  const add = label => { if (!changes.includes(label)) changes.push(label); };
+  const add = lbl => { if (!changes.includes(lbl)) changes.push(lbl); };
 
-/* 3‑b) Brand ↔ Generic swap
-   ‑‑ only when one string contains a **known brand name**
-   ‑‑ AND the other contains its generic.
-*/
-{
-  const genA = normalizeMedicationName(orig.drug);
-  const genB = normalizeMedicationName(updated.drug);
-
-  if (genA === genB) {                       // both map to same generic
-    const isBrandA = brandToGenericMap[norm(orig.drug)];
-    const isBrandB = brandToGenericMap[norm(updated.drug)];
-    // exactly one side is a recognised brand
-    if ( Boolean(isBrandA) !== Boolean(isBrandB) ) {
-      add('Brand/Generic changed');
+  // 4) Brand ↔ Generic
+  {
+    const a = normalizeMedicationName(orig.drug);
+    const b = normalizeMedicationName(updated.drug);
+    if (a === b) {
+      const isA = brandToGenericMap[norm(orig.drug)];
+      const isB = brandToGenericMap[norm(updated.drug)];
+      if (Boolean(isA) !== Boolean(isB)) add('Brand/Generic changed');
     }
   }
-}
+  // 5) Dose
+  const inhaled = o => /inhal|puff|neb|mdi|dpi/.test(norm(o.form)) || /inhal/.test(norm(o.route));
+  // Ensure dose values are numbers before comparison if they might be null/undefined
+  const origDoseVal = typeof orig.dose?.value === 'number' ? orig.dose.value : -Infinity; // Use a value that won't match if null
+  const updatedDoseVal = typeof updated.dose?.value === 'number' ? updated.dose.value : -Infinity;
 
-
-/* -----------------------------------------------------------
-   3‑c) Dose
-   — Flag dose differences UNLESS both orders are clearly
-     “inhaled” (neb, inhaler, MDI, DPI, puffs…)
-     → those already raise Form / Route alerts and a second
-       “Dose changed” just clutters the report.
------------------------------------------------------------ */
-const isInhaledOrder = o => {
-  const f = norm(o.form);
-  const r = norm(o.route);
-  return /inhal|puff|neb|mdi|dpi/.test(f) || /inhal/.test(r);
-};
-
-  // 3-c) Dose — allow tiny diffs once everything is in mg
-  const sameUnit = (orig.dose?.unit ?? '') === (updated.dose?.unit ?? '');
-  const sameValue = sameUnit &&
-    Math.abs((orig.dose?.value || 0) - (updated.dose?.value || 0)) < 0.001;
-  if (!sameValue && !(isInhaledOrder(orig) && isInhaledOrder(updated))) {
-    add('Dose changed');
+  if (origDoseVal !== updatedDoseVal || orig.dose?.unit !== updated.dose?.unit) {
+     if (!(inhaled(orig) && inhaled(updated))) { // Assuming dose changes for inhaled meds are handled differently or less strictly
+        add('Dose changed');
+     }
   }
 
-
-  /* 3-d) Frequency ------------------------------------------- */
-  const fA = canon(orig.frequency);     // ← already normalised
-  const fB = canon(updated.frequency);    // ←
-  if (fA !== fB) {
-    /* ---- real vs phantom change? ----
-        If one side is blank / “q24h” / “daily” (all canon → “daily”)
-        and the other is also “daily”, that is *not* a genuine change.
-     */
-    const trivial =
-      (fA === 'daily' && fB === 'daily');
-
-    if (!trivial) add('Frequency changed');
+  // 6) Frequency
+  if (canon(orig.frequency) !== canon(updated.frequency)) {
+    // Avoid flagging "daily" vs "" as a frequency change if timeOfDay is used to imply daily
+    if (!( (canon(orig.frequency)==='daily' && updated.frequency === '') ||
+           (orig.frequency === '' && canon(updated.frequency)==='daily') )) {
+        add('Frequency changed');
+    }
   }
-
-
-  /* 3‑e) Time‑of‑day */
-if (norm(orig.timeOfDay) !== norm(updated.timeOfDay)) {
-  add('Time of day changed');
-}
-
-/* 3‑f) Form / Route  – normal case = both sides present & different,
-         BUT raise a flag if an inhaled form/route appears on one side only */
-const isInhalWord = s => /inhal|puff|neb|mdi|dpi/i.test(norm(s || ''));
-
-/* --- FORM --- */
-if (norm(orig.form) !== norm(updated.form)) {
-  add('Form changed');
-}
-
-
-/* --- ROUTE --- */
-if (
-  (orig.route && updated.route && norm(orig.route) !== norm(updated.route)) ||
-  (/inhal/i.test(norm(orig.route || '')) !== /inhal/i.test(norm(updated.route || '')))  // ← NEW
-) {
-  add('Route changed');
-}
-
-/* 3‑g) PRN flag */
-if (orig.prn !== updated.prn) {
-  add('PRN changed');
-}
-
-  /* 3-h) Indication */
-  if (norm(orig.indication) !== norm(updated.indication)) {
+  // 7) Time-of-day (second pass) - only add if not already covered by exclusive ToD change
+  if (!timeOfDayMatch) { // norm(orig.timeOfDay) !== norm(updated.timeOfDay)
+    add('Time of day changed');
+  }
+  // 8) Form / Route
+  if (norm(orig.form) !== norm(updated.form)) {
+    add('Form changed');
+  }
+  if (
+    (orig.route && updated.route && norm(orig.route) !== norm(updated.route)) ||
+    (!orig.route && updated.route) || (orig.route && !updated.route) || // Handle one being null/empty
+    (/inhal/.test(norm(orig.route || '')) !== /inhal/.test(norm(updated.route || '')))
+  ) {
+    add('Route changed');
+  }
+  // 9) PRN
+  if (orig.prn !== updated.prn) {
+    add('PRN changed');
+  }
+  // 10) Indication (catch ANY remaining indication diff)
+  if (indicationDiff) { // norm(orig.indication) !== norm(updated.indication)
     add('Indication changed');
   }
 
-    /* 4) Demote bogus “Frequency changed” when it’s just a TOD tweak */
-  if (
-    changes.includes('Frequency changed') &&
-    changes.includes('Time of day changed') &&
-    canon(orig.frequency) === 'daily' &&
-    canon(updated.frequency) === 'daily'
-  ) {
+  // collapse trivial TOD/freq double-hit
+  if (changes.includes('Frequency changed') && changes.includes('Time of day changed') &&
+    canon(orig.frequency) === 'daily' && canon(updated.frequency) === 'daily') {
     changes = changes.filter(c => c !== 'Frequency changed');
   }
-
-  /* 4‑b) Collapse the inhaler double‑hit
-          (we don’t want both “Form changed” **and** “Route changed”
-          for the same inhaler swap)                              */
-  if (
-    changes.includes('Form changed') &&
-    changes.includes('Route changed')
-  ) {
-    // keep one — here we keep “Form changed”
-    changes = changes.filter(c => c !== 'Route changed');
+  // collapse inhaler form/route double-hit
+  if (changes.includes('Form changed') && changes.includes('Route changed') && inhaled(orig) && inhaled(updated)) { // check if both are inhaled
+    changes = changes.filter(c => c !== 'Route changed'); // or form, depending on preference
   }
 
-  /* 5) final decision */
-  if (changes.length === 0)  return 'Misc. Change';
-  if (changes.length === 1)  return changes[0];
+// --- New Rule for Stat/Immediately vs. Timed Dosing ---
+const origFreqIsImmediately = norm(orig.frequency) === 'immediately';
+const updatedFreqIsDaily = canon(updated.frequency) === 'daily';
+const origTODIsEmpty = norm(orig.timeOfDay) === '';
+const updatedTODIsSet = norm(updated.timeOfDay) !== '';
+
+if (changes.includes('Frequency changed') && changes.includes('Time of day changed') &&
+    origFreqIsImmediately && updatedFreqIsDaily && origTODIsEmpty && updatedTODIsSet) {
+  changes = changes.filter(c => c !== 'Time of day changed');
+  if (norm(orig.indication) === 'immediately' && norm(updated.indication) === '') {
+    changes = changes.filter(c => c !== 'Indication changed');
+  }
+}
+// --- End of New Rule ---
+
+  console.log('DEBUG: changes array before final fallback:', JSON.stringify(changes));
+
+  // Fallback "only indication changed" check (this is the redundant block)
+  // Ensure this doesn't incorrectly override if multiple changes were genuinely detected
+  if (changes.length > 1 || changes.length === 0) { // Only try this if the array logic didn't find a single specific change (excluding indication itself if it was the only one)
+      if (
+        drugNameMatch &&
+        doseValueMatch &&
+        doseUnitMatch &&
+        frequencyMatch &&
+        timeOfDayMatch &&
+        formMatch &&
+        routeMatch &&
+        prnMatch &&
+        indicationDiff // Crucially, indication MUST be different for this to make sense
+      ) {
+        console.log('DEBUG: Matched Fallback Indication-only block.');
+        return 'Indication changed';
+      } else if ( // All same AND indication is same (truly unchanged)
+        drugNameMatch &&
+        doseValueMatch &&
+        doseUnitMatch &&
+        frequencyMatch &&
+        timeOfDayMatch &&
+        formMatch &&
+        routeMatch &&
+        prnMatch &&
+        !indicationDiff // Indication is also the same
+      ) {
+         console.log('DEBUG: Fallback found no changes (Misc. Change or Unchanged).');
+         return 'Misc. Change'; // Or 'Unchanged' if you prefer that label
+      }
+  }
+  console.log('DEBUG: Final changes array:', JSON.stringify(changes));
+
+  if (changes.length === 0) return 'Misc. Change'; // Or 'Unchanged'
+  if (changes.length === 1) return changes[0];
   return 'Multiple changes';
 }
 
-
     function parseOrder(orderStr) {
-      orderStr = orderStr.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
-      orderStr = normalizeText(orderStr);
-  
-let order = {
-  drug: "",
-  dose: { value: null, unit: '', total: null },
-  route: "",
-  frequency: "",
-  timeOfDay: "",
-     administration: "",
-  prn: false,
-  form: "",
-  indication: ""
-};
+  // Keep a copy of the original input for debugging if needed at the very end
+  // const originalInputToParseOrder = orderStr;
 
-// ——— EXTRACT TIME-OF-DAY ———
-{
-  const todMatch = orderStr.match(
-/\b(?:in the\s*)?(each\s*(morning|evening|night)|every\s*(morning|evening)|at\s*bedtime|bedtime|night|morning|evening)\b/i
-  );
-  if (todMatch) {
-    // todMatch[1] will catch "every evening" or "at bedtime"; fallback to todMatch[0] otherwise
-    let phrase = (todMatch[1] || todMatch[0]).toLowerCase();
-    // strip leading "every " or "at "
-    phrase = phrase.replace(/^every\s*/, '').replace(/^at\s*/, '');
-    order.timeOfDay = phrase;      // e.g. "evening" or "bedtime"
-    orderStr = orderStr.replace(todMatch[0], '').trim();
-  }
-}
-// ────────────────────────────────
-// ─── TRACK ADMINISTRATION (with/without X) ───
-{
-  const adminMatch = orderStr.match(
-    /\b(?:with|w\/)\s*(meals|water|juice|liquid)\b|\b(?:without|w\/o)\s*(meals|water|juice|liquid)\b/i
-  );
-  if (adminMatch) {
-    // determine “with” vs “without”
-    const prefix = adminMatch[0].toLowerCase().startsWith('with') ? 'with ' : 'without ';
-    // capture the noun (meals, water, etc.)
-    const noun = (adminMatch[1] || adminMatch[2] || '').toLowerCase();
-    order.administration = prefix + noun;   // e.g. “with meals” or “without water”
-    // strip it out so it won’t interfere with later parsing
-    orderStr = orderStr.replace(adminMatch[0], '').trim();
-  }
-}
+  orderStr = orderStr.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
+  orderStr = normalizeText(orderStr); // Normalizes "qhs" to "at bedtime", etc.
 
-// ── extra normalizations that need the `order` object ──
-// weight-based dosing (mg/kg)
-const weightMatch = orderStr.match(/(\d+(?:\.\d+)?)\s*mg\/kg\b/i);
-if (weightMatch) {
-  order.dose = { value: parseFloat(weightMatch[1]), unit: 'mg/kg', total: null };
-  orderStr = orderStr.replace(weightMatch[0], '').trim();
-}
-// duration: x3d → for 3 days
-orderStr = orderStr.replace(/\bx(\d+)d\b/ig, 'for $1 days');
-// #60 → quantity 60
-orderStr = orderStr.replace(/#(\d+)/g, 'quantity $1');
-// fix common typos
-orderStr = orderStr.replace(/\btablt\b/ig, 'tablet');
-orderStr = orderStr.replace(/\bcaps\b/ig, 'capsule');
-
-// ——— TRACK PRN FLAG ———
-if (/\bprn\b/i.test(orderStr)) {
-  order.prn = true;
-  orderStr = orderStr.replace(/\bprn\b/i, '').trim();
-}
-
-// ——— TRACK PAIN INDICATION ———
-// capture **any** adjective(s) before “pain” (eg. “chronic pain”, “severe acute pain”)
-
-const indicMatch = orderStr.match(
-  /\b(?:for\s+)?((?:[a-zA-Z]+(?:\s+[a-zA-Z]+)*)?)\s*pain\b/i
-);
-if (indicMatch) {
-  // group 1 is everything before “pain”, possibly empty
-  const qualifier = indicMatch[1].trim();   // e.g. "chronic", "severe acute", or ""
-  order.indication = qualifier
-    ? qualifier.toLowerCase() + " pain"
-    : "pain";
-  // remove the matched phrase (e.g. “chronic pain” or just “pain”)
-  orderStr = orderStr.replace(indicMatch[0], "").trim();
-}
-
-// ——— TRACK RESPIRATORY INDICATION (shortness of breath / “SOB”) ———
-if (!order.indication) {
-  // note: “SOB” is already expanded to “shortness of breath” in normalizeText()
-  const sobMatch = orderStr.match(/\bshortness of breath\b/i);
-  if (sobMatch) {
-    order.indication = 'shortness of breath';
-    orderStr = orderStr.replace(sobMatch[0], '').trim();
-  }
-}
-
-// ——— ADD for combo doses like “10-325 mg” ———
-const comboMatch = orderStr.match(/(\d+)\s*-\s*(\d+)\s*mg\b/);
-if (comboMatch) {
-  order.dose = {
-    value: [parseInt(comboMatch[1], 10), parseInt(comboMatch[2], 10)],
-    unit: 'mg',
-    total: null
+  let order = {
+    drug: "",
+    dose: { value: null, unit: '', total: null },
+    route: "",
+    frequency: "",
+    timeOfDay: "",
+    administration: "",
+    prn: false,
+    form: "",
+    indication: ""
   };
-  orderStr = orderStr.replace(comboMatch[0], '').trim();
-}
-// ——————————————————————————————————————
 
+  // 1. Extract Time-of-Day and common morning/evening/night shorthands
+//    Also sets frequency if implied by the shorthand (e.g., qam is daily)
+const timeOfDayMappings = [
+  { regex: /\bdaily\s+in\s+(the\s+)?morning\b/i, timeOfDay: 'morning', frequency: 'daily', originalTermRegexPos: 0 },
+  { regex: /\bqam\b/i, timeOfDay: 'morning', frequency: 'daily', originalTerm: 'qam' },
+  { regex: /\b(in\s+the\s+)?morning\b/i, timeOfDay: 'morning', originalTermRegexPos: 0 },
+  { regex: /\bevery\s+morning\b/i, timeOfDay: 'morning', frequency: 'daily', originalTermRegexPos: 0 },
 
+  { regex: /\bqpm\b/i, timeOfDay: 'evening', frequency: 'daily', originalTerm: 'qpm' },
+  { regex: /\b(in\s+the\s+)?evening\b/i, timeOfDay: 'evening', originalTermRegexPos: 0 },
+  { regex: /\bevery\s+evening\b/i, timeOfDay: 'evening', frequency: 'daily', originalTermRegexPos: 0 },
 
-      try {
-        // Build a flat list of all unit synonyms
-        const allUnits = Object.values(unitVariants).flat();
+  { regex: /\bqhs\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTerm: 'qhs' }, // normalizeText also does qhs->at bedtime
+  { regex: /\b(at\s+)?bedtime\b/i, timeOfDay: 'bedtime', originalTermRegexPos: 0 },
+  { regex: /\bnight\b/i, timeOfDay: 'bedtime', originalTermRegexPos: 0 }, // Assuming 'night' implies bedtime for dosing
+  { regex: /\bevery\s+night\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTermRegexPos: 0 }
+];
 
-        // Find every occurrence of "<number> <unit>" for those variants
-        let unitMatches = [];
-        for (let u of allUnits) {
-          const re = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${u}\\b`, 'ig');
-          let m;
-          while ((m = re.exec(orderStr)) !== null) {
-            unitMatches.push({ idx: m.index, qty: +m[1], rawUnit: u });
-          }
-        }
+let todProcessed = false;
+for (const mapping of timeOfDayMappings) {
+  const match = orderStr.match(mapping.regex);
+  if (match) {
+    order.timeOfDay = mapping.timeOfDay;
+    
+// Determine the exact string that was matched to replace it accurately
+    orderStr = orderStr.replace(match[0], '').trim(); // Replace the entire matched part
 
-        // If we found any, pick the one that comes last in the line
-        if (!Array.isArray(order.dose.value) && unitMatches.length) {
-          const best = unitMatches.reduce((a, b) => b.idx > a.idx ? b : a);
-          const stdUnit = Object.entries(unitVariants)
-            .find(([std, arr]) => arr.includes(best.rawUnit))?.[0];
-          if (stdUnit) {
-            order.dose = { value: best.qty, unit: stdUnit, total: best.qty };
-            orderStr = orderStr.replace(new RegExp(`${best.qty}\\s*${best.rawUnit}\\b`, 'i'), '').trim();
-          } else {
-            console.warn('No standard unit found for raw unit:', best.rawUnit, 'in:', orderStr);
-          }
-        } else {
-          console.warn('No unit matches found in:', orderStr);
-        }
-
-        // 1. Extract "sprays per nostril" first
-        const sprayPerNostril = orderStr.match(/(\d+)\s+sprays?\s+per\s+nostril/i);
-        if (sprayPerNostril) {
-          const n = parseInt(sprayPerNostril[1], 10);
-          order.dose = { value: n, unit: 'spray', total: n * 2 };
-          order.route = "nasal";
-          orderStr = orderStr.replace(sprayPerNostril[0], '').trim();
-        }
-
-        // 2. Dose unit pattern (ignore form words)
-const doseUnits = ['mcg','μg','ug','mg','g','mL','ml','cc','unit','IU','units','tsp','tbsp','drop','spray','puff'];
-const doseRegex = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${doseUnits.join('|')})\\b`, 'i');
-const doseMatch = orderStr.match(doseRegex);
-if (doseMatch && !order.dose.value) {
-  const qty = parseFloat(doseMatch[1]);
-  let raw = doseMatch[2].toLowerCase();
-  // normalize synonyms
-  if (raw==='μg'||raw==='ug') raw='mcg';
-  else if (raw==='ml'||raw==='cc') raw='mL';
-  else if (['unit','iu','units'].includes(raw)) raw='unit';
-  order.dose = { value: qty, unit: raw, total: qty };
-  orderStr = orderStr.replace(doseMatch[0], '').trim();
+    if (mapping.frequency && !order.frequency) { // Only set frequency if not already set by a more specific term
+      order.frequency = mapping.frequency;
+    }
+    todProcessed = true;
+    // console.log(`DEBUG parseOrder Step 1 (TimeShorthand): tod="<span class="math-inline">\{order\.timeOfDay\}", freq\="</span>{order.frequency}", orderStr="${orderStr}"`);
+    break; // Processed one, move on
+  }
 }
 
-
-        // 3. Fallback to standard dose extraction
-        if (!order.dose.value) {
-          // fallback: allow decimals, e.g. 0.5 mg/kg or 0.125 mg
-	let leadingDoseMatch = orderStr.match(/(\d+(?:\.\d+)?)\s+(sprays|spray|capsules|capsule|puffs|puff|drops|drop|[μmcgnmLgtspbIumeqmol%\/]+)/i);
-          if (leadingDoseMatch) {
-            order.dose = {
-              value: parseFloat(leadingDoseMatch[1]),
-              unit: leadingDoseMatch[2] || '',
-              total: parseFloat(leadingDoseMatch[1])
-            };
-            orderStr = orderStr.replace(leadingDoseMatch[0], '').trim();
-          } else {
-            console.warn('No leading dose match found in:', orderStr);
-          }
-        }
-
-        // Adjust for "per nostril", "per eye", "per ear" if not already handled
-        if (order.dose.value && !order.sprayCountPerNostril && (orderStr.match(/\bper nostril\b/i) || orderStr.match(/\bper eye\b/i) || orderStr.match(/\bper ear\b/i))) {
-          order.dose.total = order.dose.value * 2;
-          orderStr = orderStr.replace(/\bper nostril\b/i, '').replace(/\bper eye\b/i, '').replace(/\bper ear\b/i, '').trim();
-        }
-
-        // Normalize the unit
-const units = {
-  'mcg':      ['mcg','μg'],
-  'mg':       ['mg'],
-  'g':        ['g'],
-  'mL':       ['mL','ml'],
-  'L':        ['L'],
-  'tsp':      ['tsp','teaspoon'],
-  'tbsp':     ['tbsp','tablespoon'],
-  'drop':     ['drop','drops','gtt'],
-  'spray':    ['spray','sprays'],
-  'puff':     ['puff','puffs'],
-  'unit':     ['unit','units'],
-  'IU':       ['IU','international units'],
-  'mEq':      ['mEq','milliequivalents'],
-  'mmol':     ['mmol','millimoles'],
-  'mg/mL':    ['mg/mL'],
-  'mcg/mL':   ['mcg/mL'],
-  '%':        ['%'],
-  'patch':    ['patch','patches'],
-  'applicator':['applicator','applicators'],
-  'ampule':   ['ampule','ampules'],
-  'vial':     ['vial','vials'],
-  'capsule':  ['cap','caps','capsule','capsules','caplet','cap.','gelcap','softgel','gel','sprinkle','sprinkles'],
-  'tablet':   ['tab','tabs','tablet','tablets','tab.','tablet.'],
-  'lozenge':  ['lozenge','lozenges'],
-  'suppository':['suppository','suppositories']
-};
-
-        if (order.dose.unit) {
-          for (let [standard, variations] of Object.entries(units)) {
-            if (variations.includes(order.dose.unit)) {
-              order.dose.unit = standard;
-              break;
-            }
-          }
-        }
-// ——— weight-unit conversions → mg ———
-if (order.dose.unit === 'mcg') {
-  // 1 mcg = 0.001 mg
-  order.dose.value     = order.dose.value    / 1000;
-  if (order.dose.total != null) order.dose.total = order.dose.total / 1000;
-  order.dose.unit      = 'mg';
+// If a time of day was found (e.g. "morning") but frequency wasn't set by a specific shorthand (like qam, every morning)
+// then assume it's a daily frequency.
+if (order.timeOfDay && !order.frequency) {
+    order.frequency = 'daily';
+    // console.log(`DEBUG parseOrder Step 1 (Implied Daily Freq): tod="<span class="math-inline">\{order\.timeOfDay\}", freq\="</span>{order.frequency}"`);
 }
-else if (order.dose.unit === 'g') {
-  // 1 g = 1000 mg
-  order.dose.value     = order.dose.value    * 1000;
-  if (order.dose.total != null) order.dose.total = order.dose.total * 1000;
-  order.dose.unit      = 'mg';
-}
-// ——— normalize any remaining mcg/g glitch ———
-if (order.dose.unit === 'mg') {
-  // round to three decimals so 0.1 and 0.100 match exactly
-  order.dose.value = Math.round(order.dose.value * 1000) / 1000;
-  if (order.dose.total != null) order.dose.total = Math.round(order.dose.total * 1000) / 1000;
-}
-     
-// ——— DETECT TABLET vs CAPSULE ———
 
-//=== STEP-FORMFIX  ⬇︎ recognise dosage-form words ======================
-const formMatch = orderStr.match(
-  /\b(chewable\s+tablet|delayed[-\s]?release\s+tablet|tablet|caplet|capsule|patch(?:es)?|lozenge|suppository|spray|puff|drop|solution|suspension|elixir|syrup|cream|ointment|gel|inhaler)\b/i
-);
-if (formMatch) {
-  const raw = formMatch[1].toLowerCase();
-
-  /* map every synonym → one canonical word */
-  let form = 'other';  // fallback
-
-  // 1) chewable tablet first
-  if (raw.includes('chewable tablet')) {
-    form = 'chewable tablet';
-
-  // 2) delayed-release next
-  } else if (
-    raw.includes('delayed-release tablet') ||
-    raw.includes('delayed release tablet')
-  ) {
-    form = 'delayed-release tablet';
-
-  // 3) plain tablet
-  } else if (raw.includes('tablet')) {
-    form = 'tablet';
-
-  } else if (raw.includes('caplet')) {
-    form = 'caplet';
-
-  } else if (raw.includes('capsule')) {
-    form = 'capsule';
-
-  } else if (raw.includes('patch')) {
-    form = 'patch';
-
-  } else if (raw.includes('lozenge')) {
-    form = 'lozenge';
-
-  } else if (raw.includes('suppository')) {
-    form = 'suppository';
-
-  } else if (raw.includes('spray')) {
-    form = 'spray';
-
-  } else if (raw.includes('puff')) {
-    form = 'puff';
-
-  } else if (raw.includes('drop')) {
-    form = 'drop';
-
-  } else if (raw.includes('suspension')) {
-    form = 'suspension';
-
-  } else if (
-    raw.includes('solution') ||
-    raw.includes('elixir') ||
-    raw.includes('syrup')
-  ) {
-    form = 'solution';
-
-  } else if (raw.includes('cream')) {
-    form = 'cream';
-
-  } else if (raw.includes('ointment')) {
-    form = 'ointment';
-
-  } else if (raw.includes('gel')) {
-    form = 'gel';
-
-  } else if (raw.includes('inhaler')) {
-    form = 'inhaler';
+  // 2. Extract Administration (with/without food/water)
+  const adminMatch = orderStr.match(/\b(?:with|w\/)\s*(meals|water|juice|liquid)\b|\b(?:without|w\/o)\s*(meals|water|juice|liquid)\b/i);
+  if (adminMatch) {
+    const prefix = adminMatch[0].toLowerCase().startsWith('with') ? 'with ' : 'without ';
+    const noun = (adminMatch[1] || adminMatch[2] || '').toLowerCase();
+    order.administration = prefix + noun;
+    orderStr = orderStr.replace(adminMatch[0], '').trim();
+    // console.log(`DEBUG parseOrder Step 2 (Admin): order.administration="${order.administration}", orderStr="${orderStr}"`);
   }
 
-  order.form = form;
+  // 3. Extract PRN
+  const prnRegex = /\bprn\b/i;
+  if (prnRegex.test(orderStr)) {
+    order.prn = true;
+    orderStr = orderStr.replace(prnRegex, '').trim();
+    // console.log(`DEBUG parseOrder Step 3 (PRN): order.prn=${order.prn}, orderStr="${orderStr}"`);
+  }
 
-  /* strip the dosage-form word so it won’t confuse later parsing */
-  orderStr = orderStr.replace(formMatch[0], '').trim();
+  // 4. Extract Indications - This is a critical section
+  // Attempt to find "for [text]" first, as it's a strong indication marker.
+  // Example: "for moderate pain", "for blood pressure"
+  const forIndicationRegex = /\bfor\s+([a-zA-Z0-9\s\/.-]+)/i;
+  let forIndicationMatchResult = orderStr.match(forIndicationRegex);
+  if (forIndicationMatchResult && forIndicationMatchResult[1]) {
+    const potentialIndication = forIndicationMatchResult[1].trim().toLowerCase();
+    order.indication = potentialIndication;
+    orderStr = orderStr.replace(forIndicationMatchResult[0], '').trim(); // Remove "for [indication]"
+    // console.log(`DEBUG parseOrder Step 4a (For Indication): order.indication="${order.indication}", orderStr="${orderStr}"`);
+  }
 
-  ['tablet','tablets','capsule','capsules','caplet'].forEach(s => {
-    orderStr = orderStr.replace(new RegExp(`\\b${s}\\b`, 'gi'), '').trim();
-  });
+  // If no "for" indication, check for specific keywords like "pain", "shortness of breath"
+  // This needs to be careful not to grab parts of drug names.
+  if (!order.indication) {
+    // Matches phrases like "moderate pain", "acute pain", or just "pain" if it's clearly an indication
+    const painIndicRegex = /\b((?:[a-zA-Z]+(?:\s+[a-zA-Z]+)*)?\s*pain)\b/i;
+    const painIndicMatch = orderStr.match(painIndicRegex);
+    // Ensure the match is not just the drug name itself if the drug name contains "pain"
+    if (painIndicMatch && painIndicMatch[0] && painIndicMatch.index > 0) { // Check index > 0 to avoid matching if "pain" is the start (could be drug)
+      // Further check: make sure we are not grabbing "drugname pain" if "pain" is part of a common suffix for the drug.
+      // This is complex. For now, a simple match:
+      let matchedPainStr = painIndicMatch[0].trim().toLowerCase();
+      order.indication = matchedPainStr;
+      orderStr = orderStr.replace(painIndicMatch[0], '').trim();
+      // console.log(`DEBUG parseOrder Step 4b (Pain Indication): order.indication="${order.indication}", orderStr="${orderStr}"`);
+    }
+  }
 
-}
-//=== END STEP-FORMFIX ===================================================
+  if (!order.indication) {
+    const sobMatch = orderStr.match(/\bshortness of breath\b/i); // "SOB" is already expanded by normalizeText
+    if (sobMatch) {
+      order.indication = 'shortness of breath';
+      orderStr = orderStr.replace(sobMatch[0], '').trim();
+      // console.log(`DEBUG parseOrder Step 4c (SOB Indication): order.indication="${order.indication}", orderStr="${orderStr}"`);
+    }
+  }
+  // At this point, for your new order, order.indication should ideally be "moderate pain"
+  // and orderStr should be "atorvastatin 40 mg tablet po" (or similar for other drugs)
 
-     // ——————————————————————————————
+  // console.log(`DEBUG parseOrder: After indication attempts: orderStr="${orderStr}", indication="${order.indication}"`);
 
-        // Define routes with their possible variations
-        const routes = [
-          { standard: "po", variations: ["po", "oral"] },
-          { standard: "sl", variations: ["sl", "sublingual"] },
-          { standard: "buccal", variations: ["buccal"] },
-          { standard: "pr", variations: ["pr", "rectal"] },
-          { standard: "ng", variations: ["ng", "nasogastric"] },
-          { standard: "og", variations: ["og", "orogastric"] },
-          { standard: "gastrostomy", variations: ["gastrostomy"] },
-          { standard: "jejunostomy", variations: ["jejunostomy"] },
-          { standard: "iv", variations: ["iv", "intravenous"] },
-          { standard: "im", variations: ["im", "intramuscular"] },
-          { standard: "subq", variations: ["subq", "sc", "subcutaneous"] },
-          { standard: "id", variations: ["id", "intradermal"] },
-          { standard: "io", variations: ["io", "intraosseous"] },
-          { standard: "intrathecal", variations: ["intrathecal"] },
-          { standard: "epidural", variations: ["epidural"] },
-          { standard: "topical", variations: ["topical"] },
-          { standard: "transdermal", variations: ["transdermal"] },
-          { standard: "ophthalmic", variations: ["ophthalmic"] },
-          { standard: "otic", variations: ["otic"] },
-          { standard: "nasal", variations: ["nasal"] },
-          { standard: "vaginal", variations: ["vaginal"] },
-          { standard: "urethral", variations: ["urethral"] },
-          { standard: "intrauterine", variations: ["intrauterine"] },
-          { standard: "inhalation", variations: ["inhalation", "mdi", "dpi", "nebulized"] },
-          { standard: "intranasal", variations: ["intranasal"] },
-          { standard: "intraperitoneal", variations: ["intraperitoneal"] },
-          { standard: "intraarticular", variations: ["intraarticular", "intra-articular"] },
-          { standard: "intrapleural", variations: ["intrapleural"] },
-          { standard: "intravesical", variations: ["intravesical"] },
-          { standard: "implantable", variations: ["implantable"] }
-        ];
-
-        if (!order.route) {
-          for (const routeDef of routes) {
-            for (const variation of routeDef.variations) {
-              if (orderStr.includes(variation)) {
-                order.route = routeDef.standard;
-                orderStr = orderStr.replace(new RegExp(`\\b${variation}\\b`, 'i'), '');
-                break;
-              }
-            }
-            if (order.route) break;
-          }
-        }
-            // ——— INTERVAL-ONLY FREQUENCY ———
-    // 1) “q6h” style
-    const qhMatch = orderStr.match(/\bq(\d+)h\b/i);
-    if (qhMatch) {
-      order.frequency = `q${qhMatch[1]}h`;
-      orderStr = orderStr.replace(qhMatch[0], '').trim();
+  // 5. Extract Dose (mg/kg, combo-dose, then general unit parsing)
+  const weightMatch = orderStr.match(/(\d+(?:\.\d+)?)\s*mg\/kg\b/i);
+  if (weightMatch) {
+    order.dose = { value: parseFloat(weightMatch[1]), unit: 'mg/kg', total: null }; // total might need patient weight
+    orderStr = orderStr.replace(weightMatch[0], '').trim();
+  } else {
+    const comboMatch = orderStr.match(/(\d+)\s*-\s*(\d+)\s*mg\b/);
+    if (comboMatch) {
+      order.dose = {
+        value: [parseInt(comboMatch[1], 10), parseInt(comboMatch[2], 10)],
+        unit: 'mg',
+        total: null // Or sum them: parseInt(comboMatch[1], 10) + parseInt(comboMatch[2], 10)
+      };
+      orderStr = orderStr.replace(comboMatch[0], '').trim();
     } else {
-     
-    //=== STEP‑FREQFIX  recognise “every 4 hours” style =========
-    if (!order.frequency) {
-      const everyHours = orderStr.match(/\bevery\s*(\d+)\s*hours?\b/i);
-      if (everyHours) {
-        order.frequency = `q${everyHours[1]}h`;
-        orderStr = orderStr.replace(everyHours[0], '').trim();
+      // General dose unit parsing
+      const allUnits = Object.values(unitVariants).flat();
+      let unitMatchesFound = [];
+      for (let u of allUnits) {
+        if (typeof u !== 'string' || u.length === 0) continue;
+        const escapedU = u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${escapedU}\\b`, 'ig');
+        let m;
+        while ((m = re.exec(orderStr)) !== null) {
+          unitMatchesFound.push({ idx: m.index, qty: +m[1], rawUnit: u, matchStr: m[0] });
+        }
+      }
+
+      if (unitMatchesFound.length > 0) {
+        const bestMatch = unitMatchesFound.reduce((a, b) => b.idx > a.idx ? b : a);
+        const stdUnit = Object.entries(unitVariants)
+          .find(([std, arr]) => arr.includes(bestMatch.rawUnit))?.[0];
+        if (stdUnit) {
+          order.dose = { value: bestMatch.qty, unit: stdUnit, total: bestMatch.qty };
+          // More robust replace by finding the specific instance
+          let tempOrderStr = orderStr;
+          const startIndex = tempOrderStr.lastIndexOf(bestMatch.matchStr);
+          if (startIndex !== -1 && startIndex === bestMatch.idx) {
+             tempOrderStr = tempOrderStr.substring(0, startIndex) + tempOrderStr.substring(startIndex + bestMatch.matchStr.length);
+          } else { // Fallback if tricky (e.g. "5 mg ... 5 mg") - might remove first one
+             const firstOccurenceIndex = tempOrderStr.indexOf(bestMatch.matchStr);
+             if (firstOccurenceIndex !== -1) {
+                tempOrderStr = tempOrderStr.substring(0, firstOccurenceIndex) + tempOrderStr.substring(firstOccurenceIndex + bestMatch.matchStr.length);
+             }
+          }
+          orderStr = tempOrderStr.trim();
+          // console.log(`DEBUG parseOrder Step 5 (Dose - unitMatches): dose=${JSON.stringify(order.dose)}, orderStr="${orderStr}"`);
+        }
+      }
+      // Fallback if unitMatchesLoop didn't set a dose value but a number is present
+      else if (!order.dose.value) {
+         const doseUnitsForFallback = ['mcg','mg','g','ml','cc','unit','units','tsp','tbsp','drop','spray','puff','patch','lozenge','suppository','tablet','capsule','each','dose'];
+         const fallbackDoseRegex = new RegExp(`(\\d+(?:\\.\\d+)?)(?:\\s*(${doseUnitsForFallback.join('|')})(?:s|es)?\\b)?`, 'i');
+         // This regex tries to find a number, optionally followed by a unit.
+         // Example: "1", "1 tablet", "10 mg"
+         const fallbackMatch = orderStr.match(fallbackDoseRegex);
+         if (fallbackMatch && fallbackMatch[1]) {
+            const qty = parseFloat(fallbackMatch[1]);
+            let unit = (fallbackMatch[2] || '').toLowerCase();
+            let formFromUnit = "";
+
+            if (unit) {
+                // Normalize unit from unitVariants
+                const foundStdUnit = Object.entries(unitVariants).find(([std, arr])=> arr.includes(unit));
+                if(foundStdUnit) unit = foundStdUnit[0];
+
+                // Check if this "unit" is actually a form
+                if (unitVariants.tablet.includes(unit)) { formFromUnit = 'tablet'; unit = 'tablet';} // or keep unit as 'tablet'
+                else if (unitVariants.capsule.includes(unit)) { formFromUnit = 'capsule'; unit = 'capsule';}
+                // ... (add other form-like units)
+
+                order.dose = { value: qty, unit: unit, total: qty };
+                orderStr = orderStr.replace(fallbackMatch[0], '').trim();
+                if(formFromUnit && !order.form) order.form = formFromUnit;
+                // console.log(`DEBUG parseOrder Step 5 (Dose - fallbackDoseRegex): dose=${JSON.stringify(order.dose)}, orderStr="${orderStr}"`);
+            }
+         }
       }
     }
-    //=== END STEP‑FREQFIX ======================================
+  }
 
-
- // 2) named intervals (daily, bid, tid, qod, stat…)
-const freqMapping = {
-  "once daily":        "daily",
-  "once a day":        "daily",    // ← NEW
-
-  "1 times daily":     "daily",
-
-  "daily":             "daily",
-
-  "twice daily":       "twice daily",
-  "2 times daily":     "twice daily",
-  "bid":               "twice daily",
-
-  "three times daily": "three times daily",
-  "3 times daily":     "three times daily",
-  "tid":               "three times daily",
-
-  "four times daily":  "four times daily",
-  "4 times daily":     "four times daily",
-  "qid":               "four times daily",
-
-  "every other day":   "every other day",
-  "stat":              "immediately"
-};
-
-
-      // longest keys first so “three times daily” beats “daily”
-      Object.keys(freqMapping)
-  .sort((a, b) => b.length - a.length)
-  .forEach(key => {
-    // — use word‑boundaries so “stat” doesn’t hit simvaSTATin —
-    const pattern = new RegExp(`\\b${key.replace(/\s+/g, '\\s+')}\\b`, 'i');
-    if (!order.frequency && pattern.test(orderStr)) {
-      order.frequency = freqMapping[key];
-      orderStr = orderStr.replace(pattern, '').trim();
+  // Normalize dose units (mcg/g to mg) AFTER all dose parsing attempts
+  if (order.dose.value !== null && typeof order.dose.value === 'number') { // Check if value is a number
+    if (order.dose.unit === 'mcg') {
+      order.dose.value = order.dose.value / 1000;
+      if (order.dose.total != null) order.dose.total = order.dose.total / 1000;
+      order.dose.unit = 'mg';
+    } else if (order.dose.unit === 'g') {
+      order.dose.value = order.dose.value * 1000;
+      if (order.dose.total != null) order.dose.total = order.dose.total * 1000;
+      order.dose.unit = 'mg';
     }
-  });
+    // Round mg values
+    if (order.dose.unit === 'mg') {
+      order.dose.value = Math.round(order.dose.value * 1000) / 1000;
+      if (order.dose.total != null) {
+        order.dose.total = Math.round(order.dose.total * 1000) / 1000;
+      }
     }
+  }
+  // console.log(`DEBUG parseOrder: After dose normalization: dose=${JSON.stringify(order.dose)}, orderStr="${orderStr}"`);
 
-    // ──────────────────────────────────
-    // If they gave a time‐of‐day but no explicit freq, assume daily
-    if (!order.frequency && order.timeOfDay) {
-      order.frequency = 'daily';
+
+// 6. Extract Form (if not already identified by dose parsing)
+if (!order.form) {
+  // New, more specific form words list - longest phrases first
+  const formDefinitions = [
+    { term: 'extended-release tablet', canonical: 'extended-release tablet' },
+    { term: 'delayed-release tablet', canonical: 'delayed-release tablet' },
+    { term: 'chewable tablet', canonical: 'chewable tablet' },
+    { term: 'effervescent tablet', canonical: 'effervescent tablet' },
+    { term: 'sublingual tablet', canonical: 'sublingual tablet' },
+    { term: 'oral disintegrating tablet', canonical: 'oral disintegrating tablet' },
+    { term: 'odt', canonical: 'oral disintegrating tablet' }, // ODT
+    { term: 'tablet', canonical: 'tablet' },
+    { term: 'extended-release capsule', canonical: 'extended-release capsule' },
+    { term: 'delayed-release capsule', canonical: 'delayed-release capsule' },
+    { term: 'capsule', canonical: 'capsule' },
+    { term: 'caplet', canonical: 'caplet' },
+    { term: 'softgel', canonical: 'softgel' },
+    { term: 'patch', canonical: 'patch' }, { term: 'patches', canonical: 'patch' },
+    { term: 'lozenge', canonical: 'lozenge' },
+    { term: 'suppository', canonical: 'suppository' },
+    { term: 'spray', canonical: 'spray' },
+    { term: 'puff', canonical: 'puff' },
+    { term: 'drop', canonical: 'drop' }, { term: 'drops', canonical: 'drop' },
+    { term: 'suspension', canonical: 'suspension' },
+    { term: 'solution', canonical: 'solution' },
+    { term: 'elixir', canonical: 'elixir' },
+    { term: 'syrup', canonical: 'syrup' },
+    { term: 'liquid', canonical: 'liquid' },
+    { term: 'cream', canonical: 'cream' },
+    { term: 'ointment', canonical: 'ointment' },
+    { term: 'gel', canonical: 'gel' },
+    { term: 'inhaler', canonical: 'inhaler' },
+    { term: 'mdi', canonical: 'inhaler' },
+    { term: 'nebule', canonical: 'nebule' }, { term: 'nebulizer solution', canonical: 'nebule'}
+  ];
+
+  // Build regex from sorted form terms (longest first to ensure correct matching)
+  const sortedFormTerms = formDefinitions.map(fd => fd.term).sort((a, b) => b.length - a.length);
+  // Escape terms for regex and join with |
+  const formRegexPattern = sortedFormTerms.map(term => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const formRegex = new RegExp(`\\b(${formRegexPattern})\\b`, 'i');
+  const formMatch = orderStr.match(formRegex);
+
+  if (formMatch && formMatch[1]) {
+    const matchedTerm = formMatch[1].toLowerCase();
+    // Find the definition again using the matched term (case-insensitive find)
+    const definition = formDefinitions.find(fd => fd.term.toLowerCase() === matchedTerm);
+    if (definition) {
+      order.form = definition.canonical;
+      orderStr = orderStr.replace(formMatch[0], '').trim();
+      // console.log(`DEBUG parseOrder Step 6 (Form): order.form="<span class="math-inline">\{order\.form\}", orderStr\="</span>{orderStr}"`);
     }
+  }
+} 
 
-    // ==== NEW: capture a real indication only when the keyword “for” is present ====
-    if (!order.indication && /\bfor\b/i.test(orderStr)) {
-    const parts = orderStr.split(/\bfor\b/i);
-    orderStr          = parts[0].trim();        // everything before “for” is the drug
-    order.indication  = parts[1].trim();        // everything after  “for” is the indication
+
+  // 7. Extract Route
+  const routes = [
+    { standard: "po", variations: ["po", "oral", "by mouth"] }, { standard: "sl", variations: ["sl", "sublingual"] },
+    { standard: "buccal", variations: ["buccal"] }, { standard: "pr", variations: ["pr", "rectal", "rectally"] },
+    { standard: "ng", variations: ["ng", "nasogastric", "ng tube"] }, { standard: "og", variations: ["og", "orogastric"] },
+    { standard: "gastrostomy", variations: ["gastrostomy", "g-tube", "peg tube"] }, { standard: "jejunostomy", variations: ["jejunostomy", "j-tube"] },
+    { standard: "iv", variations: ["iv", "intravenous", "intravenously"] }, { standard: "im", variations: ["im", "intramuscular", "intramuscularly"] },
+    { standard: "subq", variations: ["subq", "sc", "subcutaneous", "subcutaneously"] }, { standard: "id", variations: ["id", "intradermal"] },
+    { standard: "io", variations: ["io", "intraosseous"] }, { standard: "intrathecal", variations: ["intrathecal"] },
+    { standard: "epidural", variations: ["epidural"] }, { standard: "topical", variations: ["topical", "topically", "apply to skin"] },
+    { standard: "transdermal", variations: ["transdermal"] }, { standard: "ophthalmic", variations: ["ophthalmic", "in eye", "eye drop"] },
+    { standard: "otic", variations: ["otic", "in ear", "ear drop"] }, { standard: "nasal", variations: ["nasal", "intranasal", "in nose", "nasal spray"] },
+    { standard: "vaginal", variations: ["vaginal", "vaginally"] }, { standard: "urethral", variations: ["urethral"] },
+    { standard: "intrauterine", variations: ["intrauterine"] }, { standard: "inhalation", variations: ["inhalation", "inhaled", "inh", "mdi", "dpi", "nebulized", "neb"] },
+    { standard: "intraperitoneal", variations: ["intraperitoneal"] }, { standard: "intraarticular", variations: ["intraarticular", "intra-articular"] },
+    { standard: "intrapleural", variations: ["intrapleural"] }, { standard: "intravesical", variations: ["intravesical"] },
+    { standard: "implantable", variations: ["implantable"] }
+  ];
+  if (!order.route) {
+    for (const routeDef of routes) {
+      for (const variation of routeDef.variations) {
+        const routeRegex = new RegExp(`\\b${variation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        if (routeRegex.test(orderStr)) {
+          order.route = routeDef.standard;
+          orderStr = orderStr.replace(routeRegex, '').trim();
+          break;
+        }
+      }
+      if (order.route) break;
     }
+    // console.log(`DEBUG parseOrder Step 7 (Route): order.route="${order.route}", orderStr="${orderStr}"`);
+  }
 
 
-                // — after all your stripping out of dose/route/freq/prn/etc —
-// split the remaining text into the drug name + anything else
-const parts = orderStr.trim().split(/\s+/);
-order.drug = parts[0] || '';
-// if you haven’t already set an indication, capture whatever follows
-if (!order.indication && parts.length > 1) {
-  order.indication = parts.slice(1).join(' ');
+  // 8. Extract Frequency
+
+// Explicitly check for "immediately" first, as it's a specific frequency from "stat" or "now"
+const immediatelyPattern = /\bimmediately\b/i;
+if (!order.frequency && immediatelyPattern.test(orderStr)) {
+    order.frequency = "immediately";
+    orderStr = orderStr.replace(immediatelyPattern, '').trim();
+    // console.log(`DEBUG parseOrder Step 8a (Immediately): order.frequency="<span class="math-inline">\{order\.frequency\}", orderStr\="</span>{orderStr}"`);
+}
+// Now proceed with other frequency checks if not "immediately"
+if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
+  
+  const qhMatch = orderStr.match(/\bq(\d+)h\b/i);
+  if (qhMatch) {
+    order.frequency = `q${qhMatch[1]}h`;
+    orderStr = orderStr.replace(qhMatch[0], '').trim();
+  } else {
+    const everyHours = orderStr.match(/\bevery\s*(\d+)\s*hours?\b/i);
+    if (everyHours) {
+      order.frequency = `q${everyHours[1]}h`;
+      orderStr = orderStr.replace(everyHours[0], '').trim();
+    } else {
+      const freqMapping = {
+        "once daily": "daily", "once a day": "daily", "1 times daily": "daily", "daily": "daily", "od": "daily", "qd": "daily",
+        "twice daily": "twice daily", "2 times daily": "twice daily", "bid": "twice daily",
+        "three times daily": "three times daily", "3 times daily": "three times daily", "tid": "three times daily",
+        "four times daily": "four times daily", "4 times daily": "four times daily", "qid": "four times daily",
+        "every other day": "every other day", "qod": "every other day",
+        "stat": "immediately", "now": "immediately",
+        "weekly": "weekly", "once a week": "weekly",
+        "monthly": "monthly", "once a month": "monthly"
+      };
+      const sortedFreqKeys = Object.keys(freqMapping).sort((a, b) => b.length - a.length);
+      for (const key of sortedFreqKeys) {
+        const pattern = new RegExp(`\\b${key.replace(/\s+/g, '\\s+')}\\b`, 'i');
+        if (pattern.test(orderStr)) {
+          order.frequency = freqMapping[key];
+          orderStr = orderStr.replace(pattern, '').trim();
+          break;
+        }
+      }
+    }
+  }
+}
+  if (!order.frequency && order.timeOfDay) {
+    order.frequency = 'daily';
+  }
+  // console.log(`DEBUG parseOrder Step 8 (Frequency): order.frequency="${order.frequency}", orderStr="${orderStr}"`);
+
+
+ // 9. Final Drug Name and any remaining text as Indication (if indication not already set explicitly)
+orderStr = orderStr.trim();
+// Remove any leading numbers/units that might be leftover unparsed doses or dangling numbers
+// This regex tries to remove a number, optionally followed by a unit-like word if it's at the start.
+orderStr = orderStr.replace(/^(\d+(?:\.\d+)?\s*([a-zA-Zμ]+)?)\s*(?=[a-zA-Z])/, '').trim(); // Remove only if followed by a letter (drug name)
+orderStr = orderStr.trim();
+
+const finalParts = orderStr.split(/\s+/).filter(part => part.length > 0); // Filter out empty strings from multiple spaces
+
+if (finalParts.length > 0) {
+    // The first part is generally the drug. If it's a known non-drug keyword, something is wrong.
+    const firstWord = finalParts[0].toLowerCase();
+    const knownNonDrugStarters = ['for', 'with', 'as', 'per', 'to', 'if', 'when', 'at', 'in']; // common indication/instruction starters
+
+    if (!knownNonDrugStarters.includes(firstWord) && !/\d/.test(finalParts[0])) { // If first word isn't a non-drug starter or a number
+        order.drug = finalParts[0];
+        if (finalParts.length > 1 && !order.indication) { // If more words remain AND no indication was set yet
+            // Check if the remaining text looks like an indication rather than more drug name
+            const remainingText = finalParts.slice(1).join(' ');
+            // A simple check: if it starts with a non-drug keyword, it's likely an indication/instruction
+            const firstOfRemaining = (finalParts[1] || "").toLowerCase();
+            if (knownNonDrugStarters.includes(firstOfRemaining)) {
+                order.indication = remainingText.trim();
+            } else {
+                // It's ambiguous. Could be part of a multi-word drug name or an indication.
+                // For now, if no explicit indication was caught, and it doesn't start with a clear
+                // indication keyword, we might cautiously add it to drug name or leave as indication.
+                // Let's assume for now if indication is not set, it's an indication.
+                order.indication = remainingText.trim();
+            }
+        }
+    } else if (finalParts.length > 0 && !order.indication) {
+        // If the first word IS a non-drug keyword, or a number, and no drug name was set,
+        // this is likely a parsing remnant that should be an indication.
+        order.indication = finalParts.join(' ').trim();
+    }
+    // If order.drug is still empty but finalParts exist, take the first as drug.
+    if (!order.drug && finalParts.length > 0) {
+        order.drug = finalParts[0];
+        if (finalParts.length > 1 && !order.indication) {
+            order.indication = finalParts.slice(1).join(' ').trim();
+        }
+    }
 }
 
+// Final cleanup of drug name and indication
+if (order.drug) {
+    // Remove any trailing non-alphanumeric (except hyphen/slash if desired in drug name)
+    order.drug = order.drug.replace(/[^a-zA-Z0-9\/\s-]+/g, ' ').replace(/\s\s+/g, ' ').trim();
+}
+if (order.indication) {
+    order.indication = order.indication.replace(/\s\s+/g, ' ').trim();
+    
+// If indication ended up being something clearly not an indication (e.g., just units or forms) clear it
+    const nonIndicationRemnants = /^(mg|mcg|ml|tablet|capsule|po|iv|subq|im|oint|g|meq|units|unit|in|at|on|am|pm|daily|for|with|the|a|to|of)$/i;
+    if (nonIndicationRemnants.test(order.indication.trim())) {
+        
+// console.log(`Clearing likely non-indication: "<span class="math-inline">\{order\.indication\}" for drug "</span>{order.drug}"`);
+        order.indication = "";
+    }
+} else {
+    order.indication = ""; // Ensure it's an empty string if null/undefined
+}
 
-        // Debugging for all orders
-        console.log('Parsed order:', { original: orderStr, parsed: order });
-
-        return order;
-      } catch (e) {
-        console.error('Error parsing order:', orderStr, e.stack || e);
-         return { 
-      drug: orderStr || '', 
-      dose: { value: null, unit: '', total: null }, 
-      route: '', 
-      frequency: '',
-      timeOfDay: '', 
-      prn: false, 
-      form: '', 
-      indication: '' 
-    };
-   }
+  // console.log('FINAL DEBUG Parsed order:', { /* input: originalInputToParseOrder, */ parsed: order });
+  return order;
 }
 
     function levenshteinDistance(a, b) {
@@ -1723,14 +1644,16 @@ if (!order.indication && parts.length > 1) {
   	if (freqSim < 0.85) return false;
 }
 
-
   // ─── normalize time-of-day equivalence ───
-  const normalizeTOD = t => {
-    if (!t) return '';
-    t = t.toLowerCase();
-    if (['evening','night','bedtime'].includes(t)) return 'bedtime';
-    return t;
-  };
+const normalizeTOD = t => {
+  if (!t) return '';
+  t = t.toLowerCase().trim(); // Added .trim()
+  if (t === 'morning' || t === 'qam' || t === 'am' || t.includes('in morning') || t.includes('in the am')) return 'morning';
+  if (t === 'evening' || t === 'pm' || t.includes('in evening') || t.includes('in the pm')) return 'evening';
+  if (t === 'bedtime' || t === 'night' || t === 'qhs' || t.includes('at bedtime')) return 'bedtime';
+  return t;
+};
+
   if (normalizeTOD(a.timeOfDay) !== normalizeTOD(b.timeOfDay)) {
     return false;
   }
@@ -2318,6 +2241,17 @@ removed.forEach(r => {
             match = added.find(a => a.original.toLowerCase().includes(drugName));
             if (match) {
                 changeType = getChangeReason(r.parsed, match.parsed);
+    	// very novice-friendly override for “only indication” cases
+   	 const origInd = (r.parsed.indication || '').toLowerCase().trim();
+   	 const newInd  = (match.parsed.indication || '').toLowerCase().trim();
+   	 if (
+     	 normalizeMedicationName(r.parsed.drug) === normalizeMedicationName(match.parsed.drug)
+      	&& r.parsed.dose.value === match.parsed.dose.value
+      	&& r.parsed.dose.unit  === match.parsed.dose.unit
+     	 && origInd !== newInd
+    	) {
+      	changeType = 'Indication changed';
+    	}
                 console.log(`   → substring matched "${drugName}" to`, match.original);
             }
         }
