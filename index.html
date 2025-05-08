@@ -701,6 +701,10 @@ const functions = firebase.functions(app);
   function normalizeMedicationName(name) {
    if (!name) return '';
    let n = name.toLowerCase().trim();
+ // ── STRIP COMMON SALT SUFFIXES ───────────────────────────────
+ // so “docusate sodium” → “docusate”
+ n = n.replace(/\b(sodium|hydrochloride|acetate|phosphate|carbonate)\b/g, '').trim();
+ // ─────────────────────────────────────────────────────────────
    if (brandToGenericMap[n]) {
      n = brandToGenericMap[n];
    }
@@ -1010,7 +1014,32 @@ function getChangeReason(orig, updated) {
   console.log('  indicationDiff:', indicationDiff, `(${norm(orig.indication)} vs ${norm(updated.indication)})`);
   // --- End Debugging Conditions ---
 
-  // 2) **Indication-only**
+ // ——— 2.a) Salt-only change → Generic Medication ———
+const saltList    = ['sodium','hydrochloride','acetate','phosphate','carbonate'];
+const normIndOrig = norm(orig.indication);
+const normIndUpd  = norm(updated.indication);
+
+if (
+  drugNameMatch &&
+  doseValueMatch &&
+  doseUnitMatch &&
+  frequencyMatch &&
+  timeOfDayMatch &&
+  formMatch &&
+  routeMatch &&
+  prnMatch &&
+  indicationDiff &&
+  (
+    (normIndOrig && saltList.includes(normIndOrig) && !normIndUpd) ||
+    (normIndUpd  && saltList.includes(normIndUpd)  && !normIndOrig)
+  )
+) {
+  console.log('DEBUG: Matched Salt-only change → Generic Medication');
+  return 'Generic Medication';
+}
+
+  
+// 2) **Indication-only**
   if (
     drugNameMatch &&
     doseValueMatch &&
@@ -1027,27 +1056,60 @@ function getChangeReason(orig, updated) {
   }
   console.log('DEBUG: Did NOT match Indication-only block.');
 
-  // 3) Time-of-day-only (This is less likely the issue but good to be aware of)
-  if (
-    !timeOfDayMatch && // norm(orig.timeOfDay) !== norm(updated.timeOfDay)
-    drugNameMatch && // Ensure it's the same drug for a pure ToD change
-    doseValueMatch &&
-    doseUnitMatch &&
-    frequencyMatch && // Freq should be same if only ToD changed
-    formMatch &&
-    routeMatch &&
-    prnMatch &&
-    norm(orig.indication) === norm(updated.indication) // Indication MUST be same
-  ) {
-    console.log('DEBUG: Matched Time of day changed (exclusive).');
-    return 'Time of day changed';
-  }
+   // ——— 3) Time-of-day-only, but allow QOD→daily ———
+// THIS IS YOUR EXISTING DEFINITION - KEEP IT AS IS
+const isQodToDaily =
+  canon(orig.frequency) === 'every other day' &&
+  canon(updated.frequency) === 'daily';
 
+// START OF ADDED LOGGING (goes *before* your existing if-statement for Block #3)
+console.log("--- DEBUGGING BLOCK #3 ---");
+console.log("Values feeding into Block #3 condition:");
+console.log("  Orig Parsed (relevant parts): freq='", orig.frequency, "', tod='", orig.timeOfDay, "', indic='", orig.indication, "'");
+console.log("  Updated Parsed (relevant parts): freq='", updated.frequency, "', tod='", updated.timeOfDay, "', indic='", updated.indication, "'");
+console.log("  !timeOfDayMatch:", !timeOfDayMatch);
+console.log("  drugNameMatch:", drugNameMatch);
+console.log("  doseValueMatch:", doseValueMatch);
+console.log("  doseUnitMatch:", doseUnitMatch);
+console.log("  frequencyMatch:", frequencyMatch);
+console.log("  isQodToDaily (from your definition above):", isQodToDaily); // Uses your existing isQodToDaily
+console.log("  (frequencyMatch || isQodToDaily):", (frequencyMatch || isQodToDaily));
+console.log("  formMatch:", formMatch);
+console.log("  routeMatch:", routeMatch);
+console.log("  prnMatch:", prnMatch);
+console.log("  Indication Match (norm(orig.indication) === norm(updated.indication)):", norm(orig.indication) === norm(updated.indication));
+// END OF ADDED LOGGING
 
-  let changes = [];
-  const add = lbl => { if (!changes.includes(lbl)) changes.push(lbl); };
+// THIS IS YOUR EXISTING IF STATEMENT FOR BLOCK #3:
+// Modify it by adding the console.log inside the if, and adding the else block.
+if (
+  !timeOfDayMatch &&
+  drugNameMatch &&
+  doseValueMatch &&
+  doseUnitMatch &&
+  (frequencyMatch || isQodToDaily) && // This uses your existing isQodToDaily
+  formMatch &&
+  routeMatch &&
+  prnMatch &&
+  norm(orig.indication) === norm(updated.indication)
+) {
+  // ADD THIS LOG INSIDE THE EXISTING IF
+  console.log("--- BLOCK #3 CONDITION MET --- Returning 'Time of day changed'");
+  return 'Time of day changed'; // Your existing return statement
+}
+// ADD THIS ELSE BLOCK TO YOUR EXISTING IF
+else {
+  console.log("--- BLOCK #3 CONDITION FAILED --- Proceeding to build 'changes' array.");
+}
 
-  // 4) Brand ↔ Generic
+// REMOVE ANY DUPLICATE IF BLOCK FOR THIS LOGIC.
+// The code should now flow directly to the 'let changes = [];' part
+// if Block #3's condition was false.
+
+let changes = [];
+const add = lbl => { if (!changes.includes(lbl)) changes.push(lbl); };
+
+// 4) Brand ↔ Generic
   {
     const a = normalizeMedicationName(orig.drug);
     const b = normalizeMedicationName(updated.drug);
@@ -1190,17 +1252,17 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
 const timeOfDayMappings = [
   { regex: /\bdaily\s+in\s+(the\s+)?morning\b/i, timeOfDay: 'morning', frequency: 'daily', originalTermRegexPos: 0 },
   { regex: /\bqam\b/i, timeOfDay: 'morning', frequency: 'daily', originalTerm: 'qam' },
-  { regex: /\b(in\s+the\s+)?morning\b/i, timeOfDay: 'morning', originalTermRegexPos: 0 },
-  { regex: /\bevery\s+morning\b/i, timeOfDay: 'morning', frequency: 'daily', originalTermRegexPos: 0 },
+  { regex: /\bevery\s+morning\b/i, timeOfDay: 'morning', frequency: 'daily', originalTermRegexPos: 0 }, // MOVED UP
+  { regex: /\b(in\s+the\s+)?morning\b/i, timeOfDay: 'morning', originalTermRegexPos: 0 },                 // NOW AFTER "every morning"
 
   { regex: /\bqpm\b/i, timeOfDay: 'evening', frequency: 'daily', originalTerm: 'qpm' },
-  { regex: /\b(in\s+the\s+)?evening\b/i, timeOfDay: 'evening', originalTermRegexPos: 0 },
-  { regex: /\bevery\s+evening\b/i, timeOfDay: 'evening', frequency: 'daily', originalTermRegexPos: 0 },
+  { regex: /\bevery\s+evening\b/i, timeOfDay: 'evening', frequency: 'daily', originalTermRegexPos: 0 }, // MOVED UP
+  { regex: /\b(in\s+the\s+)?evening\b/i, timeOfDay: 'evening', originalTermRegexPos: 0 },                 // NOW AFTER "every evening"
 
-  { regex: /\bqhs\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTerm: 'qhs' }, // normalizeText also does qhs->at bedtime
-  { regex: /\b(at\s+)?bedtime\b/i, timeOfDay: 'bedtime', originalTermRegexPos: 0 },
-  { regex: /\bnight\b/i, timeOfDay: 'bedtime', originalTermRegexPos: 0 }, // Assuming 'night' implies bedtime for dosing
-  { regex: /\bevery\s+night\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTermRegexPos: 0 }
+  { regex: /\bqhs\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTerm: 'qhs' },
+  { regex: /\bevery\s+night\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTermRegexPos: 0 },    // MOVED UP
+  { regex: /\b(at\s+)?bedtime\b/i, timeOfDay: 'bedtime', originalTermRegexPos: 0 },                       // Stays
+  { regex: /\bnight\b/i, timeOfDay: 'bedtime', originalTermRegexPos: 0 }                                  // Stays, general "night" last for bedtime
 ];
 
 let todProcessed = false;
@@ -1227,6 +1289,11 @@ if (order.timeOfDay && !order.frequency) {
     order.frequency = 'daily';
     // console.log(`DEBUG parseOrder Step 1 (Implied Daily Freq): tod="<span class="math-inline">\{order\.timeOfDay\}", freq\="</span>{order.frequency}"`);
 }
+// only strip “every” for time-of-day phrases
+orderStr = orderStr
+  .replace(/\bevery\s+(morning|evening|night)\b/gi, '$1')
+  .trim();
+
 
   // 2. Extract Administration (with/without food/water)
   const adminMatch = orderStr.match(/\b(?:with|w\/)\s*(meals|water|juice|liquid)\b|\b(?:without|w\/o)\s*(meals|water|juice|liquid)\b/i);
@@ -2293,20 +2360,26 @@ removed.forEach(r => {
 
         const crit = isCriticalOrder(r) || (match && isCriticalOrder(match));
 
-        // 4) Brand ↔ generic swap
-        if (match && (changeType === 'Generic Medication' || changeType === 'Brand Medication')) {
-            html += `
-                <tr class="${crit ? 'critical' : ''}">
-                    <td>${idx++}</td>
-                    <td>${r.original}</td>
-                    <td>${match.original}</td>
-                    <td>${changeType}</td>
-                </tr>
-            `;
-            added = added.filter(a => a !== match);
-            console.groupEnd();
-            return;
-        }
+           // 4) Brand ↔ generic swap (also catch an indication tweak)
+   if (match && (changeType === 'Generic Medication' || changeType === 'Brand Medication')) {
+     // build a list of reasons
+     const reasons = [ changeType ];
+     if ((r.parsed.indication || '').toLowerCase().trim()
+       !== (match.parsed.indication || '').toLowerCase().trim()) {
+       reasons.push('Indication changed');
+     }
+     html += `
+       <tr class="${crit ? 'critical' : ''}">
+         <td>${idx++}</td>
+         <td>${r.original}</td>
+         <td>${match.original}</td>
+         <td>${reasons.join(', ')}</td>
+       </tr>
+     `;
+     added = added.filter(a => a !== match);
+     console.groupEnd();
+     return;
+   }
 
         // 5) Dose / freq / form / route / PRN / admin reasons
         if (match) {
