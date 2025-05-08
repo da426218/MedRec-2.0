@@ -380,6 +380,28 @@ table.changes-table th {
   }
 }
 
+main { /* Add padding to main element */
+  padding-bottom: 4rem; /* Add space at bottom before footer */
+}
+
+footer {
+  text-align: center;
+  padding: 1rem;
+  margin-top: auto; /* Helps push footer down */
+  font-size: 0.8rem;
+  color: #6c757d; /* Muted grey color */
+  background-color: #f4f4f4; /* Match body background */
+}
+
+footer a {
+  color: #0056b3; /* Link color */
+  text-decoration: none;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
   </style>
 
 </head>
@@ -488,6 +510,9 @@ table.changes-table th {
       </div>
     </div>
   </main>
+<footer>
+  &copy; 2025 David Gottschalk. For technical support, please contact <a href="mailto:david@med-reconciliation.com">david@med-reconciliation.com</a>.
+</footer>
   <div id="loading">
     <p id="loading-text">Processing...</p>
     <progress id="loading-progress" max="100"></progress>
@@ -1473,32 +1498,42 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
     order.frequency = `q${qhMatch[1]}h`;
     orderStr = orderStr.replace(qhMatch[0], '').trim();
   } else {
-    const everyHours = orderStr.match(/\bevery\s*(\d+)\s*hours?\b/i);
-    if (everyHours) {
-      order.frequency = `q${everyHours[1]}h`;
-      orderStr = orderStr.replace(everyHours[0], '').trim();
-    } else {
-      const freqMapping = {
-        "once daily": "daily", "once a day": "daily", "1 times daily": "daily", "daily": "daily", "od": "daily", "qd": "daily",
-        "twice daily": "twice daily", "2 times daily": "twice daily", "bid": "twice daily",
-        "three times daily": "three times daily", "3 times daily": "three times daily", "tid": "three times daily",
-        "four times daily": "four times daily", "4 times daily": "four times daily", "qid": "four times daily",
-        "every other day": "every other day", "qod": "every other day",
-        "stat": "immediately", "now": "immediately",
-        "weekly": "weekly", "once a week": "weekly",
-        "monthly": "monthly", "once a month": "monthly"
-      };
-      const sortedFreqKeys = Object.keys(freqMapping).sort((a, b) => b.length - a.length);
-      for (const key of sortedFreqKeys) {
-        const pattern = new RegExp(`\\b${key.replace(/\s+/g, '\\s+')}\\b`, 'i');
-        if (pattern.test(orderStr)) {
-          order.frequency = freqMapping[key];
-          orderStr = orderStr.replace(pattern, '').trim();
-          break;
+    
+    // *** NEW CHECK FOR qXhrs ***
+    const qhrsMatch = orderStr.match(/\bq(\d+)(?:hrs|hr)\b/i); // Match q<number>hrs or q<number>hr
+    if (qhrsMatch) {
+        order.frequency = `q${qhrsMatch[1]}h`; // Normalize to qXh
+        orderStr = orderStr.replace(qhrsMatch[0], '').trim();
+        // console.log(`DEBUG parseOrder Step 8b (qXhrs): freq="<span class="math-inline">\{order\.frequency\}", orderStr\="</span>{orderStr}"`);
+    } else { // This 'else' means qXhrs also failed
+        const everyHours = orderStr.match(/\bevery\s*(\d+)\s*hours?\b/i);
+        if (everyHours) {
+          order.frequency = `q${everyHours[1]}h`;
+          orderStr = orderStr.replace(everyHours[0], '').trim();
+        } else {
+          const freqMapping = { /* ... your existing map ... */
+              "once daily": "daily", "once a day": "daily", "1 times daily": "daily", "daily": "daily", "od": "daily", "qd": "daily",
+              "twice daily": "twice daily", "2 times daily": "twice daily", "bid": "twice daily",
+              "three times daily": "three times daily", "3 times daily": "three times daily", "tid": "three times daily",
+              "four times daily": "four times daily", "4 times daily": "four times daily", "qid": "four times daily",
+              "every other day": "every other day", "qod": "every other day",
+              "stat": "immediately", "now": "immediately",
+              "weekly": "weekly", "once a week": "weekly",
+              "monthly": "monthly", "once a month": "monthly"
+          };
+          const sortedFreqKeys = Object.keys(freqMapping).sort((a, b) => b.length - a.length);
+          for (const key of sortedFreqKeys) {
+            const pattern = new RegExp(`\\b${key.replace(/\s+/g, '\\s+')}\\b`, 'i');
+            // Check !order.frequency again inside the loop
+            if (!order.frequency && pattern.test(orderStr)) {
+              order.frequency = freqMapping[key];
+              orderStr = orderStr.replace(pattern, '').trim();
+              break;
+            }
+          }
         }
-      }
+	}
     }
-  }
 }
   if (!order.frequency && order.timeOfDay) {
     order.frequency = 'daily';
