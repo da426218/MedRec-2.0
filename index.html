@@ -967,6 +967,8 @@ function normalizeText(str) {
     // only match "stat" when it's not embedded in another word
     .replace(/(?<![a-z])stat(?![a-z])/g, 'immediately')
     .replace(/\bqhs\b/g, 'at bedtime')
+    // NEW – map the common abbreviation
+    .replace(/\bsob\b/g, 'shortness of breath')
     // …all the rest of your shorthand/frequency → full-text rules…
 
   // final cleanup:
@@ -2282,7 +2284,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
 const coreDrugName = n => (n || '')
   .toLowerCase()
   /* remove salt / formulation words */
-  .replace(/\b(?:sodium|potassium|calcium|acetate|phosphate|carbonate|hydrochloride|succinate|tartrate|gluconate|chloride|anhydrous|choline|modified)\b/gi, '')
+  .replace(/\b(?:sodium|potassium|calcium|acetate|phosphate|carbonate|hydrochloride|succinate|tartrate|gluconate|chloride|anhydrous|choline|modified|inhaler|inhalation|neb|mdi|dpi|spray|puff)\b/gi, '')
   /* scrub stray punctuation (commas, OCR junk, etc.) */
   .replace(/[^a-z0-9\s/-]+/g, ' ')
   /* collapse multiple spaces to one */
@@ -2303,7 +2305,10 @@ console.log("--- Building addedMap (Primary Merge Step) ---");
 added.forEach(a => {
   const originalDrugString = a.original; // For logging
   const parsedDrugField = a.parsed.drug;
-  const normalizedKeyForMap = coreDrugName(parsedDrugField);
+   const normalizedKeyForMap =
+   coreDrugName(parsedDrugField)                     // base generic
+     .replace(/\b(inhaler|inhalation|neb|mdi|dpi)\b/gi, '') // strip route words
+     .trim();
   console.log(`  [addedMap]: Adding: Original Str: "${originalDrugString}" --> Parsed Drug: "${parsedDrugField}" --> Normalized Key: "${normalizedKeyForMap}"`);
   addedMap[normalizedKeyForMap] = a; 
 });
@@ -2315,7 +2320,10 @@ console.log("--- Filtering 'removed' list (Primary Merge Step) ---");
 removed = removed.filter(r => {
   const originalRemovedDrugString = r.original; // For logging
   const parsedRemovedDrugField = r.parsed.drug;
-  const lookupKey = coreDrugName(parsedRemovedDrugField);
+  const lookupKey =
+   coreDrugName(parsedRemovedDrugField)
+     .replace(/\b(inhaler|inhalation|neb|mdi|dpi)\b/gi, '')
+     .trim();
   console.log(`  [removed.filter]: Processing Removed: Original Str: "${originalRemovedDrugString}" --> Parsed Drug: "${parsedRemovedDrugField}" --> Lookup Key: "${lookupKey}"`);
   
   const match = addedMap[lookupKey];
