@@ -3564,19 +3564,17 @@ removed.forEach(r => {
       });
 
 
-    // Added orders
+        // Added orders
     added.forEach(a => {
-        const crit = isCriticalOrder(a);
-        html += `
-                        <tr class="
-                  ${crit ? 'critical' : ''}
-                  ${ciSet.has(coreDrugName(a.parsed.drug)) ? 'ci-row' : ''}
-                <td>${idx++}</td>
-                <td></td>
-                <td>${a.original}</td>
-                <td>Added</td>
-            </tr>
-        `;
+      const crit = isCriticalOrder(a);
+      html += `
+        <tr class="${crit ? 'critical' : ''} ${ciSet.has(coreDrugName(a.parsed.drug)) ? 'ci-row' : ''}">
+          <td>${idx++}</td>
+          <td></td>
+          <td>${a.original}</td>
+          <td>Added</td>
+        </tr>
+      `;
     });
 
     html += `
