@@ -403,6 +403,11 @@ footer a:hover {
   text-decoration: underline;
 }
 
+/* ========== highlight rows that contain a contra‑indicated med ========== */
+.ci-row {
+  background-color: #fffbe6;          /* pale yellow that prints as light grey */
+}
+
   </style>
 
 <!-- === PDF LIBRARIES === -->
@@ -572,6 +577,941 @@ const functions = firebase.functions(app);
 
     ].map(med => med.toLowerCase());
 
+/* Drug Contraindications List */
+const drugContraindications = {
+  /* 1 */ "atorvastatin": [
+           "tipranavir", "ritonavir", "glecaprevir", "pibrentasvir",
+           "cyclosporine", "gemfibrozil"
+         ],
+  /* 2 */ "levothyroxine": [],
+  /* 3 */ "lisinopril": [
+           "aliskiren", "sacubitril"
+         ],
+  /* 4 */ "metformin": [],
+  /* 5 */ "amlodipine": [],
+  /* 6 */ "omeprazole": [
+           "rilpivirine", "nelfinavir"
+         ],
+  /* 7 */ "simvastatin": [
+           "itraconazole", "ketoconazole", "posaconazole", "voriconazole",
+           "erythromycin", "clarithromycin", "telithromycin", "nelfinavir",
+           "ritonavir", "boceprevir", "telaprevir", "nefazodone", "gemfibrozil",
+           "cyclosporine", "danazol", "cobicistat", "lomitapide"
+         ],
+  /* 8 */ "hydrochlorothiazide": [
+           "dofetilide", "lithium"
+         ],
+  /* 9 */ "gabapentin": [],
+  /* 10 */ "sertraline": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "pimozide", "procarbazine", "rasagiline", "selegiline",
+           "tranylcypromine", "thioridazine"
+         ],
+  /* 11 */ "amoxicillin": [],
+  /* 12 */ "vitamin_d": [],
+  /* 13 */ "ibuprofen": [
+           "aspirin", "ketorolac", "methotrexate", "pemetrexed"
+         ],
+  /* 14 */ "apixaban": [
+           "defibrotide"
+         ],
+  /* 15 */ "montelukast": [],
+  /* 16 */ "fluticasone": [
+           "ritonavir", "ketoconazole"
+         ],
+  /* 17 */ "escitalopram": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "pimozide", "procarbazine", "rasagiline", "selegiline",
+           "tranylcypromine"
+         ],
+  /* 18 */ "rosuvastatin": [
+           "cyclosporine", "gemfibrozil", "sofosbuvir_velpatasvir_voxilaprevir",
+           "glecaprevir_pibrentasvir"
+         ],
+  /* 19 */ "pantoprazole": [
+           "rilpivirine", "nelfinavir"
+         ],
+  /* 20 */ "trazodone": [
+           "isocarboxazid", "linezoid", "methylene_blue", "phenelzine",
+           "procarbazine", "rasagiline", "selegiline", "tranylcypromine",
+           "saquinavir", "thioridazine"
+         ],
+  /* 21 */ "losartan": [
+           "aliskiren"
+         ],
+  /* 22 */ "metoprolol": [],
+  /* 23 */ "albuterol": [],
+  /* 24 */ "bupropion": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "procarbazine", "rasagiline", "selegiline", "tranylcypromine"
+         ],
+  /* 25 */ "duloxetine": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "procarbazine", "rasagiline", "selegiline", "tranylcypromine",
+           "thioridazine"
+         ],
+  /* 26 */ "prednisone": [
+           "itraconazole", "ketoconazole", "mifepristone"
+         ],
+  /* 27 */ "aspirin": [
+           "ketorolac", "methotrexate"
+         ],
+  /* 28 */ "cetirizine": [
+           "levocetirizine"
+         ],
+  /* 29 */ "azithromycin": [
+           "pimozide", "dihydroergotamine", "ergotamine"
+         ],
+  /* 30 */ "tramadol": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "procarbazine", "rasagiline", "selegiline", "tranylcypromine"
+         ],
+  /* 31 */ "pravastatin": [
+           "gemfibrozil"
+         ],
+  /* 32 */ "clopidogrel": [],
+  /* 33 */ "furosemide": [],
+  /* 34 */ "fluoxetine": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "pimozide", "procarbazine", "rasagiline", "selegiline",
+           "tranylcypromine", "thioridazine"
+         ],
+  /* 35 */ "citalopram": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "pimozide", "procarbazine", "rasagiline", "selegiline",
+           "tranylcypromine", "dasabuvir"
+         ],
+  /* 36 */ "warfarin": [
+           "defibrotide", "mifepristone"
+         ],
+  /* 37 */ "doxycycline": [
+           "acitretin", "isotretinoin", "methoxyflurane"
+         ],
+  /* 38 */ "tamsulosin": [],
+  /* 39 */ "allopurinol": [
+           "didanosine", "azathioprine", "mercaptopurine"
+         ],
+  /* 40 */ "carvedilol": [],
+  /* 41 */ "venlafaxine": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "procarbazine", "rasagiline", "selegiline", "tranylcypromine"
+         ],
+  /* 42 */ "propranolol": [
+           "thioridazine", "rizatriptan"
+         ],
+  /* 43 */ "spironolactone": [
+           "eplerenone", "triamterene", "amiloride"
+         ],
+  /* 44 */ "lorazepam": [],
+  /* 45 */ "clonazepam": [],
+  /* 46 */ "zolpidem": [
+           "alcohol"
+         ],
+  /* 47 */ "cyclobenzaprine": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "procarbazine", "rasagiline", "selegiline", "tranylcypromine"
+         ],
+  /* 48 */ "meloxicam": [
+           "aspirin", "ketorolac"
+         ],
+  /* 49 */ "lamotrigine": [
+           "dofetilide"
+         ],
+  /* 50 */ "hydrocodone_acetaminophen": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "procarbazine", "rasagiline", "selegiline", "tranylcypromine"
+         ],
+  /* 51 */ "potassium_chloride": [
+           "amiloride", "spironolactone", "triamterene", "eplerenone"
+         ],
+  /* 52 */ "glipizide": [
+           "bosentan"
+         ],
+  /* 53 */ "methylphenidate": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "procarbazine", "rasagiline", "selegiline", "tranylcypromine"
+         ],
+  /* 54 */ "finasteride": [],
+  /* 55 */ "insulin_glargine": [],
+  /* 56 */ "esomeprazole": [
+           "rilpivirine", "nelfinavir"
+         ],
+  /* 57 */ "pregabalin": [],
+  /* 58 */ "sildenafil": [
+           "nitroglycerin", "riociguat", "vericiguat", "amyl_nitrite"
+         ],
+  /* 59 */ "oxycodone": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "procarbazine", "rasagiline", "selegiline", "tranylcypromine",
+           "nalmefene", "naltrexone", "samidorphan"
+         ],
+  /* 60 */ "mirtazapine": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "procarbazine", "rasagiline", "selegiline", "tranylcypromine"
+         ],
+  /* 61 */ "alprazolam": [
+           "itraconazole", "ketoconazole"
+         ],
+  /* 62 */ "chlorthalidone": [
+           "dofetilide"
+         ],
+  /* 63 */ "valsartan": [
+           "aliskiren", "sacubitril"
+         ],
+  /* 64 */ "cephalexin": [],
+  /* 65 */ "buspirone": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "procarbazine", "rasagiline", "selegiline", "tranylcypromine"
+         ],
+  /* 66 */ "diclofenac": [
+           "aspirin", "ketorolac"
+         ],
+  /* 67 */ "levetiracetam": [],
+  /* 68 */ "risperidone": [],
+  /* 69 */ "ramipril": [
+           "aliskiren", "sacubitril"
+         ],
+  /* 70 */ "aripiprazole": [],
+  /* 71 */ "nitroglycerin": [
+           "sildenafil", "tadalafil", "vardenafil", "avanafil",
+           "riociguat", "vericiguat"
+         ],
+  /* 72 */ "quetiapine": [
+           "pimozide", "thioridazine"
+         ],
+  /* 73 */ "atenolol": [],
+  /* 74 */ "topiramate": [],
+  /* 75 */ "lovastatin": [
+           "itraconazole", "ketoconazole", "posaconazole", "voriconazole",
+           "erythromycin", "clarithromycin", "telithromycin", "nelfinavir",
+           "ritonavir", "boceprevir", "telaprevir", "nefazodone", "gemfibrozil",
+           "cyclosporine", "danazol", "cobicistat", "lomitapide"
+         ],
+  /* 76 */ "tiotropium": [
+           "ipratropium"
+         ],
+  /* 77 */ "adalimumab": [
+           "anakinra", "abatacept", "etanercept", "infliximab",
+           "golimumab", "certolizumab_pegol"
+         ],
+  /* 78 */ "semaglutide": [],
+  /* 79 */ "tirzepatide": [],
+  /* 80 */ "ferrous_sulfate": [
+           "dimercaprol"
+         ],
+  /* 81 */ "calcium_carbonate": [
+           "ceftriaxone", "sodium_polystyrene_sulfonate"
+         ],
+  /* 82 */ "fish_oil": [],
+  /* 83 */ "multivitamin": [
+           "levodopa"
+         ],
+  /* 84 */ "magnesium": [
+           "raltegravir", "elvitegravir", "dolutegravir", "bictegravir"
+         ],
+  /* 85 */ "probiotics": [],
+  /* 86 */ "coenzyme_q10": [],
+  /* 87 */ "melatonin": [],
+  /* 88 */ "vitamin_c": [],
+  /* 89 */ "vitamin_b12": [
+           "chloramphenicol"
+         ],
+  /* 90 */ "zinc": [
+           "penicillamine"
+         ],
+  /* 91 */ "glucosamine": [],
+  /* 92 */ "turmeric": [],
+  /* 93 */ "vitamin_e": [
+           "warfarin", "dicumarol"
+         ],
+  /* 94 */ "vitamin_k": [
+           "warfarin", "anisindione", "dicumarol"
+         ],
+  /* 95 */ "collagen": [],
+  /* 96 */ "biotin": [],
+  /* 97 */ "folic_acid": [
+           "methotrexate", "pyrimethamine", "raltitrexed"
+         ],
+  /* 98 */ "cranberry_extract": [],
+  /* 99 */ "ashwagandha": [],
+  /* 100 */ "elderberry": [],
+  /* 101 */ "benzonatate": [],
+  /* 102 */ "budesonide": [
+           "ketoconazole", "itraconazole", "ritonavir", "clarithromycin"
+         ],
+  /* 103 */ "carbidopa_levodopa": [
+           "isocarboxazid", "phenelzine", "procarbazine", "tranylcypromine"
+         ],
+  /* 104 */ "celecoxib": [
+           "ketorolac", "aspirin"
+         ],
+  /* 105 */ "ciprofloxacin": [
+           "tizanidine", "agomelatine", "flibanserin", "lomitapide",
+           "pimozide", "thioridazine"
+         ],
+  /* 106 */ "clonidine": [],
+  /* 107 */ "donepezil": [],
+  /* 108 */ "enalapril": [
+           "aliskiren", "sacubitril"
+         ],
+  /* 109 */ "ezetimibe": [
+           "cyclosporine"
+         ],
+  /* 110 */ "famotidine": [],
+  /* 111 */ "fexofenadine": [],
+  /* 112 */ "hydralazine": [],
+  /* 113 */ "hydroxyzine": [
+           "amifampridine", "droperidol", "pimozide", "thioridazine"
+         ],
+  /* 114 */ "indapamide": [
+           "dofetilide", "sulpiride"
+         ],
+  /* 115 */ "insulin_aspart": [],
+  /* 116 */ "ipratropium": [
+           "tiotropium", "aclidinium", "umeclidinium", "revefenacin",
+           "glycopyrrolate"
+         ],
+  /* 117 */ "isosorbide": [
+           "sildenafil", "tadalafil", "vardenafil", "avanafil",
+           "riociguat", "vericiguat"
+         ],
+  /* 118 */ "ketoconazole": [
+           "alfuzosin", "amiodarone", "apixaban", "astemizole", "bepridil",
+           "cisapride", "colchicine", "conivaptan", "dabigatran", "darifenacin",
+           "disopyramide", "dofetilide", "domperidone", "dronedarone",
+           "eletriptan", "eplerenone", "ergotamine", "dihydroergotamine",
+           "ergometrine", "methylergometrine", "felodipine", "fesoterodine",
+           "flibanserin", "halofantrine", "irinotecan", "isavuconazonium",
+           "ivabradine", "levacetylmethadol", "lomitapide", "loperamide",
+           "lovastatin", "lurasidone", "methadone", "mifepristone",
+           "mizolastine", "naloxegol", "nisoldipine", "oral_midazolam",
+           "pimozide", "quinidine", "ranolazine", "rivaroxaban", "salmeterol",
+           "sertindole", "simvastatin", "sirolimus", "solifenacin",
+           "tacrolimus", "terfenadine", "ticagrelor", "tolvaptan",
+           "triazolam", "udenafil", "vardenafil", "vincristine", "voclosporin"
+         ],
+  /* 119 */ "liraglutide": [],
+  /* 120 */ "loratadine": [],
+  /* 121 */ "memantine": [],
+  /* 122 */ "methocarbamol": [],
+  /* 123 */ "metronidazole": [
+           "disulfiram", "alcohol", "busulfan"
+         ],
+  /* 124 */ "mupirocin": [],
+  /* 125 */ "nifedipine": [
+           "rifampin"
+         ],
+  /* 126 */ "olanzapine": [
+           "samidorphan", "thioridazine", "mesoridazine"
+         ],
+  /* 127 */ "ondansetron": [
+           "apomorphine", "dronedarone", "pimozide", "thioridazine"
+         ],
+  /* 128 */ "oxybutynin": [],
+  /* 129 */ "paroxetine": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "pimozide", "procarbazine", "rasagiline", "selegiline",
+           "thioridazine", "tranylcypromine"
+         ],
+  /* 130 */ "pioglitazone": [],
+  /* 131 */ "promethazine": [
+           "amifampridine", "bepridil", "cisapride", "dronedarone",
+           "levomethadyl", "mesoridazine", "pimozide", "piperaquine",
+           "sparfloxacin", "terfenadine", "thioridazine", "ziprasidone"
+         ],
+  /* 132 */ "ranitidine": [],
+  /* 133 */ "ropinirole": [
+           "sulpiride", "metoclopramide", "thioridazine"
+         ],
+  /* 134 */ "sotalol": [
+           "amifampridine", "amisulpride", "anagrelide", "arsenic_trioxide",
+           "astemizole", "azithromycin", "bepridil", "chloroquine",
+           "chlorpromazine", "ciprofloxacin", "cisapride", "citalopram",
+           "clarithromycin", "clozapine", "crizotinib", "dabrafenib",
+           "dasatinib", "degarelix", "delamanid", "disopyramide",
+           "dofetilide", "dolasetron", "domperidone", "donepezil",
+           "dronedarone", "droperidol", "eribulin", "erythromycin",
+           "escitalopram", "famotidine", "fingolimod", "flecainide",
+           "fluconazole", "fluoxetine", "foscarnet", "fosphenytoin",
+           "galantamine", "gatifloxacin", "gemifloxacin", "glasdegib",
+           "granisetron", "halofantrine", "haloperidol", "hydroxychloroquine",
+           "hydroxyzine", "ibutilide", "iloperidone", "imipramine",
+           "inotuzumab_ozogamicin", "itraconazole", "ivabradine", "ivosidenib",
+           "ketoconazole", "lapatinib", "lenvatinib", "leuprolide",
+           "levofloxacin", "lithium", "lofexidine", "lumefantrine",
+           "macimorelin", "mefloquine", "mesoridazine", "methadone",
+           "metronidazole", "mifepristone", "mirtazapine", "mizolastine",
+           "mobocertinib", "moxifloxacin", "nilotinib", "norfloxacin",
+           "octreotide", "ofloxacin", "olanzapine", "ondansetron",
+           "osimertinib", "oxaliplatin", "paliperidone", "panobinostat",
+           "papaverine", "paroxetine", "pasireotide", "pazopanib",
+           "pentamidine", "perphenazine", "pimavanserin", "pimozide",
+           "piperaquine", "pitolisant", "ponesimod", "posaconazole",
+           "probucol", "procainamide", "prochlorperazine", "promazine",
+           "promethazine", "propafenone", "protriptyline", "quetiapine",
+           "quinidine", "quinine", "ranolazine", "relugolix", "ribociclib",
+           "risperidone", "ritonavir", "saquinavir", "selpercatinib",
+           "sertindole", "sertraline", "sevoflurane", "siponimod",
+           "sodium_phosphate", "solifenacin", "sorafenib", "sparfloxacin",
+           "sulpiride", "sunitinib", "tacrolimus", "tamoxifen", "telavancin",
+           "telithromycin", "terfenadine", "tetrabenazine", "thioridazine",
+           "toremifene", "trazodone", "triclabendazole", "trimethoprim",
+           "trimipramine", "vandetanib", "vardenafil", "vemurafenib",
+           "venlafaxine", "vinflunine", "voriconazole", "vorinostat",
+           "ziprasidone", "zolmitriptan", "zuclopenthixol"
+         ],
+  /* 135 */ "sulfamethoxazole_trimethoprim": [
+           "dofetilide", "methenamine", "leucovorin"
+         ],
+  /* 136 */ "terazosin": [
+           "sildenafil", "tadalafil", "vardenafil", "avanafil"
+         ],
+  /* 137 */ "timolol": [],
+  /* 138 */ "tolterodine": [
+           "clarithromycin", "itraconazole", "ketoconazole", "ritonavir"
+         ],
+  /* 139 */ "triamterene": [
+           "amiloride", "spironolactone", "eplerenone", "potassium_supplements"
+         ],
+  /* 140 */ "valacyclovir": [],
+  /* 141 */ "verapamil": [
+           "atazanavir", "cisapride", "colchicine", "dabigatran",
+           "dofetilide", "dronedarone", "eletriptan", "eplerenone",
+           "ergotamine", "flibanserin", "ivabradine", "lomitapide",
+           "lovastatin", "lurasidone", "naloxegol", "ranolazine",
+           "rivaroxaban", "simvastatin", "sirolimus", "tacrolimus",
+           "tolvaptan", "udenafil", "voclosporin"
+         ],
+  /* 142 */ "acyclovir": [],
+  /* 143 */ "amiodarone": [
+           "atazanavir", "bepridil", "cisapride", "cobicistat",
+           "colchicine", "darunavir", "dasabuvir", "digitoxin",
+           "disopyramide", "dofetilide", "domperidone", "dronedarone",
+           "eliglustat", "elvitegravir", "fingolimod", "flecainide",
+           "fluconazole", "fosamprenavir", "gemifloxacin", "halofantrine",
+           "ibutilide", "idelalisib", "indinavir", "itraconazole",
+           "ivabradine", "ketoconazole", "ledipasvir", "lenvatinib",
+           "lopinavir_ritonavir", "lorlatinib", "lumefantrine",
+           "mavacamten", "mefloquine", "mesoridazine", "mifepristone",
+           "moxifloxacin", "nelfinavir", "nilotinib", "ombitasvir_paritaprevir_ritonavir",
+           "pacritinib", "pentamidine", "pimozide", "piperaquine",
+           "posaconazole", "procainamide", "propafenone", "quetiapine",
+           "quinidine", "ranolazine", "ribociclib", "ritonavir",
+           "saquinavir", "simeprevir", "simvastatin", "sofosbuvir",
+           "sorafenib", "sotalol", "sparfloxacin", "sulpiride",
+           "tacrolimus", "tamoxifen", "telaprevir", "telithromycin",
+           "terfenadine", "tetrabenazine", "thioridazine", "tipranavir",
+           "toremifene", "trazodone", "vandetanib", "vemurafenib",
+           "venetoclax", "vinflunine", "voriconazole", "ziprasidone"
+         ],
+  /* 144 */ "baclofen": [],
+  /* 145 */ "betamethasone": [
+           "itraconazole", "ketoconazole", "mifepristone", "ritonavir"
+         ],
+  /* 146 */ "brimonidine": [
+           "isocarboxazid", "phenelzine", "procarbazine", "rasagiline",
+           "selegiline", "tranylcypromine"
+         ],
+  /* 147 */ "candesartan": [
+           "aliskiren"
+         ],
+  /* 148 */ "chlorhexidine": [],
+  /* 149 */ "colchicine": [
+           "atazanavir", "clarithromycin", "cyclosporine", "darunavir",
+           "elvitegravir_cobicistat", "fluconazole", "fosamprenavir",
+           "idelalisib", "indinavir", "itraconazole", "ketoconazole",
+           "lopinavir_ritonavir", "mifepristone", "nelfinavir",
+           "ombitasvir_paritaprevir_ritonavir_dasabuvir", "posaconazole",
+           "ranolazine", "ritonavir", "saquinavir", "telaprevir",
+           "telithromycin", "tipranavir", "verapamil", "voriconazole"
+         ],
+  /* 150 */ "dabigatran": [
+           "rifampin", "tipranavir", "dronedarone", "ketoconazole",
+           "itraconazole", "cyclosporine"
+         ],
+  /* 151 */ "desvenlafaxine": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "procarbazine", "rasagiline", "selegiline", "tranylcypromine"
+         ],
+  /* 152 */ "digoxin": [],
+  /* 153 */ "diltiazem": [
+           "cisapride", "colchicine", "dabigatran", "dofetilide",
+           "dronedarone", "eletriptan", "eplerenone", "ergotamine",
+           "flibanserin", "ivabradine", "lomitapide", "lovastatin",
+           "lurasidone", "naloxegol", "pimozide", "rivaroxaban",
+           "simvastatin", "sirolimus", "tacrolimus", "tolvaptan",
+           "udenafil", "voclosporin"
+         ],
+  /* 154 */ "divalproex": [
+           "meropenem"
+         ],
+  /* 155 */ "dorzolamide": [],
+  /* 156 */ "dronedarone": [
+           "amifampridine", "amiodarone", "apomorphine", "arsenic_trioxide",
+           "asenapine", "astemizole", "atazanavir", "bepridil", "boceprevir",
+           "chloroquine", "chlorpromazine", "ciprofloxacin", "cisapride",
+           "citalopram", "clarithromycin", "clofazimine", "clomipramine",
+           "clozapine", "cobicistat", "colchicine", "conivaptan",
+           "crizotinib", "cyclosporine", "dabigatran", "darunavir",
+           "dasatinib", "degarelix", "delamanid", "desipramine",
+           "dibenzepin", "disopyramide", "dofetilide", "dolasetron",
+           "domperidone", "donepezil", "droperidol", "efavirenz",
+           "eliglustat", "encorafenib", "entrectinib", "eribulin",
+           "erythromycin", "escitalopram", "famotidine", "fexinidazole",
+           "fingolimod", "flecainide", "fluconazole", "fluoxetine",
+           "formoterol", "foscarnet", "fostemsavir", "galantamine",
+           "gatifloxacin", "gemifloxacin", "gepirone", "givinostat",
+           "glasdegib", "granisetron", "halofantrine", "haloperidol",
+           "hydroxychloroquine", "hydroxyzine", "ibutilide", "idelalisib",
+           "iloperidone", "imipramine", "indinavir", "inotuzumab_ozogamicin",
+           "itraconazole", "ivabradine", "ivosidenib", "ketoconazole",
+           "lapatinib", "lenvatinib", "leuprolide", "levofloxacin",
+           "levoketoconazole", "lithium", "lofepramine", "lopinavir",
+           "lovastatin", "lumefantrine", "lurasidone", "macimorelin",
+           "mefloquine", "mesoridazine", "methadone", "metronidazole",
+           "mifepristone", "mirtazapine", "mizolastine", "mobocertinib",
+           "moxifloxacin", "nafarelin", "nelfinavir", "nefazodone",
+           "nilotinib", "norfloxacin", "nortriptyline", "octreotide",
+           "ofloxacin", "olanzapine", "ondansetron", "osilodrostat",
+           "osimertinib", "ozanimod", "paliperidone", "panobinostat",
+           "papaverine", "paroxetine", "pasireotide", "pazopanib",
+           "pentamidine", "perphenazine", "phenobarbital", "pimavanserin",
+           "pimozide", "piperaquine", "pipothiazine", "pitolisant",
+           "ponesimod", "posaconazole", "primidone", "probucol",
+           "procainamide", "prochlorperazine", "promazine", "promethazine",
+           "propafenone", "protriptyline", "quetiapine", "quinidine",
+           "quinine", "ranolazine", "relugolix", "ribociclib", "rifabutin",
+           "rifampin", "rifapentine", "risperidone", "ritonavir",
+           "saquinavir", "selpercatinib", "sertindole", "sertraline",
+           "sevoflurane", "simeprevir", "simvastatin", "siponimod",
+           "sirolimus", "sodium_phosphate", "solifenacin", "sorafenib",
+           "sotalol", "sparfloxacin", "sulpiride", "sunitinib", "tacrolimus",
+           "tamoxifen", "telaprevir", "telavancin", "telithromycin",
+           "terfenadine", "tetrabenazine", "thioridazine", "toremifene",
+           "trazodone", "triclabendazole", "trimipramine", "triptorelin",
+           "vandetanib", "vardenafil", "vemurafenib", "venlafaxine",
+           "verapamil", "vinflunine", "voclosporin", "voriconazole",
+           "vorinostat", "ziprasidone", "zolmitriptan", "zuclopenthixol"
+         ],
+  /* 157 */ "eletriptan": [
+           "atazanavir", "clarithromycin", "cobicistat", "darunavir",
+           "diltiazem", "elvitegravir", "ergotamine", "fosamprenavir",
+           "idelalisib", "indinavir", "itraconazole", "ketoconazole",
+           "lopinavir", "nefazodone", "nelfinavir", "posaconazole",
+           "ritonavir", "saquinavir", "telaprevir", "telithromycin",
+           "tipranavir", "troleandomycin", "verapamil", "voriconazole"
+         ],
+  /* 158 */ "empagliflozin": [],
+  /* 159 */ "enoxaparin": [
+           "defibrotide"
+         ],
+  /* 160 */ "erythromycin": [
+           "alfuzosin", "astemizole", "cisapride", "colchicine",
+           "dihydroergotamine", "domperidone", "dronedarone", "eletriptan",
+           "eplerenone", "ergotamine", "flibanserin", "ivabradine",
+           "lomitapide", "lovastatin", "lurasidone", "mevastatin",
+           "mifepristone", "naloxegol", "nisoldipine", "oral_midazolam",
+           "pimozide", "ranolazine", "rivaroxaban", "saquinavir",
+           "silodosin", "simvastatin", "suvorexant", "tasimelteon",
+           "terfenadine", "ticagrelor", "tolvaptan", "triazolam",
+           "udenafil", "vardenafil", "voclosporin"
+         ],
+  /* 161 */ "estradiol": [
+           "anastrozole", "exemestane", "letrozole", "ospemifene",
+           "tamoxifen"
+         ],
+  /* 162 */ "etanercept": [
+           "anakinra", "abatacept", "adalimumab", "infliximab"
+         ],
+  /* 163 */ "exenatide": [],
+  /* 164 */ "fenofibrate": [
+           "simvastatin", "rosuvastatin"
+         ],
+  /* 165 */ "fluconazole": [
+           "alfuzosin", "astemizole", "bepridil", "cisapride",
+           "colchicine", "darunavir", "dofetilide", "domperidone",
+           "dronedarone", "eletriptan", "eliglustat", "eplerenone",
+           "ergotamine", "dihydroergotamine", "erythromycin",
+           "fesoterodine", "flibanserin", "halofantrine", "irinotecan",
+           "isavuconazonium", "ivabradine", "levacetylmethadol",
+           "lomitapide", "lopinavir", "lovastatin", "lurasidone",
+           "methadone", "mifepristone", "mizolastine", "naloxegol",
+           "nisoldipine", "oral_midazolam", "pimozide", "quinidine",
+           "ranolazine", "rivaroxaban", "saquinavir", "sertindole",
+           "silodosin", "simvastatin", "sirolimus", "solifenacin",
+           "tacrolimus", "terfenadine", "thioridazine", "ticagrelor",
+           "tipranavir", "tolvaptan", "triazolam", "udenafil",
+           "vardenafil", "venetoclax", "vincristine", "voclosporin",
+           "voriconazole", "ziprasidone"
+         ],
+  /* 166 */ "fluvoxamine": [
+           "agomelatine", "alosetron", "astemizole", "cisapride",
+           "dronedarone", "eplerenone", "eliglustat", "frovatriptan",
+           "isocarboxazid", "ivabradine", "linezolid", "lomitapide",
+           "lurasidone", "mesoridazine", "methylene_blue", "mevastatin",
+           "mizolastine", "nelfinavir", "phenelzine", "pimozide",
+           "procarbazine", "ramelteon", "rasagiline", "ropivacaine",
+           "saquinavir", "selegiline", "silodosin", "simvastatin",
+           "tacrine", "terfenadine", "theophylline", "thioridazine",
+           "tizanidine", "tolvaptan", "tranylcypromine", "triazolam",
+           "udenafil", "ziprasidone"
+         ],
+  /* 167 */ "folic_acid": [
+           "methotrexate", "pyrimethamine", "raltitrexed"
+         ],
+  /* 168 */ "gemfibrozil": [
+           "atorvastatin", "cerivastatin", "dasabuvir", "ezetimibe",
+           "fluvastatin", "lovastatin", "mevastatin", "pitavastatin",
+           "pravastatin", "repaglinide", "rosuvastatin", "selexipag",
+           "simvastatin"
+         ],
+  /* 169 */ "glimepiride": [
+           "bosentan"
+         ],
+  /* 170 */ "glyburide": [
+           "bosentan"
+         ],
+  /* 171 */ "heparin": [
+           "defibrotide"
+         ],
+  /* 172 */ "hydrocortisone": [
+           "itraconazole", "ketoconazole", "mifepristone", "ritonavir"
+         ],
+  /* 173 */ "imatinib": [
+           "alfuzosin", "astemizole", "bepridil", "cisapride",
+           "colchicine", "conivaptan", "darunavir", "dihydroergotamine",
+           "domperidone", "dronedarone", "eletriptan", "eplerenone",
+           "ergotamine", "fesoterodine", "flibanserin", "halofantrine",
+           "irinotecan", "isavuconazonium", "ivabradine", "ketoconazole",
+           "levacetylmethadol", "lomitapide", "lovastatin", "lurasidone",
+           "methadone", "mifepristone", "mizolastine", "naloxegol",
+           "nisoldipine", "oral_midazolam", "pimozide", "quinidine",
+           "ranolazine", "rivaroxaban", "salmeterol", "sertindole",
+           "silodosin", "simvastatin", "sirolimus", "solifenacin",
+           "tacrolimus", "terfenadine", "thioridazine", "ticagrelor",
+           "tolterodine", "tolvaptan", "triazolam", "udenafil",
+           "vardenafil", "venetoclax", "vincristine", "voclosporin",
+           "voriconazole", "ziprasidone"
+         ],
+  /* 174 */ "irbesartan": [
+           "aliskiren"
+         ],
+  /* 175 */ "labetalol": [
+           "thioridazine"
+         ],
+  /* 176 */ "latanoprost": [],
+  /* 177 */ "linagliptin": [],
+  /* 178 */ "lisdexamfetamine": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "procarbazine", "rasagiline", "selegiline", "tranylcypromine"
+         ],
+  /* 179 */ "lithium": [
+           "sodium_polystyrene_sulfonate", "thioridazine", "ziprasidone"
+         ],
+  /* 180 */ "loperamide": [
+           "eluxadoline", "gemfibrozil", "itraconazole", "ketoconazole",
+           "ritonavir", "saquinavir", "tipranavir"
+         ],
+  /* 181 */ "meclizine": [
+           "potassium_chloride"
+         ],
+  /* 182 */ "methotrexate": [
+           "acitretin", "aspirin", "probenecid", "co_trimoxazole",
+           "nitrous_oxide"
+         ],
+  /* 183 */ "methylprednisolone": [
+           "itraconazole", "ketoconazole", "mifepristone", "ritonavir"
+         ],
+  /* 184 */ "minocycline": [
+           "acitretin", "isotretinoin", "methoxyflurane", "penicillin"
+         ],
+  /* 185 */ "mometasone": [
+           "ritonavir", "ketoconazole"
+         ],
+  /* 186 */ "morphine": [
+           "isocarboxazid", "linezolid", "methylene_blue", "nalmefene",
+           "naltrexone", "phenelzine", "procarbazine", "rasagiline",
+           "selegiline", "samidorphan", "tranylcypromine"
+         ],
+  /* 187 */ "mycophenolate": [
+           "azathioprine", "sevelamer", "cholestyramine"
+         ],
+  /* 188 */ "naproxen": [
+           "aspirin", "ketorolac", "methotrexate", "pemetrexed"
+         ],
+  /* 189 */ "nebivolol": [
+           "thioridazine"
+         ],
+  /* 190 */ "nortriptyline": [
+           "cisapride", "dronedarone", "isocarboxazid", "linezolid",
+           "mesoridazine", "methylene_blue", "phenelzine", "pimozide",
+           "procarbazine", "rasagiline", "safinamide", "selegiline",
+           "thioridazine", "tranylcypromine"
+         ],
+  /* 191 */ "olmesartan": [
+           "aliskiren"
+         ],
+  /* 192 */ "oseltamivir": [],
+  /* 193 */ "oxcarbazepine": [
+           "eslicarbazepine"
+         ],
+  /* 194 */ "phenazopyridine": [],
+  /* 195 */ "phenytoin": [
+           "delavirdine", "rilpivirine", "doravirine", "isavuconazonium",
+           "praziquantel", "voriconazole"
+         ],
+  /* 196 */ "prazosin": [
+           "riociguat", "sildenafil", "tadalafil", "vardenafil", "avanafil"
+         ],
+  /* 197 */ "prochlorperazine": [
+           "amifampridine", "astemizole", "bepridil", "cisapride",
+           "dronedarone", "fluoxetine", "levomethadyl", "mesoridazine",
+           "metrizamide", "paroxetine", "pimozide", "piperaquine",
+           "propafenone", "quinidine", "saquinavir", "sparfloxacin",
+           "terfenadine", "thioridazine", "toremifene", "ziprasidone"
+         ],
+  /* 198 */ "propofol": [],
+  /* 199 */ "raloxifene": [
+           "cholestyramine"
+         ],
+  /* 200 */ "rivaroxaban": [
+           "atazanavir", "carbamazepine", "clarithromycin", "cobicistat",
+           "conivaptan", "darunavir", "defibrotide", "elvitegravir",
+           "enzalutamide", "fosamprenavir", "idelalisib", "indinavir",
+           "itraconazole", "ketoconazole", "lopinavir", "lumacaftor",
+           "mifepristone", "mitotane", "nelfinavir", "nefazodone",
+           "ombitasvir_paritaprevir_ritonavir_dasabuvir", "phenobarbital",
+           "phenytoin", "posaconazole", "primidone", "rifampin",
+           "rifabutin", "rifapentine", "ritonavir", "saquinavir",
+           "telaprevir", "tipranavir", "troleandomycin", "voriconazole"
+         ],
+  /* 201 */ "rizatriptan": [
+           "ergotamine", "isocarboxazid", "linezolid", "methylene_blue",
+           "phenelzine", "procarbazine", "propranolol", "rasagiline",
+           "selegiline", "tranylcypromine"
+         ],
+  /* 202 */ "salmeterol": [
+           "atazanavir", "clarithromycin", "cobicistat", "darunavir",
+           "elvitegravir", "fosamprenavir", "idelalisib", "indinavir",
+           "itraconazole", "ketoconazole", "lopinavir", "nefazodone",
+           "nelfinavir", "posaconazole", "ritonavir", "saquinavir",
+           "telaprevir", "telithromycin", "tipranavir", "troleandomycin",
+           "voriconazole"
+         ],
+  /* 203 */ "saxagliptin": [],
+  /* 204 */ "sitagliptin": [],
+  /* 205 */ "sumatriptan": [
+           "ergotamine", "isocarboxazid", "linezolid", "methylene_blue",
+           "phenelzine", "procarbazine", "rasagiline", "selegiline",
+           "tranylcypromine"
+         ],
+  /* 206 */ "tacrolimus": [
+           "astemizole", "cisapride", "cyclosporine", "dronedarone",
+           "fluconazole", "itraconazole", "ketoconazole", "mifepristone",
+           "pimozide", "posaconazole", "ritonavir", "terfenadine",
+           "thioridazine", "tipranavir", "voriconazole", "ziprasidone"
+         ],
+  /* 207 */ "telmisartan": [
+           "aliskiren"
+         ],
+  /* 208 */ "temazepam": [
+           "sodium_oxybate"
+         ],
+  /* 209 */ "terbinafine": [
+           "eliglustat", "flibanserin", "pimozide", "tamoxifen",
+           "thioridazine"
+         ],
+  /* 210 */ "testosterone": [],
+  /* 211 */ "tizanidine": [
+           "ciprofloxacin", "fluvoxamine", "acyclovir"
+         ],
+  /* 212 */ "torsemide": [],
+  /* 213 */ "trandolapril": [
+           "aliskiren", "sacubitril"
+         ],
+  /* 214 */ "triamcinolone": [
+           "itraconazole", "ketoconazole", "mifepristone", "ritonavir"
+         ],
+  /* 215 */ "valproic_acid": [
+           "meropenem"
+         ],
+  /* 216 */ "vardenafil": [
+           "amyl_nitrite", "atazanavir", "boceprevir", "cobicistat",
+           "darunavir", "elvitegravir", "fosamprenavir", "idelalisib",
+           "indinavir", "isosorbide_dinitrate", "isosorbide_mononitrate",
+           "itraconazole", "ketoconazole", "lopinavir", "mifepristone",
+           "nelfinavir", "nitroglycerin", "posaconazole", "riociguat",
+           "ritonavir", "saquinavir", "telaprevir", "tipranavir",
+           "vericiguat", "voriconazole"
+         ],
+  /* 217 */ "vilazodone": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "procarbazine", "rasagiline", "selegiline", "tranylcypromine"
+         ],
+  /* 218 */ "voriconazole": [
+           "alfuzosin", "aprepitant", "astemizole", "atorvastatin",
+           "avanafil", "barbiturates", "bosutinib", "bromocriptine",
+           "carbamazepine", "cisapride", "colchicine", "conivaptan",
+           "dabrafenib", "darunavir", "domperidone", "dronedarone",
+           "efavirenz", "eletriptan", "eliglustat", "encorafenib",
+           "entrectinib", "eplerenone", "ergotamine", "dihydroergotamine",
+           "eslicarbazepine", "estazolam", "everolimus", "fesoterodine",
+           "flibanserin", "fluconazole", "fosamprenavir", "fostamatinib",
+           "glasdegib", "halofantrine", "hydroxyzine", "idelalisib",
+           "indinavir", "irinotecan", "isavuconazonium", "isoniazid",
+           "ivabradine", "ivacaftor", "ivosidenib", "lapatinib",
+           "levacetylmethadol", "lomitapide", "lopinavir", "lorlatinib",
+           "lovastatin", "lumacaftor", "lurasidone", "mavacamten",
+           "mefloquine", "mesoridazine", "methadone", "mifepristone",
+           "mitotane", "mizolastine", "mobocertinib", "naloxegol",
+           "nelfinavir", "neratinib", "nilotinib", "nisoldipine",
+           "olaparib", "omaveloxolone", "oral_midazolam", "osilodrostat",
+           "osimertinib", "oxcarbazepine", "palbociclib", "panobinostat",
+           "pazopanib", "phenytoin", "pimavanserin", "pimozide",
+           "piperaquine", "pitavastatin", "pralsetinib", "quetiapine",
+           "quinidine", "ranolazine", "regorafenib", "repotrectinib",
+           "ribociclib", "rifabutin", "rifampin", "rimegepant",
+           "ritonavir", "rivaroxaban", "romidepsin", "rosuvastatin",
+           "salmeterol", "saquinavir", "selumetinib", "sertindole",
+           "silodosin", "simeprevir", "simvastatin", "sirolimus",
+           "sonidegib", "sotorasib", "sunitinib", "suvorexant",
+           "tacrolimus", "tadalafil", "tamoxifen", "tasimelteon",
+           "tazemetostat", "terfenadine", "tetrabenazine", "thioridazine",
+           "ticagrelor", "tipranavir", "tolterodine", "tolvaptan",
+           "trabectedin", "trazodone", "triazolam", "ubrogepant",
+           "udenafil", "ulipristal", "vandetanib", "vardenafil",
+           "vemurafenib", "venetoclax", "vincristine", "vinflunine",
+           "voclosporin", "ziprasidone", "zolpidem"
+         ],
+  /* 219 */ "zaleplon": [
+           "sodium_oxybate"
+         ],
+  /* 220 */ "zonisamide": [
+           "topiramate"
+         ],
+  /* 221 */ "acetaminophen": [],
+  /* 222 */ "alendronate": [],
+  /* 223 */ "anastrozole": [
+           "estradiol", "tamoxifen", "raloxifene"
+         ],
+  /* 224 */ "azathioprine": [
+           "febuxostat", "allopurinol"
+         ],
+  /* 225 */ "benazepril": [
+           "aliskiren", "sacubitril"
+         ],
+  /* 226 */ "bimatoprost": [],
+  /* 227 */ "bisoprolol": [
+           "thioridazine"
+         ],
+  /* 228 */ "buprenorphine": [
+           "nalmefene", "naltrexone", "samidorphan"
+         ],
+  /* 229 */ "cholecalciferol": [],
+  /* 230 */ "cimetidine": [
+           "astemizole", "cisapride", "dofetilide", "eliglustat",
+           "flibanserin", "lomitapide", "pimozide", "terfenadine",
+           "thioridazine"
+         ],
+  /* 231 */ "clarithromycin": [
+           "alfuzosin", "astemizole", "cisapride", "colchicine",
+           "dihydroergotamine", "domperidone", "dronedarone", "eletriptan",
+           "eplerenone", "ergotamine", "fesoterodine", "flibanserin",
+           "ivabradine", "levacetylmethadol", "lomitapide", "lovastatin",
+           "lurasidone", "mevastatin", "mifepristone", "naloxegol",
+           "nisoldipine", "oral_midazolam", "pimozide", "ranolazine",
+           "rivaroxaban", "saquinavir", "salmeterol", "silodosin",
+           "simvastatin", "suvorexant", "tacrolimus", "tasimelteon",
+           "terfenadine", "thioridazine", "ticagrelor", "tolterodine",
+           "tolvaptan", "triazolam", "udenafil", "vardenafil",
+           "venetoclax", "voclosporin"
+         ],
+  /* 232 */ "clindamycin": [],
+  /* 233 */ "clobetasol": [],
+  /* 234 */ "clozapine": [
+           "amifampridine", "bepridil", "cisapride", "dronedarone",
+           "fluoxetine", "fluvoxamine", "levomethadyl", "mesoridazine",
+           "metoclopramide", "paroxetine", "pimozide", "piperaquine",
+           "saquinavir", "sertraline", "sparfloxacin", "terfenadine",
+           "thioridazine", "ziprasidone"
+         ],
+  /* 235 */ "codeine": [
+           "isocarboxazid", "linezolid", "methylene_blue", "nalmefene",
+           "naltrexone", "phenelzine", "procarbazine", "rasagiline",
+           "selegiline", "samidorphan", "tranylcypromine"
+         ],
+  /* 236 */ "dexamethasone": [
+           "desmopressin", "itraconazole", "ketoconazole", "mifepristone",
+           "ritonavir", "praziquantel", "rilpivirine"
+         ],
+  /* 237 */ "diazepam": [
+           "sodium_oxybate"
+         ],
+  /* 238 */ "docusate": [
+           "mineral_oil"
+         ],
+  /* 239 */ "entacapone": [
+           "isocarboxazid", "linezolid", "methylene_blue", "phenelzine",
+           "procarbazine", "rasagiline", "selegiline", "tranylcypromine"
+         ],
+  /* 240 */ "eplerenone": [
+           "clarithromycin", "itraconazole", "ketoconazole", "nefazodone",
+           "nelfinavir", "posaconazole", "ritonavir", "saquinavir",
+           "telithromycin", "voriconazole", "potassium_supplements"
+         ],
+  /* 241 */ "felodipine": [
+           "carbamazepine", "clarithromycin", "erythromycin", "itraconazole",
+           "ketoconazole", "nefazodone", "phenobarbital", "phenytoin",
+           "rifampin", "ritonavir", "telithromycin"
+         ],
+  /* 242 */ "flurazepam": [
+           "sodium_oxybate", "itraconazole", "ketoconazole", "ritonavir"
+         ],
+  /* 243 */ "fosfomycin": [],
+  /* 244 */ "haloperidol": [
+           "amifampridine", "astemizole", "bepridil", "cisapride",
+           "dronedarone", "fluoxetine", "itraconazole", "ketoconazole",
+           "levomethadyl", "mesoridazine", "metoclopramide", "paroxetine",
+           "pimozide", "piperaquine", "probucol", "propafenone",
+           "quinidine", "saquinavir", "sertindole", "sparfloxacin",
+           "terfenadine", "thioridazine", "toremifene", "ziprasidone"
+         ],
+  /* 245 */ "hydroxychloroquine": [
+           "amifampridine", "dronedarone", "fingolimod", "halofantrine",
+           "mefloquine", "pimozide", "saquinavir", "tamoxifen",
+           "thioridazine", "ziprasidone"
+         ],
+  /* 246 */ "infliximab": [
+           "anakinra", "abatacept", "adalimumab", "etanercept"
+         ],
+  /* 247 */ "isoniazid": [
+           "disulfiram", "carbamazepine", "phenytoin", "valproic_acid"
+         ],
+  /* 248 */ "ketorolac": [
+           "aspirin", "celecoxib", "diclofenac", "diflunisal", "etodolac",
+           "fenoprofen", "flurbiprofen", "ibuprofen", "indomethacin",
+           "ketoprofen", "meclofenamate", "mefenamic_acid", "meloxicam",
+           "nabumetone", "naproxen", "oxaprozin", "pentoxifylline",
+           "piroxicam", "probenecid", "sulindac", "tolmetin"
+         ],
+  /* 249 */ "letrozole": [
+           "estradiol", "tamoxifen", "raloxifene"
+         ],
+  /* 250 */ "lidocaine": [
+           "amiodarone", "dofetilide", "dronedarone", "propafenone",
+           "quinidine", "tocainide"
+         ]
+};
+
+function canonicalDrugKey(name) {
+  return (name || '').toLowerCase().replace(/[^a-z0-9]/g,'').trim();
+}
+
+function hasContra(orderObj, wholeList = []) {
+  /* real check can be added later */
+  return false;
+}
+
     const commonMedications = [
       { generic: "hydrocodone/acetaminophen", brands: ["Norco", "Vicodin", "Lortab", "Zamicet"] },
       { generic: "oxycodone/acetaminophen",  brands: ["Percocet", "Xartemis XR", "Roxicet", "Endocet"] },
@@ -653,7 +1593,7 @@ const functions = firebase.functions(app);
       { generic: "omeprazole", brands: ["Prilosec"] },
       { generic: "oxycodone", brands: ["OxyContin", "Roxicodone"] },
       { generic: "pantoprazole", brands: ["Protonix"] },
-               {   generic:    "polyethylene glycol",  brands: ["MiraLAX","GaviLAX","GlycoLax","PEG 3350"] },
+      {   generic:    "polyethylene glycol",  brands: ["MiraLAX","GaviLAX","GlycoLax","PEG 3350"] },
       { generic: "pravastatin", brands: ["Pravachol"] },
       { generic: "prednisone", brands: ["Deltasone"] },
       { generic: "propranolol", brands: ["Inderal"] },
@@ -1139,17 +2079,28 @@ else {
       if (Boolean(isA) !== Boolean(isB)) add('Brand/Generic changed');
     }
   }
-  // 5) Dose
-  const inhaled = o => /inhal|puff|neb|mdi|dpi/.test(norm(o.form)) || /inhal/.test(norm(o.route));
-  // Ensure dose values are numbers before comparison if they might be null/undefined
-  const origDoseVal = typeof orig.dose?.value === 'number' ? orig.dose.value : -Infinity; // Use a value that won't match if null
-  const updatedDoseVal = typeof updated.dose?.value === 'number' ? updated.dose.value : -Infinity;
 
-  if (origDoseVal !== updatedDoseVal || orig.dose?.unit !== updated.dose?.unit) {
-     if (!(inhaled(orig) && inhaled(updated))) { // Assuming dose changes for inhaled meds are handled differently or less strictly
-        add('Dose changed');
-     }
+// ----- Dose / quantity differences -----
+const inhaled = o =>
+  /inhal|puff|neb|mdi|dpi/.test(norm(o.form)) || /inhal/.test(norm(o.route));
+
+const origDoseVal = typeof orig.dose?.value === 'number' ? orig.dose.value : -Infinity;
+const updDoseVal  = typeof updated.dose?.value === 'number' ? updated.dose.value : -Infinity;
+
+const origQty = orig.qty ?? 1;
+const updQty  = updated.qty ?? 1;
+
+/* ── 1) strength ( mg / mcg / mEq … ) changed ── */
+if (origDoseVal !== updDoseVal || orig.dose?.unit !== updated.dose?.unit) {
+  if (!(inhaled(orig) && inhaled(updated))) {    // keep your inhaler exemption
+    add('Dose changed');
   }
+}
+
+/* ── 2) same strength, only #‑tablets / #‑puffs changed ── */
+else if (origQty !== updQty) {
+  add('Quantity changed');                       // << NEW LABEL
+}
 
   // 6) Frequency
   if (canon(orig.frequency) !== canon(updated.frequency)) {
@@ -1163,17 +2114,17 @@ else {
   if (!timeOfDayMatch) { // norm(orig.timeOfDay) !== norm(updated.timeOfDay)
     add('Time of day changed');
   }
-  // 8) Form / Route
-  if (norm(orig.form) !== norm(updated.form)) {
-    add('Form changed');
-  }
-  if (
-    (orig.route && updated.route && norm(orig.route) !== norm(updated.route)) ||
-    (!orig.route && updated.route) || (orig.route && !updated.route) || // Handle one being null/empty
-    (/inhal/.test(norm(orig.route || '')) !== /inhal/.test(norm(updated.route || '')))
-  ) {
-    add('Route changed');
-  }
+
+/* ---------- 8) Form difference (revised) ---------- */
+const formA = norm(orig.form);
+const formB = norm(updated.form);
+
+// flag only if BOTH sides name a form *and* they’re different
+if (formA && formB && formA !== formB) {
+  add('Form changed');
+}
+
+
   // 9) PRN
   if (orig.prn !== updated.prn) {
     add('PRN changed');
@@ -1251,13 +2202,14 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
     function parseOrder(orderStr) {
   // Keep a copy of the original input for debugging if needed at the very end
   // const originalInputToParseOrder = orderStr;
-
+  const originalRaw = orderStr;   // keep untouched copy
   orderStr = orderStr.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
   orderStr = normalizeText(orderStr); // Normalizes "qhs" to "at bedtime", etc.
 
   let order = {
     drug: "",
     dose: { value: null, unit: '', total: null },
+    qty: null,
     route: "",
     frequency: "",
     timeOfDay: "",
@@ -1351,11 +2303,12 @@ orderStr = orderStr
     // console.log(`DEBUG parseOrder Step 2 (Admin): order.administration="${order.administration}", orderStr="${orderStr}"`);
   }
 
-  // 3. Extract PRN
-  const prnRegex = /\bprn\b/i;
+    // 3. Extract PRN  ── now catches “as needed”
+  const prnRegex = /\b(?:prn|as\s+needed)\b/i;
   if (prnRegex.test(orderStr)) {
     order.prn = true;
     orderStr = orderStr.replace(prnRegex, '').trim();
+
     // console.log(`DEBUG parseOrder Step 3 (PRN): order.prn=${order.prn}, orderStr="${orderStr}"`);
   }
 
@@ -1417,40 +2370,43 @@ orderStr = orderStr
       orderStr = orderStr.replace(comboMatch[0], '').trim();
     } else {
       // General dose unit parsing
-      const allUnits = Object.values(unitVariants).flat();
-      let unitMatchesFound = [];
-      for (let u of allUnits) {
-        if (typeof u !== 'string' || u.length === 0) continue;
-        const escapedU = u.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const re = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${escapedU}\\b`, 'ig');
-        let m;
-        while ((m = re.exec(orderStr)) !== null) {
-          unitMatchesFound.push({ idx: m.index, qty: +m[1], rawUnit: u, matchStr: m[0] });
-        }
-      }
+const allUnits = Object.values(unitVariants).flat();
+let unitMatchesFound = [];
+for (let u of allUnits) {
+  if (typeof u !== 'string' || !u) continue;
+  const re = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${u.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`, 'ig');
+  let m;
+  while ((m = re.exec(orderStr)) !== null) {
+    unitMatchesFound.push({ idx: m.index, qty: +m[1], rawUnit: u, matchStr: m[0] });
+  }
+}
 
-      if (unitMatchesFound.length > 0) {
-        const bestMatch = unitMatchesFound.reduce((a, b) => b.idx > a.idx ? b : a);
-        const stdUnit = Object.entries(unitVariants)
-          .find(([std, arr]) => arr.includes(bestMatch.rawUnit))?.[0];
-        if (stdUnit) {
-          order.dose = { value: bestMatch.qty, unit: stdUnit, total: bestMatch.qty };
-          // More robust replace by finding the specific instance
-          let tempOrderStr = orderStr;
-          const startIndex = tempOrderStr.lastIndexOf(bestMatch.matchStr);
-          if (startIndex !== -1 && startIndex === bestMatch.idx) {
-             tempOrderStr = tempOrderStr.substring(0, startIndex) + tempOrderStr.substring(startIndex + bestMatch.matchStr.length);
-          } else { // Fallback if tricky (e.g. "5 mg ... 5 mg") - might remove first one
-             const firstOccurenceIndex = tempOrderStr.indexOf(bestMatch.matchStr);
-             if (firstOccurenceIndex !== -1) {
-                tempOrderStr = tempOrderStr.substring(0, firstOccurenceIndex) + tempOrderStr.substring(firstOccurenceIndex + bestMatch.matchStr.length);
-             }
-          }
-          orderStr = tempOrderStr.trim();
-          // console.log(`DEBUG parseOrder Step 5 (Dose - unitMatches): dose=${JSON.stringify(order.dose)}, orderStr="${orderStr}"`);
-        }
-      }
-      // Fallback if unitMatchesLoop didn't set a dose value but a number is present
+if (unitMatchesFound.length > 0) {
+  const precedence = ['mcg','mg','g','mEq','unit','mL',
+                      'tablet','capsule','patch','puff','drop'];
+
+  const hits = unitMatchesFound.map(m => {
+    const stdUnit = Object.entries(unitVariants)
+          .find(([std, arr]) => arr.includes(m.rawUnit))?.[0] || m.rawUnit;
+    return { ...m, stdUnit, score: precedence.indexOf(stdUnit) };
+  });
+
+  hits.sort((a, b) => {
+    if (a.score !== b.score) return a.score - b.score;  // better unit first
+    return a.idx - b.idx;                               // tie → earlier hit
+  });
+
+  const bestMatch = hits[0];
+  order.dose = { value: bestMatch.qty,
+                 unit:  bestMatch.stdUnit,
+                 total: bestMatch.qty };
+
+  orderStr = orderStr.replace(bestMatch.matchStr, '').trim();
+  // …and drop any leftover verb that preceded the dose phrase
+  orderStr = orderStr.replace(/\b(?:give|take|administer)\b\s*/i, '').trim();
+}
+// Fallback if unitMatchesLoop didn't set a dose value but a number is present
+
       else if (!order.dose.value) {
          const doseUnitsForFallback = ['mcg','mg','g','ml','cc','unit','units','tsp','tbsp','drop','spray','puff','patch','lozenge','suppository','tablet','capsule','each','dose'];
          const fallbackDoseRegex = new RegExp(`(\\d+(?:\\.\\d+)?)(?:\\s*(${doseUnitsForFallback.join('|')})(?:s|es)?\\b)?`, 'i');
@@ -1503,6 +2459,12 @@ orderStr = orderStr
   }
   // console.log(`DEBUG parseOrder: After dose normalization: dose=${JSON.stringify(order.dose)}, orderStr="${orderStr}"`);
 
+  /* -------- capture count per dose (e.g. “give 2 tablets”) -------- */
+  if (order.qty === null) {
+    const q = originalRaw.match(/\b(?:give|take|administer)\s+(\d+(?:\.\d+)?)\s*(?:tab|tabs?|tablet|tablets|cap|caps?|capsule|capsules)\b/i);
+    if (q) order.qty = parseFloat(q[1]);
+  }
+  /* ---------------------------------------------------------------- */
 
 // 6. Extract Form (if not already identified by dose parsing)
 if (!order.form) {
@@ -1744,6 +2706,33 @@ if (order.indication) {
       return 1 - distance / maxLen;
     }
 
+/* ===========================================================
+   Find every contra‑indicated pair present in the full list
+   =========================================================== */
+function findContraIndications(allOrders) {
+  const medsFound  = allOrders
+        .map(o => coreDrugName(o.parsed.drug))   // << one canonical key
+        .filter(Boolean);                        // drop blanks / junk
+  const uniqueMeds = [...new Set(medsFound)];
+  const warnings = [];
+
+  uniqueMeds.forEach(med => {
+    const badList = drugContraindications[med];
+    if (!badList || badList.length === 0) return;
+
+    badList.forEach(bad => {
+      if (uniqueMeds.includes(bad)) {
+        const key = [med, bad].sort().join(' + ');   // avoid duplicates A+B / B+A
+        if (!warnings.find(w => w.key === key)) {
+          warnings.push({ key, a: med, b: bad });
+        }
+      }
+    });
+  });
+
+  return warnings;          // array like [{key:'atorvastatin + gemfibrozil', a:'atorvastatin', b:'gemfibrozil'}]
+}
+
     function ordersAreEqual(a, b) {
   // 1) drug name
   const normA = normalizeMedicationName(a.drug);
@@ -1817,6 +2806,11 @@ if ((a.indication || b.indication) && a.indication !== b.indication) {
   return false;
 }
 // ——————————————————————————————
+
+  // 7) quantity per dose
+  const qtyA = a.qty ?? 1;
+  const qtyB = b.qty ?? 1;
+  if (qtyA !== qtyB) return false;
 
   return true;
 }
@@ -2280,18 +3274,27 @@ for (let i = removed.length - 1; i >= 0; i--) {
         compareAndShowResults();
       }
     }
-<!-- === CORE‑DRUG helper (global) === -->
+
+// === CORE‑DRUG helper (global) ===
 const coreDrugName = n => (n || '')
   .toLowerCase()
-  /* remove salt / formulation words */
-  .replace(/\b(?:sodium|potassium|calcium|acetate|phosphate|carbonate|hydrochloride|succinate|tartrate|gluconate|chloride|anhydrous|choline|modified|inhaler|inhalation|neb|mdi|dpi|spray|puff)\b/gi, '')
-  /* scrub stray punctuation (commas, OCR junk, etc.) */
+
+  /* 1️⃣  salts / formulations */
+  .replace(/\b(?:sodium|potassium|calcium|acetate|phosphate|carbonate|hydrochloride|succinate|tartrate|gluconate|chloride|anhydrous|choline|modified)\b/gi, '')
+
+  /* 2️⃣  dosage‑form words (NEW) */
+  .replace(/\b(?:tab|tabs?|tablet|tablets?|cap|caps?|capsule|capsules?|caplet|patch|patches|puff|puffs|drop|drops|spray|sprays|lozenge|suppository|solution|suspension|ointment|cream|gel|inhaler|inhalation|neb|mdi|dpi)\b/gi, '')
+
+  /* 3️⃣  throw away scheduling words that sometimes stick to the drug   */
+  .replace(/\b(?:daily|nightly|morning|evening|bedtime|qam|qpm|qhs|am|pm|q\d+h)\b/gi, '')
+  
+/* 3️⃣  stray numbers */
+  .replace(/\b\d+\b/g, '')
+
+  /* 4️⃣  punctuation / extra spaces */
   .replace(/[^a-z0-9\s/-]+/g, ' ')
-  /* collapse multiple spaces to one */
   .replace(/\s+/g, ' ')
-  /* trim spaces off the ends */
   .trim();
-<!-- === END CORE‑DRUG helper === -->
 
 function compareAndShowResults() {
     let { unchanged, removed, added } = compareOrders(meds1, meds2);
@@ -2355,6 +3358,31 @@ removed   = removed  .filter(notBlank);
 added     = added    .filter(notBlank);
 //=== END STEP‑FIX ======================================================
 
+// ---------------------------------------------
+//  CI scan **only** on the ACTIVE (hospital) list
+// ---------------------------------------------
+const activeOrders =
+      meds2
+      .concat( unchanged.map(p => p.new) );
+
+const ciAlerts = findContraIndications(activeOrders);
+
+/* build a highlight-set containing BOTH
+   the raw names *and* their stripped cores */
+const ciSet = new Set(
+  ciAlerts.flatMap(w => {
+    return [
+      w.a,              // e.g. "simvastatin"
+      w.b,              // e.g. "ketoconazole"
+      coreDrugName(w.a),// e.g. "simvastatin"
+      coreDrugName(w.b) // e.g. "ketoconazole"
+    ];
+  })
+);
+
+
+// ---------------------------------------------
+
     // Build a numbered, four-column table of changes
     let html = `
         <table class="changes-table">
@@ -2375,14 +3403,19 @@ added     = added    .filter(notBlank);
 
 // ‑‑‑ FIRST: show the neatly‑merged pairs ‑‑‑
 merged.forEach(pair => {
-  const crit = isCriticalOrder(pair.orig) || isCriticalOrder(pair.new);
-  html += `
-    <tr class="${crit ? 'critical' : ''}">
+  const crit = isCriticalOrder(pair.new);
+    html += `
+    <tr class="
+          ${crit ? 'critical' : ''}
+          ${ciSet.has(coreDrugName(pair.orig.parsed.drug)) ||
+              ciSet.has(coreDrugName(pair.new.parsed.drug))
+            ? 'ci-row' : ''}">
       <td>${idx++}</td>
       <td>${pair.orig.original}</td>
       <td>${pair.new.original}</td>
       <td>${pair.reason}</td>
     </tr>`;
+
 });
     
 removed.forEach(r => {
@@ -2436,7 +3469,7 @@ removed.forEach(r => {
             }
         }
 
-        const crit = isCriticalOrder(r) || (match && isCriticalOrder(match));
+        const crit = false;         // removed orders aren’t active any more
 
            // 4) Brand ↔ generic swap (also catch an indication tweak)
    if (match && (changeType === 'Generic Medication' || changeType === 'Brand Medication')) {
@@ -2446,8 +3479,12 @@ removed.forEach(r => {
        !== (match.parsed.indication || '').toLowerCase().trim()) {
        reasons.push('Indication changed');
      }
-     html += `
-       <tr class="${crit ? 'critical' : ''}">
+            html += `
+            <tr class="
+                  ${crit ? 'critical' : ''}
+                  ${ciSet.has(coreDrugName(r.parsed.drug)) ||
+                     (match && ciSet.has(coreDrugName(match.parsed.drug)))
+                    ? 'ci-row' : ''}">
          <td>${idx++}</td>
          <td>${r.original}</td>
          <td>${match.original}</td>
@@ -2512,8 +3549,12 @@ removed.forEach(r => {
        const reason = getChangeReason(u.orig.parsed, u.new.parsed);
        const label  = (reason === 'Misc. Change') ? 'Unchanged' : reason;
 
-      html += `
-    <tr${label !== 'Unchanged' && (isCriticalOrder(u.orig)||isCriticalOrder(u.new)) ? ' class="critical"' : ''}>
+            html += `
+    <tr class="
+          ${(label !== 'Unchanged' && (isCriticalOrder(u.orig)||isCriticalOrder(u.new))) ? 'critical' : ''}
+          ${ciSet.has(coreDrugName(u.orig.parsed.drug)) ||
+              ciSet.has(coreDrugName(u.new.parsed.drug))
+            ? 'ci-row' : ''}">
                 <td>${idx++}</td>
                  <td>${u.orig.original}</td>
                  <td>${u.new.original}</td>
@@ -2527,7 +3568,9 @@ removed.forEach(r => {
     added.forEach(a => {
         const crit = isCriticalOrder(a);
         html += `
-            <tr class="${crit ? 'critical' : ''}">
+                        <tr class="
+                  ${crit ? 'critical' : ''}
+                  ${ciSet.has(coreDrugName(a.parsed.drug)) ? 'ci-row' : ''}
                 <td>${idx++}</td>
                 <td></td>
                 <td>${a.original}</td>
@@ -2541,7 +3584,29 @@ removed.forEach(r => {
         </table>
     `;
 
+    // ─── Append CI block below the table ───
+    if (ciAlerts.length) {
+      html += `
+        <h3 style="margin-top:1.5rem; color: red; font-weight: bold;">
+      Potential Contraindications
+    </h3>
+        <ul>
+          ${ciAlerts.map(w =>
+            `<li><strong>${w.a}</strong> should NOT be used with <strong>${w.b}</strong></li>`
+          ).join('')}
+        </ul>
+        <p style="font-size:0.85rem;">
+          These flags are a quick screen and do <em>not</em> replace clinical judgement.
+        </p>
+      `;
+    }
+
+
     document.getElementById('results-content').innerHTML = html;
+   
+ // make the current CI list available for exportToPDF()
+    window.currentContraAlerts = ciAlerts;
+
     showScreen('results-screen');
 }
 
@@ -2573,6 +3638,32 @@ removed.forEach(r => {
       // here you could add page numbers, headers, etc.
     }
   });
+
+  // ——— Draw the CI header & list below the table ———
+  const finalY = pdf.lastAutoTable.finalY + 20;
+  if (window.currentContraAlerts?.length) {
+    // 1) Section title
+    pdf.setFontSize(12);
+    pdf.text("Potential Contra-Indications", 40, finalY);
+
+    // 2) Each warning item
+    pdf.setFontSize(10);
+    window.currentContraAlerts.forEach((w, i) => {
+      pdf.text(
+        `• ${w.a} should NOT be used with ${w.b}`,
+        40,
+        finalY + 15 + i * 12
+      );
+    });
+
+    // 3) Footnote
+    pdf.setFontSize(9);
+    pdf.text(
+      "These flags are a quick screen and do not replace clinical judgement.",
+      40,
+      finalY + 15 + window.currentContraAlerts.length * 12 + 10
+    );
+  }
 
   // 5) save the PDF
   pdf.save('MedRec_Report.pdf');
