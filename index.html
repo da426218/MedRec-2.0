@@ -1647,6 +1647,44 @@ function hasContra(orderObj, wholeList = []) {
       genericToBrandMap[generic].push(brand);
     });
 
+const commonIndicationsPatterns = [
+    { pattern: /(hypertension)$/i, indication: "hypertension" },
+    { pattern: /(diabetes\s+mellitus)$/i, indication: "diabetes mellitus" }, // More specific first
+    { pattern: /(type\s+\d\s+diabetes)$/i, indication: "type 2 diabetes" }, // Or capture type
+    { pattern: /(diabetes)$/i, indication: "diabetes" },
+    { pattern: /(thyroid\s+disorder)$/i, indication: "thyroid disorder" },
+    { pattern: /(hypothyroidism)$/i, indication: "hypothyroidism" },
+    { pattern: /(gerd)$/i, indication: "gerd" },
+    { pattern: /(gastroesophageal\s+reflux\s+disease)$/i, indication: "gerd" },
+    { pattern: /(major\s+depression)$/i, indication: "major depression" },
+    { pattern: /(depression)$/i, indication: "depression" },
+    { pattern: /(anxiety)$/i, indication: "anxiety" },
+    { pattern: /(heart\s+failure)$/i, indication: "heart failure" },
+    { pattern: /(high\s+blood\s+pressure)$/i, indication: "high blood pressure" },
+    { pattern: /(high\s+cholesterol)$/i, indication: "high cholesterol" },
+    { pattern: /(hyperlipidemia)$/i, indication: "hyperlipidemia" },
+    { pattern: /(asthma)$/i, indication: "asthma" },
+    { pattern: /(copd)$/i, indication: "copd" },
+    { pattern: /(chronic\s+obstructive\s+pulmonary\s+disease)$/i, indication: "copd"},
+    { pattern: /(arthritis)$/i, indication: "arthritis" },
+    { pattern: /(osteoarthritis)$/i, indication: "osteoarthritis" },
+    { pattern: /(rheumatoid\s+arthritis)$/i, indication: "rheumatoid arthritis" },
+    { pattern: /(insomnia)$/i, indication: "insomnia" },
+    { pattern: /(constipation)$/i, indication: "constipation" },
+    { pattern: /(pain)$/i, indication: "pain" }, // General pain
+    { pattern: /(mild\s+pain)$/i, indication: "mild pain" },
+    { pattern: /(moderate\s+pain)$/i, indication: "moderate pain" },
+    { pattern: /(severe\s+pain)$/i, indication: "severe pain" },
+    { pattern: /(acute\s+pain)$/i, indication: "acute pain" },
+    { pattern: /(chronic\s+pain)$/i, indication: "chronic pain" },
+    // Add more common, relatively unambiguous terms.
+    // Order more specific patterns (e.g., "diabetes mellitus") before less specific ones (e.g., "diabetes").
+].sort((a,b) => { // Sort by length of a sample match to prioritize longer matches
+    const matchA = "text " + a.indication; // sample for length
+    const matchB = "text " + b.indication;
+    return matchB.length - matchA.length;
+});
+
   function normalizeMedicationName(name) {
   if (!name) return '';
   let n = name.toLowerCase().trim();
@@ -2259,6 +2297,7 @@ const timeOfDayMappings = [
   { regex: /\b(in\s+the\s+)?evening\b/i, timeOfDay: 'evening', originalTermRegexPos: 0 },                 // NOW AFTER "every evening"
 
   { regex: /\bqhs\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTerm: 'qhs' },
+     { regex: /\bhs\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTerm: 'hs' },
   { regex: /\bnightly\b/i,   timeOfDay: 'bedtime', frequency: 'daily', originalTerm: 'nightly' },
   { regex: /\bevery\s+night\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTermRegexPos: 0 },    // MOVED UP
   { regex: /\b(at\s+)?bedtime\b/i, timeOfDay: 'bedtime', originalTermRegexPos: 0 },                       // Stays
@@ -2644,41 +2683,74 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
   }
   // console.log(`DEBUG parseOrder Step 8 (Frequency): order.frequency="${order.frequency}", orderStr="${orderStr}"`);
 
-// --- START OF NEW STEP 9 ---
+// --- START OF MODIFIED STEP 9 ---
 // 9. Final Drug Name and Indication Assignment from remaining orderStr
 
 orderStr = orderStr.trim();
 // One last aggressive cleanup of leading non-alphanumeric characters or isolated numbers/units from orderStr
-orderStr = orderStr.replace(/^[^a-zA-Z0-9]+/, '').trim(); // Remove leading non-alphanumeric
-orderStr = orderStr.replace(/^(\d+(?:\.\d+)?\s*([a-zA-Zμ]+([eE][qQ])?)s?)\s*(?=[a-zA-Z]|$)/i, '').trim(); // Remove leading number/unit if followed by text or end
+orderStr = orderStr.replace(/^[^a-zA-Z0-9]+/, '').trim();
+orderStr = orderStr.replace(/^(\d+(?:\.\d+)?\s*([a-zA-Zμ]+([eE][qQ])?)s?)\s*(?=[a-zA-Z]|$)/i, '').trim();
 
+// Tentatively assign remaining string based on what's already parsed
 if (!order.drug && orderStr.length > 0) {
-    // If order.drug has not been set by a very specific pattern earlier,
-    // assume the entire remaining orderStr is the drug name.
-    // Specific indication phrases like "for [text]" should have been parsed already.
-    order.drug = orderStr;
+    order.drug = orderStr; // Temporarily assign full remainder to drug
 } else if (order.drug && orderStr.length > 0 && !order.indication) {
-    // If order.drug WAS set by an earlier specific rule,
-    // and there's still text in orderStr, and indication is empty,
-    // this remaining text is likely an indication or part of a complex instruction.
+    // If drug was already set (e.g., by a specific rule earlier)
+    // and indication is empty, the remainder is indication.
     order.indication = orderStr;
 }
-// If both order.drug and order.indication were already set, any remaining orderStr is considered unparsed.
+// Note: orderStr is not cleared here, as its content is now in order.drug or order.indication
+
+// Attempt to extract trailing indication from order.drug if indication is still empty
+if (order.drug && !order.indication) {
+    let currentDrugString = order.drug; // Work with a copy
+
+    for (const indPattern of commonIndicationsPatterns) { // Use the global constant
+        const match = currentDrugString.match(indPattern.pattern);
+        if (match && match[0]) {
+            // Check if the match is at the end of the currentDrugString
+            if (currentDrugString.endsWith(match[0])) {
+                const potentialIndication = match[0].trim();
+                const potentialDrugName = currentDrugString.substring(0, currentDrugString.length - potentialIndication.length).trim();
+
+                if (potentialDrugName.length > 0 && potentialDrugName.toLowerCase() !== potentialIndication.toLowerCase()) {
+                    // Avoid consuming the entire drug name if it's identical to the indication
+                    // or if indication itself might be a common drug name part (this is tricky)
+
+                    // Check if the potential indication is not just a part of a known multi-word drug name
+                    // This is a simple check; more sophisticated NLP would be needed for high accuracy
+                    let isSafeToExtract = true;
+                    if (potentialDrugName.split(/\s+/).length < 1 && commonMedications.some(med => med.generic.includes(potentialIndication.toLowerCase()))) {
+                        // Avoid extracting if remaining drug is too short and indication is part of a known generic
+                        isSafeToExtract = false;
+                    }
+
+                    if (isSafeToExtract) {
+                        order.indication = indPattern.indication; // Use standardized indication
+                        order.drug = potentialDrugName;
+                        currentDrugString = potentialDrugName; // Update for next iteration if needed, though usually break
+                        // console.log(`DEBUG parseOrder Step 9: Extracted indication "<span class="math-inline">\{order\.indication\}" from drug, remaining drug\: "</span>{order.drug}"`);
+                        break; // Found an indication, assume one primary trailing indication
+                    }
+                }
+            }
+        }
+    }
+}
 
 // Cleanup and standardize drug name
 if (order.drug) {
     let drugName = order.drug;
     // Attempt to remove common, very generic trailing words that are not part of the core drug name
-    // This list can be expanded carefully.
     const genericTrailingWords = /\s+(tablet|capsule|solution|suspension|injection|ointment|cream|syrup|elixir|powder|inhale[rd]?|spray|oral|for oral use|for use|extended release|delayed release|modified release|er|xr|sr|dr|chewable|effervescent)$/i;
     drugName = drugName.replace(genericTrailingWords, '').trim();
     drugName = drugName.replace(genericTrailingWords, '').trim(); // Apply twice for patterns like "extended release tablet"
 
     order.drug = drugName
         .replace(/[^a-zA-Z0-9\/\s-]+/g, ' ') // Allow alphanumeric, slash, hyphen, space
-        .replace(/\s\s+/g, ' ')             // Collapse multiple spaces
+        .replace(/\s\s+/g, ' ')              // Collapse multiple spaces
         .trim()
-        .toLowerCase();                     // Ensure drug name is lowercase
+        .toLowerCase();                      // Ensure drug name is lowercase
 } else {
     order.drug = ""; // Default to empty string if no drug found
 }
@@ -2693,19 +2765,17 @@ if (order.indication) {
     // Clear indication if it looks like a dose strength that was misparsed (safeguard)
     const looksLikeOnlyDoseStrength = /^(\d+(\.\d+)?(\/\d+(\.\d+)?)?\s*([a-zA-Zμ]+([eE][qQ])?)s?)$/i;
     if (looksLikeOnlyDoseStrength.test(order.indication)) {
-        // console.log(`DEBUG parseOrder: Clearing indication that is just a dose strength: "${order.indication}" for drug "${order.drug}"`);
+        // console.log(`DEBUG parseOrder: Clearing indication that is just a dose strength: "<span class="math-inline">\{order\.indication\}" for drug "</span>{order.drug}"`);
         order.indication = "";
     }
-    // Add more specific cleanups for indication if needed, but be cautious not to remove valid text.
     const veryGenericIndicationRemnants = /^(po|sc|iv|im|sl|subq|tablet|cap|unit|puff|gtt|mg|mcg|ml|cc|daily|bid|tid|qid|qhs|prn|stat)$/i;
     if (veryGenericIndicationRemnants.test(order.indication) && order.indication.split(' ').length <= 2) {
         order.indication = "";
     }
-
 } else {
     order.indication = ""; // Default to empty string
 }
-// --- END OF NEW STEP 9 ---
+// --- END OF MODIFIED STEP 9 ---
 
   // console.log('FINAL DEBUG Parsed order:', { /* input: originalInputToParseOrder, */ parsed: order });
   return order;
@@ -3410,13 +3480,10 @@ if (!reasons.includes('Brand/Generic changed')) {
 }
 
 // 2) Indication text changed?
-// if parseOrder.indication is blank, compare whatever’s left after the core drug name
-const origParts = r.parsed.drug.split(/\s+/);
-const newParts  = match.parsed.drug.split(/\s+/);
-// assume Lantus (1-word) → generic (2-word) so slice(1) vs. slice(2)
-const origIndText = origParts.slice(1).join(' ').toLowerCase();
-const newIndText  = newParts.slice(2).join(' ').toLowerCase();
-if (origIndText && newIndText && origIndText !== newIndText) {
+const origInd = (r.parsed.indication || '').toLowerCase().trim();
+const newInd  = (match.parsed.indication || '').toLowerCase().trim();
+
+if (origInd !== newInd && (origInd || newInd)) { // Checks if they are different and at least one is non-empty
   reasons.push('Indication changed');
 }
 
@@ -3431,8 +3498,6 @@ const reason = reasons.length > 1
   : reasons[0];
 
 merged.push({ orig: r, new: match, reason });
-
-
 
     // purge every key in addedMap that still points to this matched entry:
   Object.keys(addedMap).forEach(k => {
