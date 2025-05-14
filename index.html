@@ -1907,6 +1907,7 @@ function normalizeText(str) {
     // only match "stat" when it's not embedded in another word
     .replace(/(?<![a-z])stat(?![a-z])/g, 'immediately')
     .replace(/\bqhs\b/g, 'at bedtime')
+    .replace(/\bnightly\b/g, 'at bedtime')
     // NEW – map the common abbreviation
     .replace(/\bsob\b/g, 'shortness of breath')
     // …all the rest of your shorthand/frequency → full-text rules…
@@ -1923,6 +1924,8 @@ function getChangeReason(orig, updated) {
   console.log('DEBUG getChangeReason: orig.drug=', orig.drug, 'updated.drug=', updated.drug);
   console.log('DEBUG getChangeReason: orig Parsed=', JSON.stringify(orig));
   console.log('DEBUG getChangeReason: updated Parsed=', JSON.stringify(updated));
+
+
 
   if (!orig || !updated) return 'Misc. Change';
 
@@ -2232,6 +2235,7 @@ const timeOfDayMappings = [
   { regex: /\b(in\s+the\s+)?evening\b/i, timeOfDay: 'evening', originalTermRegexPos: 0 },                 // NOW AFTER "every evening"
 
   { regex: /\bqhs\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTerm: 'qhs' },
+  { regex: /\bnightly\b/i,   timeOfDay: 'bedtime', frequency: 'daily', originalTerm: 'nightly' },
   { regex: /\bevery\s+night\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTermRegexPos: 0 },    // MOVED UP
   { regex: /\b(at\s+)?bedtime\b/i, timeOfDay: 'bedtime', originalTermRegexPos: 0 },                       // Stays
   { regex: /\bat\s+night\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTermRegexPos: 0 },
