@@ -1941,7 +1941,20 @@ function getChangeReason(orig, updated) {
   console.log('DEBUG getChangeReason: orig.drug=', orig.drug, 'updated.drug=', updated.drug);
   console.log('DEBUG getChangeReason: orig Parsed=', JSON.stringify(orig));
   console.log('DEBUG getChangeReason: updated Parsed=', JSON.stringify(updated));
-
+// ── core/tail extractors for indication check ──
+const core = n => normalizeMedicationName(n).split(' ')[0];
+const tail = n => {
+  const parts = normalizeMedicationName(n).split(' ');
+  return parts.length > 1 ? parts.slice(1).join(' ') : '';
+};
+// only flag when both “tails” look like real words (≥3 letters) and differ
+const isWord = s => /^[a-z]{3,}(?:\s+[a-z]{3,})*$/.test(s);
+const origTail = tail(orig.drug);
+const updTail  = tail(updated.drug);
+const tailDiff =
+  isWord(origTail) &&
+  isWord(updTail) &&
+  origTail !== updTail;
 
 
   if (!orig || !updated) return 'Misc. Change';
@@ -1964,6 +1977,11 @@ if (orig.startDate !== updated.startDate) {
 
   // --- Start Debugging Conditions for Indication-Only Check ---
   const drugNameMatch = normalizeMedicationName(orig.drug) === normalizeMedicationName(updated.drug);
+// simple core‐generic name match (ignores trailing words like “hypertension”)
+const getCoreName = n =>
+  normalizeMedicationName(n).split(' ')[0];
+const drugNameSimpleMatch =
+  getCoreName(orig.drug) === getCoreName(updated.drug);
   const doseValueMatch = orig.dose?.value === updated.dose?.value;
   const doseUnitMatch = orig.dose?.unit === updated.dose?.unit;
   const frequencyMatch = canon(orig.frequency) === canon(updated.frequency);
@@ -2028,7 +2046,7 @@ const updSalt  = updWords .find(w => trivialSalts.includes(w) || criticalSalts.i
  
 // 2) **Indication-only**
   if (
-    drugNameMatch &&
+    core(orig.drug) === core(updated.drug) &&
     doseValueMatch &&
     doseUnitMatch &&
     frequencyMatch &&
@@ -2036,7 +2054,7 @@ const updSalt  = updWords .find(w => trivialSalts.includes(w) || criticalSalts.i
     formMatch &&
     routeMatch &&
     prnMatch &&
-    indicationDiff
+    (indicationDiff || tailDiff)
   ) {
     console.log('DEBUG: Matched Indication-only block.');
     return 'Indication changed';
@@ -2190,7 +2208,7 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
   // Ensure this doesn't incorrectly override if multiple changes were genuinely detected
   if (changes.length > 1 || changes.length === 0) { // Only try this if the array logic didn't find a single specific change (excluding indication itself if it was the only one)
       if (
-        drugNameMatch &&
+        core(orig.drug) === core(updated.drug) &&
         doseValueMatch &&
         doseUnitMatch &&
         frequencyMatch &&
@@ -2198,7 +2216,7 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
         formMatch &&
         routeMatch &&
         prnMatch &&
-        indicationDiff // Crucially, indication MUST be different for this to make sense
+        (indicationDiff || tailDiff) // Crucially, indication MUST be different for this to make sense
       ) {
         console.log('DEBUG: Matched Fallback Indication-only block.');
         return 'Indication changed';
@@ -2246,11 +2264,14 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
     indication: ""
   };
 
-// — NEW: pull out “on MM/DD/YYYY” into order.startDate —
-const dateOnMatch = orderStr.match(/\bon\s+(\d{1,2}\/\d{1,2}\/\d{4})\b/);
-if (dateOnMatch) {
-  order.startDate = dateOnMatch[1];
-  orderStr = orderStr.replace(dateOnMatch[0], "").trim();
+// 1) try “on MM/DD/YYYY”, 2) then any standalone MM/DD/YYYY
+let dateMatch = orderStr.match(/\bon\s+(\d{1,2}\/\d{1,2}\/\d{4})\b/);
+if (!dateMatch) {
+  dateMatch = orderStr.match(/\b(\d{1,2}\/\d{1,2}\/\d{4})\b/);
+}
+if (dateMatch) {
+  order.startDate = dateMatch[1];
+  orderStr = orderStr.replace(dateMatch[0], "").trim();
 }
 
   // 1. Extract Time-of-Day and common morning/evening/night shorthands
@@ -2769,6 +2790,10 @@ function findContraIndications(allOrders) {
 }
 
     function ordersAreEqual(a, b) {
+  // — NEW: orders with different startDates should _not_ be treated as equal
+  if ((a.startDate || "") !== (b.startDate || "")) {
+    return false;
+  }
   // 1) drug name
   const normA = normalizeMedicationName(a.drug);
   const normB = normalizeMedicationName(b.drug);
@@ -3349,38 +3374,64 @@ added.forEach(a => {
      .trim();
   console.log(`  [addedMap]: Adding: Original Str: "${originalDrugString}" --> Parsed Drug: "${parsedDrugField}" --> Normalized Key: "${normalizedKeyForMap}"`);
   addedMap[normalizedKeyForMap] = a; 
+  // also index by bare generic name (first word)
+  const baseKey = normalizeMedicationName(parsedDrugField).split(' ')[0];
+  addedMap[baseKey] = a;
 });
 console.log("--- Finished building addedMap. Keys: ", Object.keys(addedMap));
+console.log("addedMap after build:", addedMap);
 // --- END DEBUG LOGS FOR addedMap POPULATION ---
 
 // --- START DEBUG LOGS FOR removed.filter (Primary Merge Step) ---
 console.log("--- Filtering 'removed' list (Primary Merge Step) ---");
 removed = removed.filter(r => {
-  const originalRemovedDrugString = r.original; // For logging
-  const parsedRemovedDrugField = r.parsed.drug;
-  const lookupKey =
-   coreDrugName(parsedRemovedDrugField)
-     .replace(/\b(inhaler|inhalation|neb|mdi|dpi)\b/gi, '')
-     .trim();
-  console.log(`  [removed.filter]: Processing Removed: Original Str: "${originalRemovedDrugString}" --> Parsed Drug: "${parsedRemovedDrugField}" --> Lookup Key: "${lookupKey}"`);
-  
-  const match = addedMap[lookupKey];
-  
-  if (!match) {
-    console.log(`    NO MATCH found in addedMap for key: "${lookupKey}". Item "${originalRemovedDrugString}" remains in 'removed' list for now.`);
-    return true; // Keep in 'removed' list if no match
-  } else {
-    console.log(`    MATCH FOUND for key: "${lookupKey}" (Matches added item: "${match.original}"). Merging.`);
-    const reason = getChangeReason(r.parsed, match.parsed);
-    merged.push({ orig: r, new: match, reason: reason });
-    delete addedMap[lookupKey]; // Remove from map as it's now matched
-    return false; // Remove from 'removed' list as it's merged
-  }
-});
-console.log("--- Finished filtering 'removed' list ---");
-// --- END DEBUG LOGS FOR removed.filter ---
+  const originalRemovedDrugString = r.original;
+  const parsedRemovedDrugField    = r.parsed.drug;
+  const lookupKey = coreDrugName(parsedRemovedDrugField)
+    .replace(/\b(inhaler|inhalation|neb|mdi|dpi)\b/gi, '')
+    .trim();
+  console.log(
+    `  [removed.filter]: Processing Removed: "${originalRemovedDrugString}" → drug="${parsedRemovedDrugField}" → lookupKey="${lookupKey}"`
+  );
 
-added = Object.values(addedMap); // Update 'added' to only those not merged
+  // try the full key
+  let match = addedMap[lookupKey];
+  let usedKey = lookupKey;
+
+  // fallback on bare generic if necessary
+  if (!match) {
+    const baseKey = normalizeMedicationName(parsedRemovedDrugField).split(' ')[0];
+    console.log(`    fallback to baseKey: "${baseKey}"`);
+    match   = addedMap[baseKey];
+    usedKey = baseKey;
+  }
+
+  if (!match) {
+    console.log(`    NO MATCH for either "${lookupKey}" or "${usedKey}" → keep in removed`);
+    return true;
+  }
+
+  console.log(
+    `    MATCH FOUND for key "${usedKey}" (merged with added original="${match.original}")`
+  );
+  const reason = getChangeReason(r.parsed, match.parsed);
+  merged.push({ orig: r, new: match, reason });
+
+    // purge every key in addedMap that still points to this matched entry:
+  Object.keys(addedMap).forEach(k => {
+    if (addedMap[k] === match) {
+      delete addedMap[k];
+    }
+  });
+
+  return false;
+});
+
+console.log("--- Finished filtering 'removed' list ---");
+
+added = Object.values(addedMap);
+console.log("Remaining addedMap keys (will appear as ‘Added’ rows):", Object.keys(addedMap));
+
 //=== END STEP-MERGE-REMOVED-ADDED ==============================
 
 
