@@ -1990,7 +1990,6 @@ const drugNameSimpleMatch =
   const routeMatch = norm(orig.route) === norm(updated.route);
   const prnMatch = orig.prn === updated.prn;
   const indicationDiff = norm(orig.indication) !== norm(updated.indication);
-
   console.log('DEBUG Indication-Only Check Conditions:');
   console.log('  drugNameMatch:', drugNameMatch, `(${normalizeMedicationName(orig.drug)} vs ${normalizeMedicationName(updated.drug)})`);
   console.log('  doseValueMatch:', doseValueMatch, `(${orig.dose?.value} vs ${updated.dose?.value})`);
@@ -2001,9 +2000,13 @@ const drugNameSimpleMatch =
   console.log('  routeMatch:', routeMatch, `(${norm(orig.route)} vs ${norm(updated.route)})`);
   console.log('  prnMatch:', prnMatch, `(${orig.prn} vs ${updated.prn})`);
   console.log('  indicationDiff:', indicationDiff, `(${norm(orig.indication)} vs ${norm(updated.indication)})`);
-  // --- End Debugging Conditions ---
 
-let changes = [];
+ // --- End Debugging Conditions ---
+
+ 
+ // now continue to build the changes array
+ let changes = [];
+
 const add = lbl => { if (!changes.includes(lbl)) changes.push(lbl); };
 
 /* ----------   2.a)  Salt / formulation changes   ---------- */
@@ -2203,38 +2206,7 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
 // --- End of New Rule ---
 
   console.log('DEBUG: changes array before final fallback:', JSON.stringify(changes));
-
-  // Fallback "only indication changed" check (this is the redundant block)
-  // Ensure this doesn't incorrectly override if multiple changes were genuinely detected
-  if (changes.length > 1 || changes.length === 0) { // Only try this if the array logic didn't find a single specific change (excluding indication itself if it was the only one)
-      if (
-        core(orig.drug) === core(updated.drug) &&
-        doseValueMatch &&
-        doseUnitMatch &&
-        frequencyMatch &&
-        timeOfDayMatch &&
-        formMatch &&
-        routeMatch &&
-        prnMatch &&
-        (indicationDiff || tailDiff) // Crucially, indication MUST be different for this to make sense
-      ) {
-        console.log('DEBUG: Matched Fallback Indication-only block.');
-        return 'Indication changed';
-      } else if ( // All same AND indication is same (truly unchanged)
-        drugNameMatch &&
-        doseValueMatch &&
-        doseUnitMatch &&
-        frequencyMatch &&
-        timeOfDayMatch &&
-        formMatch &&
-        routeMatch &&
-        prnMatch &&
-        !indicationDiff // Indication is also the same
-      ) {
-         console.log('DEBUG: Fallback found no changes (Misc. Change or Unchanged).');
-         return 'Misc. Change'; // Or 'Unchanged' if you prefer that label
-      }
-  }
+  
   console.log('DEBUG: Final changes array:', JSON.stringify(changes));
 
   if (changes.length === 0) return 'Misc. Change'; // Or 'Unchanged'
@@ -3414,8 +3386,53 @@ removed = removed.filter(r => {
   console.log(
     `    MATCH FOUND for key "${usedKey}" (merged with added original="${match.original}")`
   );
-  const reason = getChangeReason(r.parsed, match.parsed);
-  merged.push({ orig: r, new: match, reason });
+ 
+// ——— Brand/Generic + Indication multi-reason detection ———
+let reasons = [];
+
+// 1) Brand ⇄ Generic swap?
+// look in the raw original text for any known brand→generic or generic→brand
+const origText = r.original.toLowerCase();
+const newText  = match.original.toLowerCase();
+for (const [brand, generic] of Object.entries(brandToGenericMap)) {
+  if (origText.includes(brand) && newText.includes(generic)) {
+    reasons.push('Brand/Generic changed');
+    break;
+  }
+}
+if (!reasons.includes('Brand/Generic changed')) {
+  for (const [brand, generic] of Object.entries(brandToGenericMap)) {
+    if (newText.includes(brand) && origText.includes(generic)) {
+      reasons.push('Brand/Generic changed');
+      break;
+    }
+  }
+}
+
+// 2) Indication text changed?
+// if parseOrder.indication is blank, compare whatever’s left after the core drug name
+const origParts = r.parsed.drug.split(/\s+/);
+const newParts  = match.parsed.drug.split(/\s+/);
+// assume Lantus (1-word) → generic (2-word) so slice(1) vs. slice(2)
+const origIndText = origParts.slice(1).join(' ').toLowerCase();
+const newIndText  = newParts.slice(2).join(' ').toLowerCase();
+if (origIndText && newIndText && origIndText !== newIndText) {
+  reasons.push('Indication changed');
+}
+
+// 3) If nothing flagged, fall back…
+if (reasons.length === 0) {
+  reasons.push( getChangeReason(r.parsed, match.parsed) );
+}
+
+// 4) Collapse to “Multiple changes” when more than one applies
+const reason = reasons.length > 1
+  ? 'Multiple changes'
+  : reasons[0];
+
+merged.push({ orig: r, new: match, reason });
+
+
 
     // purge every key in addedMap that still points to this matched entry:
   Object.keys(addedMap).forEach(k => {
@@ -3535,25 +3552,27 @@ removed.forEach(r => {
         }
 
         // 3) Substring match (fallback, less precise)
-        if (!match) {
-            const drugName = r.parsed.drug.toLowerCase();
-            match = added.find(a => a.original.toLowerCase().includes(drugName));
-            if (match) {
-                changeType = getChangeReason(r.parsed, match.parsed);
-    	// very novice-friendly override for “only indication” cases
-   	 const origInd = (r.parsed.indication || '').toLowerCase().trim();
-   	 const newInd  = (match.parsed.indication || '').toLowerCase().trim();
-   	 if (
-     	 normalizeMedicationName(r.parsed.drug) === normalizeMedicationName(match.parsed.drug)
-      	&& r.parsed.dose.value === match.parsed.dose.value
-      	&& r.parsed.dose.unit  === match.parsed.dose.unit
-     	 && origInd !== newInd
-    	) {
-      	changeType = 'Indication changed';
-    	}
-                console.log(`   → substring matched "${drugName}" to`, match.original);
-            }
+if (!match) {
+    const drugName = r.parsed.drug.toLowerCase();
+    match = added.find(a => a.original.toLowerCase().includes(drugName));
+    if (match) {
+        changeType = getChangeReason(r.parsed, match.parsed);
+
+        // very novice-friendly override for “only indication” cases
+        const origInd = (r.parsed.indication || '').toLowerCase().trim();
+        const newInd  = (match.parsed.indication || '').toLowerCase().trim();
+        if (
+            normalizeMedicationName(r.parsed.drug) === normalizeMedicationName(match.parsed.drug)
+            && r.parsed.dose.value === match.parsed.dose.value
+            && r.parsed.dose.unit  === match.parsed.dose.unit
+            && origInd !== newInd
+        ) {
+            changeType = 'Indication changed';
         }
+
+        console.log(`   → substring matched "${drugName}" to`, match.original);
+    }
+}  // <-- closes the if(!match) block correctly
 
         const crit = false;         // removed orders aren’t active any more
 
