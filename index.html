@@ -1834,6 +1834,23 @@ async function testCallOcr() {
 
 //=== STEP 1  keepOrderLines helper =========================
 function keepOrderLines(rawText) {
+
+  //— flatten any tab-separated rows into free-text orders —
+  if (rawText.includes('\t')) {
+    rawText = rawText
+      .split(/\r?\n+/)
+      .map(line => {
+        const cols = line.split('\t');
+        // expects at least 6 columns: name, strength, route, freq, start, indication
+        if (cols.length >= 6) {
+          // include start date (col 4) as “on MM/DD/YYYY”
+          return `${cols[0].trim()} ${cols[1].trim()} ${cols[2].trim()} ${cols[3].trim()} on ${cols[4].trim()} for ${cols[5].trim()}`;
+        }
+        return line;
+      })
+      .join('\n');
+  }
+
   const DEBUG_JUNK = false;   // flip to true to see what you drop
 
 //=== STEP‑SPLITMULTI  ⬇︎ break “A … B …” lines into two =================
@@ -1928,6 +1945,11 @@ function getChangeReason(orig, updated) {
 
 
   if (!orig || !updated) return 'Misc. Change';
+
+// — NEW: detect start-date changes —
+if (orig.startDate !== updated.startDate) {
+  return 'Date changed';
+}
 
   // 1) Taper packs (day N) always multi
   if (/\bday\s*\d+\b/i.test(orig.drug) || /\bday\s*\d+\b/i.test(updated.drug)) {
@@ -2209,6 +2231,7 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
   orderStr = orderStr.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
   orderStr = normalizeText(orderStr); // Normalizes "qhs" to "at bedtime", etc.
 
+
   let order = {
     drug: "",
     dose: { value: null, unit: '', total: null },
@@ -2218,9 +2241,17 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
     timeOfDay: "",
     administration: "",
     prn: false,
+    startDate: "",
     form: "",
     indication: ""
   };
+
+// — NEW: pull out “on MM/DD/YYYY” into order.startDate —
+const dateOnMatch = orderStr.match(/\bon\s+(\d{1,2}\/\d{1,2}\/\d{4})\b/);
+if (dateOnMatch) {
+  order.startDate = dateOnMatch[1];
+  orderStr = orderStr.replace(dateOnMatch[0], "").trim();
+}
 
   // 1. Extract Time-of-Day and common morning/evening/night shorthands
 //    Also sets frequency if implied by the shorthand (e.g., qam is daily)
