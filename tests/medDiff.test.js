@@ -17,9 +17,10 @@ function loadAppContext() {
 }
 
 describe('Medication comparison', () => {
-  test('dose and form changes detected for Spiriva Respimat vs tiotropium', () => {
+  test('dose and form changes detected for Spiriva Respimat vs HandiHaler', () => {
     const ctx = loadAppContext();
-    const before = 'Tiotropium 18 mcg capsule – inhale contents of one capsule via HandiHaler once daily';
+    const before =
+      'Tiotropium Bromide (Spiriva HandiHaler) 18 mcg capsule – inhale contents of one capsule via HandiHaler device once daily';
     const after = 'Spiriva Respimat 2.5 mcg/actuation – 2 inhalations once daily';
     const p1 = ctx.parseOrder(before);
     const p2 = ctx.parseOrder(after);

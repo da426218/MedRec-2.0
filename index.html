@@ -2166,9 +2166,12 @@ function getChangeReason(orig, updated) {
 
   const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
   const canon = f => {
-    f = norm(f);
-    return (f === '' || f === 'daily' || f === 'q24h') ? 'daily' : f;
-  };
+    f = norm(f);
+    if (f === '' || f === 'daily' || f === 'q24h') return 'daily';
+    if (['tid', 'tidac', 'three times daily'].includes(f)) return 'tid';
+    if (/(?:before|with) meals/.test(f) || /before breakfast lunch dinner/.test(f)) return 'tid';
+    return f;
+  };
 
   // --- Initial properties from parsed objects ---
   const origDrugNameRaw = orig.drug; // Keep as parsed, before normalizeMedicationName
@@ -2253,10 +2256,12 @@ if (origGenericMapped !== updatedGenericMapped &&
 
 // --- Formulation Change ---
 if (!formulationMatch) {
-    // Only add if a formulation was parsed for at least one, and they are different
-    // And if it's not already covered by a brand change that implies formulation (this is complex)
-    // A simple check: if formulations differ and drug substances are the same (drugNameMatchStrict)
-    if (orig.formulation || updated.formulation) { // Ensure there's something to compare
+    // Do not flag a formulation change when both orders lack a formulation and the
+    // core drug names match strictly. This avoids false positives such as
+    // "Vitamin D3" vs "Cholecalciferol" where neither mentions a formulation.
+    if (drugNameMatchStrict && !orig.formulation && !updated.formulation) {
+        // nothing
+    } else if (orig.formulation || updated.formulation) {
         // Avoid if Brand/Generic already implies this (e.g. Lopressor vs Metoprolol Tartrate)
         // This needs careful thought. For now, if drugNameMatchStrict is true AND formulations differ, it's a formulation change.
         // If drugNameMatchStrict is false, it might be a different drug OR a salt form change handled by B/G.
@@ -2271,9 +2276,8 @@ if (!formulationMatch) {
 // Prioritize total dose for comparison.
 if (!doseTotalMatch || !doseUnitMatch) { // If total dose or unit differs
     add('Dose changed');
-} else if (!qtyMatch && doseTotalMatch && doseUnitMatch) { // Total dose & unit same, but qty per admin different
-    add('Quantity changed');
 }
+// Quantity differences are reflected in the dose when totals differ
 
 
 // --- Frequency Change ---
@@ -2575,6 +2579,20 @@ if (order.timeOfDay && !order.frequency) {
 /* ——— NEW: capture “before / after breakfast|lunch|dinner”
           with an optional numeric offset ——— */
 if (!order.timeOfDay) {
+  const mealFreqMatch = orderStr.match(/\b(?:before|with)\s+meals\b/i);
+  if (mealFreqMatch) {
+    if (!order.frequency) order.frequency = 'tid';
+    orderStr = orderStr.replace(mealFreqMatch[0], '').trim();
+  }
+}
+if (!order.timeOfDay) {
+  const explicitMeals = orderStr.match(/\bbefore\s+breakfast\s+lunch\s+dinner\b/i);
+  if (explicitMeals) {
+    if (!order.frequency) order.frequency = 'tid';
+    orderStr = orderStr.replace(explicitMeals[0], '').trim();
+  }
+}
+if (!order.timeOfDay) {
   const mealTiming =
     orderStr.match(/\b(?:\d+\s*(?:min(?:ute)?s?|hr|hrs?|hours?)\s*)?(before|after)\s+(breakfast|lunch|dinner)\b/i);
   if (mealTiming) {
@@ -2596,9 +2614,9 @@ orderStr = orderStr
   // 2. Extract Administration (with/without food/water)
   const adminMatch = orderStr.match(
   new RegExp(
-    String.raw`\b(?:with|w\/)\s*(?:meals?|food|water|juice|liquid)\b|` +
-    String.raw`\b(?:without|w\/o)\s*(?:meals?|food|water|juice|liquid)\b|` +
-    String.raw`\b(?:before|after)\s*(?:meals?|food)\b`,
+    String.raw`\b(?:with|w\/)\s*(?:meals?|food|water|juice|liquid|supper|breakfast|lunch|dinner)\b|` +
+    String.raw`\b(?:without|w\/o)\s*(?:meals?|food|water|juice|liquid|supper|breakfast|lunch|dinner)\b|` +
+    String.raw`\b(?:before|after)\s*(?:meals?|food|supper|breakfast|lunch|dinner)\b`,
     'i'
   )
 );
@@ -2608,6 +2626,9 @@ orderStr = orderStr
     const prefix = adminMatch[0].toLowerCase().startsWith('with') ? 'with ' : 'without ';
     const noun = (adminMatch[1] || adminMatch[2] || '').toLowerCase();
     order.administration = prefix + noun;
+    if (!order.frequency && /(?:before|with)\s+meals?/i.test(adminMatch[0])) {
+      order.frequency = 'tid';
+    }
     orderStr = orderStr.replace(adminMatch[0], '').trim();
     // console.log(`DEBUG parseOrder Step 2 (Admin): order.administration="${order.administration}", orderStr="${orderStr}"`);
   }
@@ -2617,8 +2638,7 @@ const formulationKeywords = [
     'modified release', 'delayed release', 'extended release', 'controlled release', // Multi-word first
     'xr', 'er', 'sr', 'la', 'xl', 'cr', 'dr',
     'succinate', 'tartrate', 'maleate', 'fumarate', 'besylate', 'camsylate', 'mesylate',
-    'acetate', 'phosphate', 'carbonate', 'gluconate',
-    'hcl', 'hydrochloride'
+    'acetate', 'phosphate', 'carbonate', 'gluconate'
 ].sort((a, b) => b.length - a.length); // Sort by length, longest first is crucial
 
 let processedOrderStrForFormulation = orderStr; // Work on a copy
@@ -2737,7 +2757,15 @@ orderStr = orderStr.replace(/\bmay\s+increase\s+to.*$/i, '').trim();
 
 
 // Extract Quantity (e.g., "2 tabs") before dose, as it might be part of the dose string // <-- START ADDING THIS BLOCK
-const qtyWords = ['tabs', 'tab', 'tablets', 'caps', 'capsules', 'caplets', 'puffs', 'sprays', 'drops', 'lozenges', 'patches'];
+const qtyWords = [
+  'tabs', 'tab', 'tablets',
+  'caps', 'capsules', 'caplets',
+  'puff', 'puffs',
+  'spray', 'sprays',
+  'drop', 'drops',
+  'lozenge', 'lozenges',
+  'patch', 'patches'
+];
 // Regex to match "take/give/administer X units" or just "X units"
 const qtyRegexEarly = new RegExp(`(?:\\b(?:take|give|administer|inhale|inject|apply|use)\\s+)?(\\d+(?:\\.\\d+)?)\\s*(${qtyWords.join('|')})(?:s)?\\b`, 'i');
 const qtyMatchEarly = orderStr.match(qtyRegexEarly);
@@ -2793,7 +2821,7 @@ for (let u of allUnits) {
 
 if (unitMatchesFound.length > 0) {
   const precedence = ['mcg','mg','g','mEq','unit','mL',
-                      'tablet','capsule','patch','puff','drop'];
+                      'tablet','capsule','patch','puff','spray','drop'];
 
   const hits = unitMatchesFound.map(m => {
     const stdUnit = Object.entries(unitVariants)
@@ -2807,9 +2835,20 @@ if (unitMatchesFound.length > 0) {
   });
 
   const bestMatch = hits[0];
+  const sprayHit = hits.find(h => h.stdUnit === 'spray');
   order.dose = { value: bestMatch.qty,
                  unit:  bestMatch.stdUnit,
                  total: bestMatch.qty };
+
+  if (sprayHit && order.qty === null) {
+    order.qty = sprayHit.qty;
+  }
+  if (bestMatch.stdUnit === 'spray' && order.qty === null) {
+    order.qty = bestMatch.qty;
+  }
+  if (order.qty !== null) {
+    order.dose.total = bestMatch.qty * order.qty;
+  }
 
   orderStr = orderStr.replace(bestMatch.matchStr, '').trim();
   // Capture trailing formulation tokens that may follow the strength (e.g. "1000 mg ER")
@@ -2909,7 +2948,7 @@ if (order.dose.value !== null && typeof order.dose.value === 'number' && order.q
 
 
 // If dose unit itself is 'tablet' or 'capsule' and value is set, this implies qty if qty is still null
-if (order.qty === null && (order.dose.unit === 'tablet' || order.dose.unit === 'capsule' || order.dose.unit === 'puff')) {
+if (order.qty === null && (order.dose.unit === 'tablet' || order.dose.unit === 'capsule' || order.dose.unit === 'puff' || order.dose.unit === 'spray')) {
     if (order.dose.value && order.dose.value > 0) { // ensure value is a positive number
         order.qty = order.dose.value;
         if (order.dose.total === null) { // if total wasn't set by previous block
@@ -2920,7 +2959,7 @@ if (order.qty === null && (order.dose.unit === 'tablet' || order.dose.unit === '
         // Example: "Drug 2 puffs" -> dose.value=2, dose.unit=puff, qty=2. Total=4 (if value isn't # of puffs).
         // This needs care: if dose.value was *already* the count of units, then total is just value.
         // Let's assume if unit is tablet/capsule/puff, dose.value IS the count for that unit.
-        if (order.dose.unit === 'tablet' || order.dose.unit === 'capsule' || order.dose.unit === 'puff') {
+        if (order.dose.unit === 'tablet' || order.dose.unit === 'capsule' || order.dose.unit === 'puff' || order.dose.unit === 'spray') {
              order.dose.total = order.dose.value; // The "value" is the number of these items
         }
     }
@@ -2961,8 +3000,8 @@ if (!order.form) {
     { term: 'mdi', canonical: 'inhaler' },
           { term: 'flexpen', canonical: 'pen' },
           { term: 'solostar', canonical: 'pen' },
-          { term: 'respimat', canonical: 'inhaler' },
-          { term: 'handihaler', canonical: 'inhaler' },
+          { term: 'respimat', canonical: 'respimat' },
+          { term: 'handihaler', canonical: 'handihaler' },
     { term: 'nebule', canonical: 'nebule' }, { term: 'nebulizer solution', canonical: 'nebule'}
   ];
 
@@ -3053,7 +3092,7 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
           const freqMapping = { /* ... your existing map ... */
               "once daily": "daily", "once a day": "daily", "1 times daily": "daily", "daily": "daily", "od": "daily", "qd": "daily",
               "twice daily": "twice daily", "2 times daily": "twice daily", "bid": "twice daily", "twice a day": "twice daily",
-              "three times daily": "three times daily", "3 times daily": "three times daily", "tid": "three times daily",
+              "three times daily": "three times daily", "3 times daily": "three times daily", "tid": "three times daily", "tidac": "three times daily", "before meals": "three times daily", "with meals": "three times daily", "before breakfast lunch dinner": "three times daily",
               "four times daily": "four times daily", "4 times daily": "four times daily", "qid": "four times daily",
               "every other day": "every other day", "qod": "every other day",
               "stat": "immediately", "now": "immediately",
