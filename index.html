@@ -2308,6 +2308,9 @@ if (!doseTotalMatch || !doseUnitMatch) { // If total dose or unit differs
     add('Dose changed');
 }
 // Quantity differences are reflected in the dose when totals differ
+if (!qtyMatch) {
+    add('Quantity changed');
+}
 
 
 // --- Frequency Change ---
