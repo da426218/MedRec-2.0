@@ -68,3 +68,9 @@ addTest('Fluticasone spray dose total', () => {
   expect(diff(before, after)).toBe('Dose changed');
 });
 
+addTest('Warfarin sodium formulation difference', () => {
+  const before = 'Warfarin sodium 5 mg tablet - take one daily';
+  const after = 'Warfarin 5 mg tablet - take one daily';
+  expect(diff(before, after)).toBe('Formulation changed');
+});
+
