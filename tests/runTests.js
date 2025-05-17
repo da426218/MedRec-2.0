@@ -91,3 +91,9 @@ addTest('PRN condition wording change detected', () => {
   const after = 'Alprazolam 0.5mg tablet - take 1 tab q8h if anxious';
   expect(diff(before, after)).toBe('PRN changed');
 });
+
+addTest('Novolog brand name flagged', () => {
+  const before = 'Insulin Aspart (Novolog) FlexPen - Inject 10 units subcutaneously TIDAC';
+  const after = 'Novolog FlexPen - Inject 12 units SC before meals (breakfast lunch dinner)';
+  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Brand/Generic changed');
+});
