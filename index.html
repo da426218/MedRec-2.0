@@ -2255,16 +2255,28 @@ function getChangeReason(orig, updated) {
   if (!endDateMatch) add('End Date changed');
 
 // --- Brand/Generic Change ---
-// Check if normalized names (substance) are same, but raw inputs were different,
-// or if one is a known brand of the other.
+// Flag when raw names differ but they resolve to the same active ingredient,
+// or when different generics map to a known brand/generic pairing.
 const origCoreBrandCheck = origDrugNameRaw.split(' ')[0].toLowerCase();
 const updatedCoreBrandCheck = updatedDrugNameRaw.split(' ')[0].toLowerCase();
-const origGenericMapped = normalizeMedicationName(brandToGenericMap[origCoreBrandCheck] || origDrugNameRaw);
-const updatedGenericMapped = normalizeMedicationName(brandToGenericMap[updatedCoreBrandCheck] || updatedDrugNameRaw);
+const origGenericMapped = normalizeMedicationName(
+  brandToGenericMap[origCoreBrandCheck] || origDrugNameRaw
+);
+const updatedGenericMapped = normalizeMedicationName(
+  brandToGenericMap[updatedCoreBrandCheck] || updatedDrugNameRaw
+);
+const rawNamesDiffer =
+  origDrugNameRaw.toLowerCase().trim() !==
+  updatedDrugNameRaw.toLowerCase().trim();
+const genericsEqual = origGenericMapped === updatedGenericMapped;
 
-if (origGenericMapped !== updatedGenericMapped &&
-   (brandToGenericMap[origCoreBrandCheck] || brandToGenericMap[updatedCoreBrandCheck])) {
-    add('Brand/Generic changed');
+if (
+  (genericsEqual && rawNamesDiffer) ||
+  (!genericsEqual &&
+    (brandToGenericMap[origCoreBrandCheck] ||
+      brandToGenericMap[updatedCoreBrandCheck]))
+) {
+  add('Brand/Generic changed');
 }
 
 
