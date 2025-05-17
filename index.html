@@ -3269,8 +3269,7 @@ const indMatch = orderStr.match(/\bfor\s+(.+?)$/i);
 if (indMatch) {
   order.indication = indMatch[1].trim();
   orderStr = orderStr.replace(indMatch[0], '').trim();
-} else {
-  order.indication = '';}
+}
 
 // If order.drug ended up empty from the above, try a last resort from initialCleanedDrugString
 if (!order.drug && initialCleanedDrugString) {
