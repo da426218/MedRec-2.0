@@ -1,0 +1,12 @@
+{
+  "name": "medrec-2.0",
+  "version": "1.0.0",
+  "description": "Medication reconciliation app.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node tests/runTests.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
