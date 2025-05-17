@@ -2470,7 +2470,7 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
   if (changes.length === 1) return changes[0];
   if (changes.length <= 3) { // List up to 3 specific changes
       // Prioritize more significant changes if too many minor ones
-      const priorityOrder = ["Dose changed", "Frequency changed", "Formulation changed", "Brand/Generic changed", "Route changed", "PRN changed", "Indication changed", "Date changed", "End Date changed", "Quantity changed", "Form changed", "Time of day changed"];
+      const priorityOrder = ["Dose changed", "Frequency changed", "Formulation changed", "Brand/Generic changed", "Route changed", "Form changed", "PRN changed", "Indication changed", "Date changed", "End Date changed", "Quantity changed", "Time of day changed"];
       changes.sort((a, b) => {
           let idxA = priorityOrder.indexOf(a);
           let idxB = priorityOrder.indexOf(b);
@@ -3013,8 +3013,8 @@ if (order.qty === null && (order.dose.unit === 'tablet' || order.dose.unit === '
     }
 }
 
-// 6. Extract Form (if not already identified by dose parsing)
-if (!order.form) {
+// 6. Extract Form (override generic forms with specific terms if found)
+{
   // New, more specific form words list - longest phrases first
   const formDefinitions = [
     { term: 'extended-release tablet', canonical: 'extended-release tablet' },
@@ -3065,9 +3065,11 @@ if (!order.form) {
     // Find the definition again using the matched term (case-insensitive find)
     const definition = formDefinitions.find(fd => fd.term.toLowerCase() === matchedTerm);
     if (definition) {
-      order.form = definition.canonical;
-      orderStr = orderStr.replace(formMatch[0], '').trim();
-      // console.log(`DEBUG parseOrder Step 6 (Form): order.form="<span class="math-inline">\{order\.form\}", orderStr\="</span>{orderStr}"`);
+      if (!order.form || ["tablet","capsule","caplet","softgel"].includes(order.form)) {
+        order.form = definition.canonical;
+      }
+      orderStr = orderStr.replace(formMatch[0], "").trim();
+      // console.log(`DEBUG parseOrder Step 6 (Form): order.form="${order.form}", orderStr="${orderStr}"`);
     }
   }
 } 
