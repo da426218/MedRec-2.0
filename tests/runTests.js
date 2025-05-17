@@ -45,6 +45,9 @@ function diff(before, after) {
 require('./medDiff.test');
 
 
+addTest('Insulin before-meals equals TIDAC dose & freq change', () => {
+
+
 addTest('Insulin before-meals equals TIDAC dose change only', () => {
 
 addTest('Insulin before-meals equals TIDAC dose & freq change', () => {
@@ -57,6 +60,7 @@ addTest('Insulin before-meals equals TIDAC dose & freq change', () => {
 addTest('Insulin before-meals equals TIDAC dose & freq change', () => {
 
 addTest('Insulin before-meals equals TIDAC dose change only', () => {
+
 
 
 
@@ -65,7 +69,6 @@ addTest('Insulin before-meals equals TIDAC dose change only', () => {
   const after = 'Novolog FlexPen - Inject 12 units SC before meals (breakfast lunch dinner)';
   expect(diff(before, after)).toBe('Dose changed');
 });
-
 
 
 addTest('Metformin evening vs nightly time change', () => {
@@ -87,5 +90,6 @@ addTest('Fluticasone spray dose total', () => {
   const after = 'Fluticasone Nasal Spray 50mcg - Use 1 spray per nostril qd';
   expect(diff(before, after)).toBe('Dose changed');
 });
+
 
 
