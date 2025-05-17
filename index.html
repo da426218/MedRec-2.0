@@ -1549,6 +1549,7 @@ function hasContra(orderObj, wholeList = []) {
       { generic: "cefuroxime", brands: ["Ceftin", "Zinacef"] },
       { generic: "cephalexin", brands: ["Keflex"] },
       { generic: "cetirizine", brands: ["Zyrtec"] },
+              { generic: "loratadine", brands: ["Claritin"] },
       { generic: "ciprofloxacin", brands: ["Cipro"] },
       { generic: "citalopram", brands: ["Celexa"] },
       { generic: "clindamycin", brands: ["Cleocin"] },
@@ -1569,10 +1570,10 @@ function hasContra(orderObj, wholeList = []) {
       { generic: "glipizide", brands: ["Glucotrol"] },
       { generic: "glyburide", brands: ["Diabeta", "Micronase"] },
       { generic: "hydralazine", brands: ["Apresoline"] },
-      { generic: "hydrochlorothiazide", brands: ["Microzide"] },
+      { generic: "hydrochlorothiazide", brands: ["Microzide", "HCTZ"] },
       { generic: "ibuprofen", brands: ["Advil", "Motrin"] },
               { generic: "insulin aspart", brands: ["Novolog"] },
-      { generic: "insulin glargine", brands: ["Lantus", "Basaglar"] },
+      { generic: "insulin glargine", brands: ["Lantus", "Basaglar", "Lantus Solostar"] },
       { generic: "insulin lispro", brands: ["Humalog"] },
       { generic: "irbesartan", brands: ["Avapro"] },
       { generic: "isosorbide mononitrate", brands: ["Imdur"] },
@@ -1594,6 +1595,7 @@ function hasContra(orderObj, wholeList = []) {
       { generic: "oxycodone", brands: ["OxyContin", "Roxicodone"] },
       { generic: "pantoprazole", brands: ["Protonix"] },
       {   generic:    "polyethylene glycol",  brands: ["MiraLAX","GaviLAX","GlycoLax","PEG 3350"] },
+              { generic: "potassium chloride", brands: ["Klor-Con", "K-Dur", "Micro-K"] },
       { generic: "pravastatin", brands: ["Pravachol"] },
       { generic: "prednisone", brands: ["Deltasone"] },
       { generic: "propranolol", brands: ["Inderal"] },
@@ -1671,6 +1673,7 @@ const commonIndicationsPatterns = [
     { pattern: /(rheumatoid\s+arthritis)$/i, indication: "rheumatoid arthritis" },
     { pattern: /(insomnia)$/i, indication: "insomnia" },
     { pattern: /(constipation)$/i, indication: "constipation" },
+    { pattern: /\ballergies\b/i, indication: "allergies" },
     { pattern: /(pain)$/i, indication: "pain" }, // General pain
     { pattern: /(mild\s+pain)$/i, indication: "mild pain" },
     { pattern: /(moderate\s+pain)$/i, indication: "moderate pain" },
@@ -1689,6 +1692,15 @@ const commonIndicationsPatterns = [
   if (!name) return '';
   let n = name.toLowerCase().trim();
 
+// AT THE BEGINNING of normalizeMedicationName, after 'let n = name.toLowerCase().trim();'
+
+// Attempt to separate numbers from attached units/text, and text from attached numbers
+// e.g., "drug50mg" -> "drug 50 mg", "drugname50" -> "drugname 50"
+// This helps word-boundary regexes later.
+n = n.replace(/([a-zA-Z])(\d)/g, '$1 $2'); // drugName50 -> drugName 50
+n = n.replace(/(\d)([a-zA-Z])/g, '$1 $2'); // 50mg -> 50 mg
+n = n.replace(/\s+/g, ' ').trim(); // Clean up spaces created immediately
+
   /* 1 .  Convert any brand name that appears anywhere in the text
          (e.g. “symbicort 160/4.5”) to its generic. */
   for (const brand in brandToGenericMap) {
@@ -1697,9 +1709,26 @@ const commonIndicationsPatterns = [
 }
 
 
-  /* 2 .  Strip common salt words */
-  n = n.replace(/\b(sodium|hydrochloride|acetate|phosphate|carbonate)\b/g, '')
-       .trim();
+// /* 2. Strip common salt words */
+const commonSalts = [
+    'hydrochloride', 'hcl', // Process longer ones like hydrochloride before hcl
+    'sodium', 'potassium', 
+    'acetate', 'phosphate', 'carbonate', 
+    'maleate', 'succinate', 'tartrate', 
+    'besylate', 'camsylate', 'mesylate', 
+    'gluconate', 'propionate', 'bitartrate', 'edisylate', // Add more as needed
+    'nacl' // for sodium chloride if written that way
+];
+commonSalts.sort((a,b) => b.length - a.length); // Process longer salt names first
+
+for (const salt of commonSalts) {
+    // Create a regex to find the salt name, trying to ensure it's not part of a different longer word
+    // but allowing it to be at the end of the drug name or a separate word.
+    // Replacing with a space helps separate concatenated drug-salt names.
+    const saltRegex = new RegExp(salt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    n = n.replace(saltRegex, ' '); 
+}
+n = n.replace(/\s+/g, ' ').trim(); // Consolidate multiple spaces into one and trim
 
   /* 3 .  Remove timing / meal phrases that sneak into the name */
   n = n.replace(
@@ -1707,9 +1736,18 @@ const commonIndicationsPatterns = [
   ''
 ).trim();
 
-  /* 4 .  Final cleanup */
-  n = n.replace(/[^a-z0-9 ]+/g, '').replace(/\s+/g, ' ');
-  return n;
+  /* 4. Remove common leftover instructional/form words and numbers from name string */
+n = n.replace(/\b\d+(?:\.\d+)?\b/g, ''); // Remove standalone numbers (e.g., "1" if left in "levothyroxine 1")
+n = n.replace(/\b(?:tablet|tablets|tab|tabs|cap|capsule|capsules|caplet|oral|po|subq|sc|im|iv|id|pr|sl|os|od|au|oin|oint|ophth|neb|inh|inj|inject|supp|sol|solution|susp|elix|syr|tr|tinct|lot|crm|crm.|ung|gel|aero|conc|dil|dp|ds|emuls|enema|er|film|gas|gran|gum|impl|inf|ins|irrig|jec|liq|lotn|loz|mdi|mis|nebu|oint|oph|pad|part|pas|past|pel|pen|pill|plst|powd|pwd|rinse|sat|shamp|soak|spg|spl|spray|stk|strip|subl|sup|swab|syr|sys|tab|tamp|tape|top|troche|twa|vag|wafer|xt|xr|xl|xd|sr|cr|dr|la|patch|puffs|drops|lozenge|spray|unit|units|ml|mcg|mg|g|solostar)\b/gi, '');
+  
+/* 5. Final cleanup */
+// In normalizeMedicationName function, for step #5:
+n = n.replace(/[\/\-]/g, ' ') // Convert slashes and hyphens to spaces
+     .replace(/[^a-z0-9 ]+/g, '') // Remove other non-alphanumeric (keeps numbers for multi-strength drugs if not stripped as standalone)
+     .replace(/\s+/g, ' ')
+     .trim();
+
+  return n;
 }
 
     const unitVariants = {
@@ -1741,28 +1779,35 @@ const commonIndicationsPatterns = [
     let hasTextInput2 = false; // Track if Photo 2 used text input
 
     async function processFiles(files) {
-      let allText = "";
-      let lowConfidence = false;
-      for (let file of files) {
-        try {
-          const result = await processFile(file);
-//=== STEP 2  cleaned with keepOrderLines
-const cleaned = keepOrderLines(result.text);
-allText += "\n" + cleaned.join("\n");
-//=== END STEP 2
+  let allCombinedOrderStrings = [];
+  let lowConfidence = false;
+  const totalFiles = files.length;
+  let currentFileIndex = 0;
 
-          if (result.confidence < 0.8) {
-            lowConfidence = true;
-          }
-        } catch (err) {
-          console.error("Error processing file: ", err);
-        }
+  for (let file of files) {
+    currentFileIndex++;
+    showLoading(`Processing image ${currentFileIndex} of ${totalFiles}...`);
+    try {
+      const result = await processFile(file); // result.text is raw OCR text from one image
+      // keepOrderLines processes raw text from one image into an array of order strings
+      const orderStringsFromFile = keepOrderLines(result.text);
+      allCombinedOrderStrings = allCombinedOrderStrings.concat(orderStringsFromFile);
+
+      if (result.confidence < 0.8) {
+        lowConfidence = true;
       }
-      if (lowConfidence) {
-        showError("Warning: Some text was unclear and may not be accurate. Please review manually.");
-      }
-      return allText;
+    } catch (err) {
+      console.error("Error processing file: ", file.name, err);
+      showError(`Error processing file ${file.name}. Some data may be missing.`);
     }
+  }
+
+  if (lowConfidence) {
+    showError("Warning: Some OCR text was unclear and may not be accurate. Please review manually.");
+  }
+  // Return a flat array of unique processed order strings from all images
+  return [...new Set(allCombinedOrderStrings.filter(line => line && line.trim() !== ''))];
+}
 
 function processFile(file) {
   return new Promise((resolve, reject) => {
@@ -1868,20 +1913,80 @@ async function testCallOcr() {
       return out;
     }
 
+function mergeEMRLines(lines) {
+  const mergedOrders = [];
+  let i = 0;
+  console.log("mergeEMRLines: Input lines count:", lines.length); // Log total lines
+  while (i < lines.length) {
+    const line1 = lines[i]?.trim();
+    if (!line1) { 
+      i++;
+      continue;
+    }
+
+    const isOrderStartLine1 =
+    /^[a-zA-Z\s.-]+\s+\d+(?:\.\d+)?\s*(?:mg|mcg|g|u|iu|units?|ml|meq|unit\/ml)\s+[a-zA-Z\s.-]+$/i.test(line1) || // Added units: u, iu, meq, unit/ml. Added 'i' flag. Escaped '/'.
+    /^[a-zA-Z\s.-]+\s+inhaler$/i.test(line1); // Added 'i' flag for case-insensitivity
+
+
+    const line2 = lines[i + 1]?.trim();
+    const line3 = lines[i + 2]?.trim();
+
+    // DEBUGGING LOGS START HERE
+    if (line1.toLowerCase().includes("lantus") || line1.toLowerCase().includes("prednisone") || line1.toLowerCase().includes("albuterol") || line1.toLowerCase().includes("potassium")) { // Focus on problem meds
+        console.log("------------------------------------");
+        console.log("mergeEMRLines checking:", JSON.stringify(line1));
+        console.log("  isOrderStartLine1:", isOrderStartLine1);
+        console.log("  line2:", JSON.stringify(line2));
+        console.log("  line3:", JSON.stringify(line3));
+    }
+    // DEBUGGING LOGS END HERE
+
+    // This is your NEW line2 condition block
+    const line2ConditionMet = line2 && 
+        (
+            ['give', 'take', 'inhale', 'inject', 'apply', 'use', 'place', 'administer', 'chew', 'dissolve', 'spray', 'sprinkle'].some(kw => line2.toLowerCase().startsWith(kw + ' ')) ||
+            /^(day\s*\d+|take\s*\d+\s*tab)/i.test(line2.toLowerCase())
+        );
+
+    const line3ConditionMet = line3 && line3.toLowerCase().startsWith('start:');
+
+    // MORE DEBUGGING LOGS
+    if (line1.toLowerCase().includes("lantus") || line1.toLowerCase().includes("prednisone") || line1.toLowerCase().includes("albuterol") || line1.toLowerCase().includes("potassium")) {
+         console.log("  line2ConditionMet:", line2ConditionMet);
+         console.log("  line3ConditionMet:", line3ConditionMet);
+    }
+    // DEBUGGING LOGS END
+
+    if (isOrderStartLine1 && line2ConditionMet && line3ConditionMet) {
+      if (line1.toLowerCase().includes("lantus") || line1.toLowerCase().includes("prednisone") || line1.toLowerCase().includes("albuterol") || line1.toLowerCase().includes("potassium")){
+        console.log("  DECISION: MERGING these 3 lines.");
+      }
+      mergedOrders.push(`${line1} ${line2} ${line3}`);
+      i += 3; 
+    } else {
+      if (line1.toLowerCase().includes("lantus") || line1.toLowerCase().includes("prednisone") || line1.toLowerCase().includes("albuterol") || line1.toLowerCase().includes("potassium")){
+        console.log("  DECISION: NOT MERGING. Pushing line1 only:", JSON.stringify(line1));
+      }
+      mergedOrders.push(line1); 
+      i += 1; 
+    }
+  }
+  console.log("mergeEMRLines: Output mergedOrders count:", mergedOrders.length); // Log output count
+  return mergedOrders;
+}
+
     // ←── END INSERT ──▶
 
 //=== STEP 1  keepOrderLines helper =========================
 function keepOrderLines(rawText) {
-
   //— flatten any tab-separated rows into free-text orders —
   if (rawText.includes('\t')) {
     rawText = rawText
       .split(/\r?\n+/)
       .map(line => {
         const cols = line.split('\t');
-        // expects at least 6 columns: name, strength, route, freq, start, indication
         if (cols.length >= 6) {
-          // include start date (col 4) as “on MM/DD/YYYY”
           return `${cols[0].trim()} ${cols[1].trim()} ${cols[2].trim()} ${cols[3].trim()} on ${cols[4].trim()} for ${cols[5].trim()}`;
         }
         return line;
@@ -1889,27 +1994,54 @@ function keepOrderLines(rawText) {
       .join('\n');
   }
 
-  const DEBUG_JUNK = false;   // flip to true to see what you drop
+  const DEBUG_JUNK = false;
 
-//=== STEP‑SPLITMULTI  ⬇︎ break “A … B …” lines into two =================
-rawText = rawText
-  .replace(/\s{2,}/g, '\n')               // two+ spaces  → new line
-  .replace(/(?:,|;|\band\b)/gi, '\n');    // commas/“and” → new line
-//=== END STEP‑SPLITMULTI =================================================
+  // 1. Initial split by newline and trim each line.
+  //    This provides a basic array of lines as they appear in the input.
+  let lines = rawText.split(/\r?\n+/).map(line => line.trim());
+  // console.log("DEBUG keepOrderLines - Initial split & trimmed lines:", JSON.parse(JSON.stringify(lines)));
 
-  return rawText
-    .split(/\r?\n+/)                 // → separate lines
-    .map(line => cleanLine(line))    // → trim weird endings
-  .flatMap(splitConcatOrders)      // → split “lisinopril … polyethylene …”
-    .filter(line => {
-      const keep =
-        isLikelyOrderLine(line) &&   // letters + numbers?
-       ( containsKnownMedication(line) ||    // ↖ try drug list first
-         /\d+\s*(mg|mcg|g|mL|units|tablet|capsule|puff|drop)\b/i.test(line) )
-        && /\d/.test(line);          // must still have a digit
-      if (!keep && DEBUG_JUNK) console.log('🗑️', line);
-      return keep;
-    });
+
+  // 2. Apply EMR-specific 3-line merging.
+  //    This function should now receive lines that are only split by original newlines.
+  lines = mergeEMRLines(lines);
+  // console.log("DEBUG keepOrderLines - After mergeEMRLines:", JSON.parse(JSON.stringify(lines)));
+
+
+  // 3. Now, apply further cleaning and other processing to each (potentially merged) line.
+  let processedLines = lines.map(line => {
+    // The logic from the old STEP-SPLITMULTI (handling commas, semicolons, 'and')
+    // is now applied to *each individual line string* after EMR merging.
+    // Importantly, it replaces these separators with a SPACE, not a newline,
+    // to avoid re-splitting merged lines.
+    let modifiedLine = line.replace(/(?:,|;|\band\b)/gi, ' ');
+    modifiedLine = modifiedLine.replace(/\s{2,}/g, ' '); // Collapse multiple spaces that might result
+
+    // Then, apply the cleanLine function to this modifiedLine.
+    return cleanLine(modifiedLine.trim()); // cleanLine also trims
+  });
+  // console.log("DEBUG keepOrderLines - After comma/semicolon/and replacement and cleanLine map:", JSON.parse(JSON.stringify(processedLines)));
+
+
+  // 4. Split lines that might themselves contain two distinct orders (e.g., "Drug A ... Drug B")
+  //    This function expects to operate on single strings.
+  //processedLines = processedLines.flatMap(splitConcatOrders);
+  // console.log("DEBUG keepOrderLines - After splitConcatOrders:", JSON.parse(JSON.stringify(processedLines)));
+
+
+  // 5. Final filter for valid-looking order lines
+  const finalFilteredLines = processedLines.filter(line => {
+    const keep =
+      line.trim() && // Ensure line is not just whitespace after all processing
+      isLikelyOrderLine(line) &&
+      (containsKnownMedication(line) ||
+        /\d+\s*(mg|mcg|g|mL|units|tablet|capsule|puff|drop)\b/i.test(line)) &&
+      /\d/.test(line);
+    if (!keep && DEBUG_JUNK && line.trim()) console.log('🗑️ Final filter dropping line:', line);
+    return keep;
+  });
+  // console.log("DEBUG keepOrderLines - Final output:", JSON.parse(JSON.stringify(finalFilteredLines)));
+  return finalFilteredLines;
 }
 //=== END STEP 1 ============================================
 
@@ -1973,134 +2105,258 @@ function normalizeText(str) {
     .trim();
 }
 
+// START OF CODE TO ADD (Fix 1A)
+function normalizeIndicationText(indicationStr) {
+  if (!indicationStr) return '';
+  let lowerStr = indicationStr.toLowerCase().trim();
+
+  // Remove "start" if it's a trailing word from parsing (seen in logs)
+  lowerStr = lowerStr.replace(/\s+start$/, '').trim();
+  // Remove "for " prefix if present, as indications are often captured with it
+  lowerStr = lowerStr.replace(/^for\s+/, '').trim();
+
+  const synonyms = {
+    'hypertension': 'high blood pressure',
+    'htn': 'high blood pressure',
+    'gerd': 'acid reflux',
+    'gastroesophageal reflux disease': 'acid reflux',
+    'type 2 diabetes': 'diabetes',
+    'type ii diabetes': 'diabetes',
+    'diabetes mellitus': 'diabetes',
+    'shortness of breath': 'breathing difficulty',
+    'sob': 'breathing difficulty',
+    'blood pressure': 'high blood pressure', // Normalize 'blood pressure' to 'high blood pressure'
+    'cholesterol': 'high cholesterol' // Normalize 'cholesterol' to 'high cholesterol'
+    // Add more common synonyms as needed, ensuring the right-hand side is the canonical term.
+  };
+
+  if (synonyms[lowerStr]) {
+    return synonyms[lowerStr];
+  }
+  return lowerStr;
+}
+// END OF CODE TO ADD (Fix 1A)
+
+// <<< START OF WHERE YOU PASTE THE NEW FUNCTION >>>
+function inhaled(parsedOrder) {
+    if (!parsedOrder) return false;
+    const route = (parsedOrder.route || '').toLowerCase();
+    const form = (parsedOrder.form || '').toLowerCase();
+
+    // Primary check: route is 'inhalation'
+    if (route === 'inhalation') {
+        return true;
+    }
+
+    // Secondary check: form implies inhalation
+    const inhalationForms = ['inhaler', 'puff', 'nebule', 'mdi', 'dpi', 'aerosol', 'aer'];
+    if (inhalationForms.includes(form)) {
+        return true;
+    }
+
+    return false;
+}
+// <<< END OF WHERE YOU PASTE THE NEW FUNCTION >>>
 
 // ——— What changed? ———
 function getChangeReason(orig, updated) {
   console.log('DEBUG getChangeReason: orig.drug=', orig.drug, 'updated.drug=', updated.drug);
   console.log('DEBUG getChangeReason: orig Parsed=', JSON.stringify(orig));
   console.log('DEBUG getChangeReason: updated Parsed=', JSON.stringify(updated));
-// ── core/tail extractors for indication check ──
-const core = n => normalizeMedicationName(n).split(' ')[0];
-const tail = n => {
-  const parts = normalizeMedicationName(n).split(' ');
-  return parts.length > 1 ? parts.slice(1).join(' ') : '';
-};
-// only flag when both “tails” look like real words (≥3 letters) and differ
-const isWord = s => /^[a-z]{3,}(?:\s+[a-z]{3,})*$/.test(s);
-const origTail = tail(orig.drug);
-const updTail  = tail(updated.drug);
-const tailDiff =
-  isWord(origTail) &&
-  isWord(updTail) &&
-  origTail !== updTail;
+
+// DEBUG getChangeReason: updated Parsed=', JSON.stringify(updated));
+// ── core/tail extractors for indication check ── // KEEP THIS COMMENT IF YOU WANT
+// const core = n => normalizeMedicationName(n).split(' ')[0]; // REMOVE OR COMMENT OUT
+// const tail = n => { ... }; // REMOVE OR COMMENT OUT
+// const isWord = s => ...; // REMOVE OR COMMENT OUT
+// const origTail = tail(orig.drug); // REMOVE OR COMMENT OUT
+// const updTail  = tail(updated.drug); // REMOVE OR COMMENT OUT
+// const tailDiff = ...; // REMOVE OR COMMENT OUT
 
 
-  if (!orig || !updated) return 'Misc. Change';
+  if (!orig || !updated) return 'Misc. Change'; // <-- THIS LINE STAYS OR IS RE-ADDED
 
-// — NEW: detect start-date changes —
-if (orig.startDate !== updated.startDate) {
-  return 'Date changed';
-}
+// START OF REPLACEMENT/ADDITION
+  let changes = [];
+  const add = lbl => { if (!changes.includes(lbl)) changes.push(lbl); };
 
-  // 1) Taper packs (day N) always multi
-  if (/\bday\s*\d+\b/i.test(orig.drug) || /\bday\s*\d+\b/i.test(updated.drug)) {
-    return 'Multiple changes';
-  }
+  const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  const canon = f => {
+    f = norm(f);
+    return (f === '' || f === 'daily' || f === 'q24h') ? 'daily' : f;
+  };
 
-  const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
-  const canon = f => {
-    f = norm(f);
-    return (f === '' || f === 'daily' || f === 'q24h') ? 'daily' : f;
-  };
+  // --- Initial properties from parsed objects ---
+  const origDrugNameRaw = orig.drug; // Keep as parsed, before normalizeMedicationName
+  const updatedDrugNameRaw = updated.drug; // Keep as parsed
 
-  // --- Start Debugging Conditions for Indication-Only Check ---
-  const drugNameMatch = normalizeMedicationName(orig.drug) === normalizeMedicationName(updated.drug);
-// simple core‐generic name match (ignores trailing words like “hypertension”)
-const getCoreName = n =>
-  normalizeMedicationName(n).split(' ')[0];
-const drugNameSimpleMatch =
-  getCoreName(orig.drug) === getCoreName(updated.drug);
-  const doseValueMatch = orig.dose?.value === updated.dose?.value;
-  const doseUnitMatch = orig.dose?.unit === updated.dose?.unit;
-  const frequencyMatch = canon(orig.frequency) === canon(updated.frequency);
-  const timeOfDayMatch = norm(orig.timeOfDay) === norm(updated.timeOfDay); // << THE KEY ONE
-  const formMatch = norm(orig.form) === norm(updated.form);
-  const routeMatch = norm(orig.route) === norm(updated.route);
-  const prnMatch = orig.prn === updated.prn;
-  const indicationDiff = norm(orig.indication) !== norm(updated.indication);
-  console.log('DEBUG Indication-Only Check Conditions:');
-  console.log('  drugNameMatch:', drugNameMatch, `(${normalizeMedicationName(orig.drug)} vs ${normalizeMedicationName(updated.drug)})`);
-  console.log('  doseValueMatch:', doseValueMatch, `(${orig.dose?.value} vs ${updated.dose?.value})`);
-  console.log('  doseUnitMatch:', doseUnitMatch, `(${orig.dose?.unit} vs ${updated.dose?.unit})`);
-  console.log('  frequencyMatch:', frequencyMatch, `(${canon(orig.frequency)} vs ${canon(updated.frequency)})`);
-  console.log('  timeOfDayMatch:', timeOfDayMatch, '(orig:', orig.timeOfDay, 'vs upd:', updated.timeOfDay, ')');
-  console.log('  formMatch:', formMatch, `(${norm(orig.form)} vs ${norm(updated.form)})`);
-  console.log('  routeMatch:', routeMatch, `(${norm(orig.route)} vs ${norm(updated.route)})`);
-  console.log('  prnMatch:', prnMatch, `(${orig.prn} vs ${updated.prn})`);
-  console.log('  indicationDiff:', indicationDiff, `(${norm(orig.indication)} vs ${norm(updated.indication)})`);
+  const origDrugNorm = normalizeMedicationName(orig.drug); // Fully normalized name for substance matching
+  const updatedDrugNorm = normalizeMedicationName(updated.drug);
+
+
+  // --- Comparisons ---
+  const drugNameMatchStrict = origDrugNorm === updatedDrugNorm; // Based on fully normalized names (substance match)
+  const doseValueMatch = orig.dose?.value === updated.dose?.value;
+  const doseTotalMatch = (orig.dose?.total ?? orig.dose?.value) === (updated.dose?.total ?? updated.dose?.value); // Use total, fallback to value
+  const doseUnitMatch = orig.dose?.unit === updated.dose?.unit;
+  const frequencyMatch = canon(orig.frequency) === canon(updated.frequency);
+  const timeOfDayMatch = norm(orig.timeOfDay) === norm(updated.timeOfDay);
+  const formMatch = norm(orig.form) === norm(updated.form);
+  const formulationMatch = norm(orig.formulation) === norm(updated.formulation);
+  const routeMatch = norm(orig.route) === norm(updated.route);
+  const prnMatch = orig.prn === updated.prn;
+  const indicationDiff = normalizeIndicationText(orig.indication) !== normalizeIndicationText(updated.indication);
+  const startDateMatch = (orig.startDate || "") === (updated.startDate || "");
+  const endDateMatch = (orig.endDate || "") === (updated.endDate || "");
+  const qtyMatch = (orig.qty ?? 1) === (updated.qty ?? 1); // Default to 1 if null for comparison
+
+// END OF REPLACEMENT/ADDITION (The original `if (!orig || !updated)` should still be there or re-added right before this block)
+
+
+  // --- Logging for debug ---
+  console.log('DEBUG getChangeReason - Comparisons:');
+  console.log('  drugNameMatchStrict (normalized substance):', drugNameMatchStrict, `(${origDrugNorm} vs ${updatedDrugNorm})`);
+  console.log('  origDrugNameRaw:', origDrugNameRaw, 'updatedDrugNameRaw:', updatedDrugNameRaw);
+  console.log('  formulationMatch:', formulationMatch, `(orig: ${norm(orig.formulation)} vs upd: ${norm(updated.formulation)})`);
+  console.log('  doseValueMatch (per unit):', doseValueMatch, `(orig: ${orig.dose?.value} vs upd: ${updated.dose?.value})`);
+  console.log('  doseTotalMatch:', doseTotalMatch, `(orig: ${orig.dose?.total ?? orig.dose?.value} vs upd: ${updated.dose?.total ?? updated.dose?.value})`);
+  console.log('  doseUnitMatch:', doseUnitMatch, `(orig: ${orig.dose?.unit} vs upd: ${updated.dose?.unit})`);
+  console.log('  qtyMatch:', qtyMatch, `(orig: ${(orig.qty ?? 1)} vs upd: ${(updated.qty ?? 1)})`);
+  console.log('  frequencyMatch:', frequencyMatch, `(orig: ${canon(orig.frequency)} vs upd: ${canon(updated.frequency)})`);
+  console.log('  timeOfDayMatch:', timeOfDayMatch, `(orig: ${norm(orig.timeOfDay)} vs upd: ${norm(updated.timeOfDay)})`);
+  console.log('  formMatch:', formMatch, `(orig: ${norm(orig.form)} vs upd: ${norm(updated.form)})`);
+  console.log('  routeMatch:', routeMatch, `(orig: ${norm(orig.route)} vs upd: ${norm(updated.route)})`);
+  console.log('  prnMatch:', prnMatch, `(orig: ${orig.prn} vs upd: ${updated.prn})`);
+  console.log('  indicationDiff:', indicationDiff, `(orig: ${normalizeIndicationText(orig.indication)} vs upd: ${normalizeIndicationText(updated.indication)})`);
+  console.log('  startDateMatch:', startDateMatch, `(orig: ${orig.startDate || ""} vs upd: ${updated.startDate || ""})`);
+  console.log('  endDateMatch:', endDateMatch, `(orig: ${orig.endDate || ""} vs upd: ${updated.endDate || ""})`);
 
  // --- End Debugging Conditions ---
 
- 
- // now continue to build the changes array
- let changes = [];
 
-const add = lbl => { if (!changes.includes(lbl)) changes.push(lbl); };
+// --- Start/End Date Changes --- // <-- START ADDING NEW LOGIC HERE
+  if (!startDateMatch) add('Date changed');
+  if (!endDateMatch) add('End Date changed');
 
-/* ----------   2.a)  Salt / formulation changes   ---------- */
+// --- Brand/Generic Change ---
+// Check if normalized names (substance) are same, but raw inputs were different,
+// or if one is a known brand of the other.
+const origNameForBGCheck = norm(origDrugNameRaw.replace(norm(orig.formulation), '').trim()); // Raw name minus its own formulation
+const updatedNameForBGCheck = norm(updatedDrugNameRaw.replace(norm(updated.formulation), '').trim()); // Raw name minus its own formulation
 
-const trivialSalts = ['sodium','potassium','calcium','acetate',
-                      'phosphate','carbonate','hydrochloride'];
-const criticalSalts = ['succinate','tartrate','gluconate','chloride',
-                       'anhydrous','choline','modified'];  // expand as needed
-
-const origWords = norm(orig.drug).split(' ');
-const updWords  = norm(updated.drug).split(' ');
-
-const origSalt = origWords.find(w => trivialSalts.includes(w) || criticalSalts.includes(w));
-const updSalt  = updWords .find(w => trivialSalts.includes(w) || criticalSalts.includes(w));
-
- /* -----------------------------------------------------------
-    SALT‑SWAP  ►  treat as a change whenever the *core* drug
-    (brand/generic minus any salt words) is the same.
-   ----------------------------------------------------------- */
- const coreDrug = n => n.replace(/\b(?:sodium|potassium|calcium|acetate|phosphate|carbonate|hydrochloride|succinate|tartrate|gluconate|anhydrous|choline|modified)\b/gi,'').trim();
- const coreMatch = coreDrug(orig.drug) === coreDrug(updated.drug);
-
- if (coreMatch &&    doseValueMatch && doseUnitMatch &&
-    frequencyMatch && timeOfDayMatch &&
-    formMatch && routeMatch && prnMatch &&
-    origSalt !== updSalt                      // something changed
-){
-  /* If swap involves a critical salt → flag it; else ignore */
-  if (criticalSalts.includes(origSalt) || criticalSalts.includes(updSalt)) {
-      return 'Salt form changed';             // real discrepancy
-  }
-  return 'Unchanged';                         // cosmetic only
+if (drugNameMatchStrict) { // Same substance after full normalization
+    // If substance is same, but the original drug strings (minus their specific formulations) were different
+    // it implies a brand/generic swap or a very minor naming difference.
+    if (origNameForBGCheck !== updatedNameForBGCheck) {
+         // Further check: is one a brand of the other?
+        const origCoreBrandCheck = origDrugNameRaw.split(' ')[0].toLowerCase();
+        const updatedCoreBrandCheck = updatedDrugNameRaw.split(' ')[0].toLowerCase();
+        if ((brandToGenericMap[origCoreBrandCheck] && normalizeMedicationName(brandToGenericMap[origCoreBrandCheck]) === updatedDrugNorm) ||
+            (brandToGenericMap[updatedCoreBrandCheck] && normalizeMedicationName(brandToGenericMap[updatedCoreBrandCheck]) === origDrugNorm) ||
+            origDrugNorm !== updatedDrugNorm ) { // if normalizeMedicationName changed one to match the other
+             add('Brand/Generic changed');
+        }
+    }
+} else { // Different substances after full normalization - could still be B/G if mapping exists
+    const origCoreBrandCheck = origDrugNameRaw.split(' ')[0].toLowerCase();
+    const updatedCoreBrandCheck = updatedDrugNameRaw.split(' ')[0].toLowerCase();
+    if ((brandToGenericMap[origCoreBrandCheck] && normalizeMedicationName(brandToGenericMap[origCoreBrandCheck]) === updatedDrugNorm) ||
+        (brandToGenericMap[updatedCoreBrandCheck] && normalizeMedicationName(brandToGenericMap[updatedCoreBrandCheck]) === origDrugNorm)) {
+        add('Brand/Generic changed');
+    }
 }
 
- /* add the flag to the running list as well, so it shows up
-    together with dose / frequency if those changed too */
- if (coreMatch && origSalt !== updSalt) {
-   add('Salt form changed');
- }
+
+// --- Formulation Change ---
+if (!formulationMatch) {
+    // Only add if a formulation was parsed for at least one, and they are different
+    // And if it's not already covered by a brand change that implies formulation (this is complex)
+    // A simple check: if formulations differ and drug substances are the same (drugNameMatchStrict)
+    if (orig.formulation || updated.formulation) { // Ensure there's something to compare
+        // Avoid if Brand/Generic already implies this (e.g. Lopressor vs Metoprolol Tartrate)
+        // This needs careful thought. For now, if drugNameMatchStrict is true AND formulations differ, it's a formulation change.
+        // If drugNameMatchStrict is false, it might be a different drug OR a salt form change handled by B/G.
+        if (drugNameMatchStrict || (!changes.includes("Brand/Generic changed") && (norm(orig.formulation) !== norm(updated.formulation))) ) {
+             add('Formulation changed');
+        }
+    }
+}
+
+
+// --- Dose/Quantity Changes ---
+// Prioritize total dose for comparison.
+if (!doseTotalMatch || !doseUnitMatch) { // If total dose or unit differs
+    add('Dose changed');
+} else if (!qtyMatch && doseTotalMatch && doseUnitMatch) { // Total dose & unit same, but qty per admin different
+    add('Quantity changed');
+}
+
+
+// --- Frequency Change ---
+if (!frequencyMatch) {
+    if (!( (canon(orig.frequency)==='daily' && updated.frequency === '') ||
+           (orig.frequency === '' && canon(updated.frequency)==='daily') )) {
+       add('Frequency changed');
+    }
+}
+
+// --- Time of Day Change ---
+if (!timeOfDayMatch) add('Time of day changed');
+
+// --- Form Change (tablet, capsule, etc.) ---
+if (!formMatch && (norm(orig.form) || norm(updated.form))) {
+    add('Form changed');
+}
+
+// --- Route Change ---
+if (!routeMatch && (norm(orig.route) || norm(updated.route))) { // Only if routes specified and different
+     add('Route changed');
+}
+
+
+// --- PRN Change ---
+if (!prnMatch) add('PRN changed');
+
+// --- Indication Change (general catch-all if different) ---
+if (indicationDiff) {
+    // Only add if it's not the *only* change that would otherwise make it "Unchanged"
+    // This avoids flagging minor indication wording differences if everything else is identical.
+    // The primary "Indication-only" check is below. This is a broader catch.
+    let otherChangesPresent = changes.filter(c => c !== 'Indication changed').length > 0;
+    if (otherChangesPresent ||
+        !drugNameMatchStrict || !doseTotalMatch || !doseUnitMatch || !frequencyMatch || !routeMatch ||
+        !formMatch || !formulationMatch || !prnMatch || !startDateMatch || !endDateMatch || !qtyMatch
+       ) {
+        add('Indication changed');
+    }
+}
  
 // 2) **Indication-only**
-  if (
-    core(orig.drug) === core(updated.drug) &&
-    doseValueMatch &&
-    doseUnitMatch &&
-    frequencyMatch &&
-    timeOfDayMatch && // Uses the debugged variable
-    formMatch &&
-    routeMatch &&
-    prnMatch &&
-    (indicationDiff || tailDiff)
-  ) {
-    console.log('DEBUG: Matched Indication-only block.');
-    return 'Indication changed';
-  }
-  console.log('DEBUG: Did NOT match Indication-only block.');
+  if (
+    drugNameMatchStrict && // Use the strict substance name match
+    doseTotalMatch &&     // Use total dose for comparison
+    doseUnitMatch &&
+    qtyMatch &&           // Check quantity
+    frequencyMatch &&
+    timeOfDayMatch &&
+    formMatch &&
+    formulationMatch &&   // Check formulation
+    routeMatch &&
+    prnMatch &&
+    startDateMatch &&     // Check start date
+    endDateMatch &&       // Check end date
+    indicationDiff        // And indication IS different (and was the only difference)
+  ) {
+    console.log('DEBUG: Matched Indication-only block (all other key fields identical).');
+    // If ONLY the indication is different and everything else critical matches,
+    // this specific block ensures 'Indication changed' is the primary (or only) reason.
+    changes = ['Indication changed']; 
+  } else { 
+    // This 'else' is for the if statement immediately above.
+    // It means it wasn't a strict "Indication-only" change according to these specific criteria.
+    // The broader change detection logic that ran before this block would have already added various changes.
+    console.log('DEBUG: Did NOT match strict Indication-only block; other changes might apply or already captured.');
+}
 
    // ——— 3) Time-of-day-only, but allow QOD→daily ———
 // THIS IS YOUR EXISTING DEFINITION - KEEP IT AS IS
@@ -2108,115 +2364,37 @@ const isQodToDaily =
   canon(orig.frequency) === 'every other day' &&
   canon(updated.frequency) === 'daily';
 
-// START OF ADDED LOGGING (goes *before* your existing if-statement for Block #3)
-console.log("--- DEBUGGING BLOCK #3 ---");
-console.log("Values feeding into Block #3 condition:");
-console.log("  Orig Parsed (relevant parts): freq='", orig.frequency, "', tod='", orig.timeOfDay, "', indic='", orig.indication, "'");
-console.log("  Updated Parsed (relevant parts): freq='", updated.frequency, "', tod='", updated.timeOfDay, "', indic='", updated.indication, "'");
-console.log("  !timeOfDayMatch:", !timeOfDayMatch);
-console.log("  drugNameMatch:", drugNameMatch);
-console.log("  doseValueMatch:", doseValueMatch);
-console.log("  doseUnitMatch:", doseUnitMatch);
-console.log("  frequencyMatch:", frequencyMatch);
-console.log("  isQodToDaily (from your definition above):", isQodToDaily); // Uses your existing isQodToDaily
-console.log("  (frequencyMatch || isQodToDaily):", (frequencyMatch || isQodToDaily));
-console.log("  formMatch:", formMatch);
-console.log("  routeMatch:", routeMatch);
-console.log("  prnMatch:", prnMatch);
-console.log("  Indication Match (norm(orig.indication) === norm(updated.indication)):", norm(orig.indication) === norm(updated.indication));
-// END OF ADDED LOGGING
 
 // THIS IS YOUR EXISTING IF STATEMENT FOR BLOCK #3:
 // Modify it by adding the console.log inside the if, and adding the else block.
 if (
   !timeOfDayMatch &&
-  drugNameMatch &&
-  doseValueMatch &&
-  doseUnitMatch &&
-  (frequencyMatch || isQodToDaily) && // This uses your existing isQodToDaily
-  formMatch &&
-  routeMatch &&
-  prnMatch &&
-  norm(orig.indication) === norm(updated.indication)
+  drugNameMatchStrict &&  // <-- CHANGE
+  doseTotalMatch &&     // <-- CHANGE (from doseValueMatch)
+  doseUnitMatch &&
+  qtyMatch &&           // <-- ADD
+  (frequencyMatch || isQodToDaily) &&
+  formMatch &&
+  formulationMatch &&   // <-- ADD
+  routeMatch &&
+  prnMatch &&
+  startDateMatch &&     // <-- ADD
+  endDateMatch &&       // <-- ADD
+  normalizeIndicationText(orig.indication) === normalizeIndicationText(updated.indication) // Indication IS THE SAME
 ) {
-  // ADD THIS LOG INSIDE THE EXISTING IF
-  console.log("--- BLOCK #3 CONDITION MET --- Returning 'Time of day changed'");
-  return 'Time of day changed'; // Your existing return statement
+  console.log("--- BLOCK #3 CONDITION MET --- Returning 'Time of day changed'");
+  changes = ['Time of day changed']; // Override other changes if this specific condition is met
+//  return 'Time of day changed'; // Old return
 }
 // ADD THIS ELSE BLOCK TO YOUR EXISTING IF
 else {
-  console.log("--- BLOCK #3 CONDITION FAILED --- Proceeding to build 'changes' array.");
+  console.log("--- BLOCK #3 CONDITION FAILED for explicit Time of Day return ---");
 }
 
 // REMOVE ANY DUPLICATE IF BLOCK FOR THIS LOGIC.
 // The code should now flow directly to the 'let changes = [];' part
 // if Block #3's condition was false.
 
-
-// 4) Brand ↔ Generic
-  {
-    const a = normalizeMedicationName(orig.drug);
-    const b = normalizeMedicationName(updated.drug);
-    if (a === b) {
-      const isA = brandToGenericMap[norm(orig.drug)];
-      const isB = brandToGenericMap[norm(updated.drug)];
-      if (Boolean(isA) !== Boolean(isB)) add('Brand/Generic changed');
-    }
-  }
-
-// ----- Dose / quantity differences -----
-const inhaled = o =>
-  /inhal|puff|neb|mdi|dpi/.test(norm(o.form)) || /inhal/.test(norm(o.route));
-
-const origDoseVal = typeof orig.dose?.value === 'number' ? orig.dose.value : -Infinity;
-const updDoseVal  = typeof updated.dose?.value === 'number' ? updated.dose.value : -Infinity;
-
-const origQty = orig.qty ?? 1;
-const updQty  = updated.qty ?? 1;
-
-/* ── 1) strength ( mg / mcg / mEq … ) changed ── */
-if (origDoseVal !== updDoseVal || orig.dose?.unit !== updated.dose?.unit) {
-  if (!(inhaled(orig) && inhaled(updated))) {    // keep your inhaler exemption
-    add('Dose changed');
-  }
-}
-
-/* ── 2) same strength, only #‑tablets / #‑puffs changed ── */
-else if (origQty !== updQty) {
-  add('Quantity changed');                       // << NEW LABEL
-}
-
-  // 6) Frequency
-  if (canon(orig.frequency) !== canon(updated.frequency)) {
-    // Avoid flagging "daily" vs "" as a frequency change if timeOfDay is used to imply daily
-    if (!( (canon(orig.frequency)==='daily' && updated.frequency === '') ||
-           (orig.frequency === '' && canon(updated.frequency)==='daily') )) {
-        add('Frequency changed');
-    }
-  }
-  // 7) Time-of-day (second pass) - only add if not already covered by exclusive ToD change
-  if (!timeOfDayMatch) { // norm(orig.timeOfDay) !== norm(updated.timeOfDay)
-    add('Time of day changed');
-  }
-
-/* ---------- 8) Form difference (revised) ---------- */
-const formA = norm(orig.form);
-const formB = norm(updated.form);
-
-// flag only if BOTH sides name a form *and* they’re different
-if (formA && formB && formA !== formB) {
-  add('Form changed');
-}
-
-
-  // 9) PRN
-  if (orig.prn !== updated.prn) {
-    add('PRN changed');
-  }
-  // 10) Indication (catch ANY remaining indication diff)
-  if (indicationDiff) { // norm(orig.indication) !== norm(updated.indication)
-    add('Indication changed');
-  }
 
   // collapse trivial TOD/freq double-hit
   if (changes.includes('Frequency changed') && changes.includes('Time of day changed') &&
@@ -2243,13 +2421,40 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
 }
 // --- End of New Rule ---
 
-  console.log('DEBUG: changes array before final fallback:', JSON.stringify(changes));
-  
-  console.log('DEBUG: Final changes array:', JSON.stringify(changes));
+  console.log('DEBUG: changes array before final formatting:', JSON.stringify(changes));
 
-  if (changes.length === 0) return 'Misc. Change'; // Or 'Unchanged'
+  // Consolidate: If "Brand/Generic changed" and "Formulation changed" are both present,
+  // and the formulation is part of the brand name (e.g. Metoprolol Tartrate vs Lopressor),
+  // "Brand/Generic changed" might be sufficient. This is complex, for now, list both if detected.
+
+  // If only "Date changed" or "End Date changed" but everything else is identical (substance, dose, freq etc.)
+  if (changes.length === 1 && (changes[0] === 'Date changed' || changes[0] === 'End Date changed') &&
+      drugNameMatchStrict && doseTotalMatch && doseUnitMatch && frequencyMatch && timeOfDayMatch &&
+      formMatch && formulationMatch && routeMatch && prnMatch && qtyMatch && !indicationDiff) {
+      // Keep as "Date changed" or "End Date changed"
+  } else if (changes.length === 0 && // No primary changes detected above
+             drugNameMatchStrict && doseTotalMatch && doseUnitMatch && frequencyMatch && timeOfDayMatch &&
+             formMatch && formulationMatch && routeMatch && prnMatch && qtyMatch && !indicationDiff &&
+             startDateMatch && endDateMatch) {
+      return 'Unchanged'; // All key aspects are the same
+  }
+
+
+  if (changes.length === 0) return 'Unchanged'; // Default to Unchanged if no specific diffs were added
   if (changes.length === 1) return changes[0];
-  return 'Multiple changes';
+  if (changes.length <= 3) { // List up to 3 specific changes
+      // Prioritize more significant changes if too many minor ones
+      const priorityOrder = ["Dose changed", "Frequency changed", "Formulation changed", "Brand/Generic changed", "Route changed", "PRN changed", "Indication changed", "Date changed", "End Date changed", "Quantity changed", "Form changed", "Time of day changed"];
+      changes.sort((a, b) => {
+          let idxA = priorityOrder.indexOf(a);
+          let idxB = priorityOrder.indexOf(b);
+          if (idxA === -1) idxA = priorityOrder.length; // put unknown at end
+          if (idxB === -1) idxB = priorityOrder.length;
+          return idxA - idxB;
+      });
+      return changes.slice(0, 3).join(', ');
+  }
+  return 'Multiple changes'; // For more than 3
 }
 
     function parseOrder(orderStr) {
@@ -2270,39 +2475,92 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
     administration: "",
     prn: false,
     startDate: "",
+    endDate: "",
     form: "",
+    formulation: "",
     indication: ""
   };
+// Store the initially cleaned drug string for later Brand/Generic comparison
+  const initialCleanedDrugString = orderStr;
 
-// 1) try “on MM/DD/YYYY”, 2) then any standalone MM/DD/YYYY
-let dateMatch = orderStr.match(/\bon\s+(\d{1,2}\/\d{1,2}\/\d{4})\b/);
-if (!dateMatch) {
-  dateMatch = orderStr.match(/\b(\d{1,2}\/\d{1,2}\/\d{4})\b/);
+// --- Enhanced Date Parsing ---
+let dateFoundAndRemoved = false;
+
+// Regex for "Start: MM/DD/YYYY", "Started: MM/DD/YYYY", "On: MM/DD/YYYY"
+const explicitStartDateRegex = /\b(?:start|started|on)\s*:\s*(\d{1,2}\/\d{1,2}\/(?:\d{2}|\d{4}))\b/i;
+let explicitStartDateMatch = orderStr.match(explicitStartDateRegex);
+if (explicitStartDateMatch) {
+    order.startDate = explicitStartDateMatch[1];
+    orderStr = orderStr.replace(explicitStartDateMatch[0], "").trim();
+    dateFoundAndRemoved = true;
+    // console.log(`DEBUG parseOrder (Explicit Start Date): startDate="<span class="math-inline">\{order\.startDate\}", orderStr\="</span>{orderStr}"`);
 }
-if (dateMatch) {
-  order.startDate = dateMatch[1];
-  orderStr = orderStr.replace(dateMatch[0], "").trim();
+
+// Regex for "End: MM/DD/YYYY", "Discontinue: MM/DD/YYYY", etc.
+const explicitEndDateRegex = /\b(?:end|ended|stop|stopped|dc|d\/c|discontinue(?:d)?)\s*:\s*(\d{1,2}\/\d{1,2}\/(?:\d{2}|\d{4}))\b/i;
+let explicitEndDateMatch = orderStr.match(explicitEndDateRegex);
+if (explicitEndDateMatch) {
+    order.endDate = explicitEndDateMatch[1];
+    orderStr = orderStr.replace(explicitEndDateMatch[0], "").trim();
+    // console.log(`DEBUG parseOrder (Explicit End Date): endDate="<span class="math-inline">\{order\.endDate\}", orderStr\="</span>{orderStr}"`);
 }
+
+// Fallback: Look for standalone MM/DD/YYYY or MM/DD/YY dates if not already captured
+// Try to capture them as start dates if no end date was found yet, or if they appear before an end date.
+// This is tricky to avoid misinterpreting dates within drug names or strengths if not careful.
+// We'll assume dates appearing generally are start dates if no "End:" prefix was near them.
+if (!dateFoundAndRemoved) { // Only if an explicit "Start: date" wasn't found
+    // Regex to find a date pattern that is NOT immediately preceded by an end-date keyword
+    const genericDateRegex = /(?<!\b(?:end|ended|stop|stopped|dc|d\/c|discontinue(?:d)?)\s*:\s*)(\b\d{1,2}\/\d{1,2}\/(?:\d{2}|\d{4})\b)/i;
+    let genericDateMatch = orderStr.match(genericDateRegex);
+    if (genericDateMatch && genericDateMatch[1]) {
+        // To be safer, only take this as a start date if no end date is also present in the close vicinity AFTER it
+        const potentialEndDateNearby = /\b(?:end|ended|stop|stopped|dc|d\/c|discontinue(?:d)?)\s*:\s*\d{1,2}\/\d{1,2}\/(?:\d{2}|\d{4})\b/i.test(orderStr.substring(genericDateMatch.index));
+        if (!potentialEndDateNearby || !order.endDate) { // If no end date is set OR no end date is found after this generic date
+            order.startDate = genericDateMatch[1];
+            orderStr = orderStr.replace(genericDateMatch[0], "").trim(); // Replace the found generic date
+            // console.log(`DEBUG parseOrder (Generic Start Date): startDate="<span class="math-inline">\{order\.startDate\}", orderStr\="</span>{orderStr}"`);
+        }
+    }
+}
+// --- End of Enhanced Date Parsing ---
+
+const endDateRegex = /\b(?:end|ended|stop|stopped|dc|d\/c|discontinue(?:d)?):\s*(\d{1,2}\/\d{1,2}\/\d{4})\b/i;
+let endDateMatchResult = orderStr.match(endDateRegex);
+if (endDateMatchResult) {
+    order.endDate = endDateMatchResult[1];
+    orderStr = orderStr.replace(endDateMatchResult[0], "").trim(); // Remove "End: MM/DD/YYYY"
+}
+// END OF REPLACEMENT FOR DATE PARSING (Fix 3.1.2)
 
   // 1. Extract Time-of-Day and common morning/evening/night shorthands
 //    Also sets frequency if implied by the shorthand (e.g., qam is daily)
 const timeOfDayMappings = [
+  // --- NEW: Prioritize "every other X" and specific daily patterns before general ones ---
+  { regex: /\bevery\s+other\s+morning\b/i, timeOfDay: 'morning', frequency: 'every other day', originalTermRegexPos: 0 },
+  { regex: /\bevery\s+other\s+evening\b/i, timeOfDay: 'evening', frequency: 'every other day', originalTermRegexPos: 0 },
+  { regex: /\bevery\s+other\s+night\b/i, timeOfDay: 'bedtime', frequency: 'every other day', originalTermRegexPos: 0 },
+
   { regex: /\bdaily\s+in\s+(the\s+)?morning\b/i, timeOfDay: 'morning', frequency: 'daily', originalTermRegexPos: 0 },
   { regex: /\bqam\b/i, timeOfDay: 'morning', frequency: 'daily', originalTerm: 'qam' },
-  { regex: /\bevery\s+morning\b/i, timeOfDay: 'morning', frequency: 'daily', originalTermRegexPos: 0 }, // MOVED UP
-  { regex: /\b(in\s+the\s+)?morning\b/i, timeOfDay: 'morning', originalTermRegexPos: 0 },                 // NOW AFTER "every morning"
+  { regex: /\bevery\s+morning\b/i, timeOfDay: 'morning', frequency: 'daily', originalTermRegexPos: 0 },
+  // General "morning" - its frequency will be defaulted to 'daily' later if not set by a more specific rule above
+  { regex: /\b(in\s+the\s+)?morning\b/i, timeOfDay: 'morning', originalTermRegexPos: 0 },
 
   { regex: /\bqpm\b/i, timeOfDay: 'evening', frequency: 'daily', originalTerm: 'qpm' },
-  { regex: /\bevery\s+evening\b/i, timeOfDay: 'evening', frequency: 'daily', originalTermRegexPos: 0 }, // MOVED UP
-  { regex: /\b(in\s+the\s+)?evening\b/i, timeOfDay: 'evening', originalTermRegexPos: 0 },                 // NOW AFTER "every evening"
+  { regex: /\bevery\s+evening\b/i, timeOfDay: 'evening', frequency: 'daily', originalTermRegexPos: 0 },
+  // General "evening" - its frequency will be defaulted to 'daily' later
+  { regex: /\b(in\s+the\s+)?evening\b/i, timeOfDay: 'evening', originalTermRegexPos: 0 },
 
   { regex: /\bqhs\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTerm: 'qhs' },
-     { regex: /\bhs\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTerm: 'hs' },
-  { regex: /\bnightly\b/i,   timeOfDay: 'bedtime', frequency: 'daily', originalTerm: 'nightly' },
-  { regex: /\bevery\s+night\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTermRegexPos: 0 },    // MOVED UP
-  { regex: /\b(at\s+)?bedtime\b/i, timeOfDay: 'bedtime', originalTermRegexPos: 0 },                       // Stays
-  { regex: /\bat\s+night\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTermRegexPos: 0 },
-  { regex: /\bnight\b/i, timeOfDay: 'bedtime', originalTermRegexPos: 0 }                                  // Stays, general "night" last for bedtime
+  { regex: /\bhs\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTerm: 'hs' },
+  { regex: /\bnightly\b/i,  timeOfDay: 'bedtime', frequency: 'daily', originalTerm: 'nightly' },
+  { regex: /\bevery\s+night\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTermRegexPos: 0 },
+  { regex: /\bat\s+night\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTermRegexPos: 0 }, // Specific "at night"
+  // General "bedtime" - its frequency will be defaulted to 'daily' later
+  { regex: /\b(at\s+)?bedtime\b/i, timeOfDay: 'bedtime', originalTermRegexPos: 0 },
+  // General "night" as a fallback for bedtime - its frequency will be defaulted to 'daily' later
+  { regex: /\bnight\b/i, timeOfDay: 'bedtime', originalTermRegexPos: 0 }
 ];
 
 let todProcessed = false;
@@ -2370,6 +2628,73 @@ orderStr = orderStr
     // console.log(`DEBUG parseOrder Step 2 (Admin): order.administration="${order.administration}", orderStr="${orderStr}"`);
   }
 
+// In parseOrder, START of new formulation parsing block (replaces old one)
+const formulationKeywords = [
+    'modified release', 'delayed release', 'extended release', 'controlled release', // Multi-word first
+    'xr', 'er', 'sr', 'la', 'xl', 'cr', 'dr',
+    'succinate', 'tartrate', 'maleate', 'fumarate', 'besylate', 'camsylate', 'mesylate',
+    'acetate', 'phosphate', 'carbonate', 'gluconate',
+    'hcl', 'hydrochloride'
+].sort((a, b) => b.length - a.length); // Sort by length, longest first is crucial
+
+let processedOrderStrForFormulation = orderStr; // Work on a copy
+const foundFormulations = [];
+
+for (const keyword of formulationKeywords) {
+    const keywordRegex = new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+    let match;
+    // Find all matches of the current keyword
+    const matches = Array.from(processedOrderStrForFormulation.matchAll(keywordRegex));
+
+    for (const currentMatch of matches.reverse()) { // Process matches from right to left to handle indices correctly
+        const drugNameIfKeywordRemoved = (
+            processedOrderStrForFormulation.substring(0, currentMatch.index) +
+            processedOrderStrForFormulation.substring(currentMatch.index + currentMatch[0].length)
+        ).trim().toLowerCase();
+
+        let isSafeToExtract = true;
+        if (drugNameIfKeywordRemoved.length < 2 && !/\d/.test(drugNameIfKeywordRemoved)) {
+             // Avoid extracting if it leaves almost nothing sensible or just numbers
+             isSafeToExtract = false;
+        }
+        // Further check: if the keyword itself is a common drug (e.g. "phosphate" as in "sodium phosphate")
+        // and removing it leaves something that doesn't look like another drug, it might be part of the core name.
+        // This is tricky; a good keyword list is key.
+        // For example, we don't want to extract "phosphate" from "sodium phosphate" if "sodium" alone isn't the intended drug.
+        // The current formulationKeywords list is mostly suffixes or release types, which is safer.
+
+        if (isSafeToExtract) {
+            foundFormulations.push({ text: currentMatch[0].toLowerCase(), index: currentMatch.index });
+            // Temporarily replace to avoid re-matching parts of already found longer formulations by shorter ones
+            processedOrderStrForFormulation =
+                processedOrderStrForFormulation.substring(0, currentMatch.index) +
+                " ".repeat(currentMatch[0].length) + // Replace with spaces to keep indices for other keywords
+                processedOrderStrForFormulation.substring(currentMatch.index + currentMatch[0].length);
+        }
+    }
+}
+
+if (foundFormulations.length > 0) {
+    // Sort found formulations by their original index to maintain order
+    foundFormulations.sort((a, b) => a.index - b.index);
+    order.formulation = foundFormulations.map(f => f.text).join(" ").trim();
+
+    // Now, actually remove the extracted formulations from the original orderStr
+    // Rebuild orderStr by removing all extracted formulation parts
+    let tempStr = orderStr;
+    for (const formulationPart of order.formulation.split(' ')) {
+        if (formulationPart) { // Ensure part is not empty
+             // Use a regex that matches the whole word formulation part
+             const partRegex = new RegExp(`\\b${formulationPart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+             tempStr = tempStr.replace(partRegex, '');
+        }
+    }
+    orderStr = tempStr.replace(/\s\s+/g, ' ').trim();
+}
+orderStr = orderStr.trim();
+// console.log(`DEBUG parseOrder (Formulation): formulation="<span class="math-inline">\{order\.formulation\}", orderStr\="</span>{orderStr}"`);
+// END of new formulation parsing block
+
     // 3. Extract PRN  ── now catches “as needed”
   const prnRegex = /\b(?:prn|as\s+needed)\b/i;
   if (prnRegex.test(orderStr)) {
@@ -2421,6 +2746,25 @@ orderStr = orderStr
 
   // console.log(`DEBUG parseOrder: After indication attempts: orderStr="${orderStr}", indication="${order.indication}"`);
 
+
+// Extract Quantity (e.g., "2 tabs") before dose, as it might be part of the dose string // <-- START ADDING THIS BLOCK
+const qtyWords = ['tabs', 'tab', 'tablets', 'caps', 'capsules', 'caplets', 'puffs', 'sprays', 'drops', 'lozenges', 'patches'];
+// Regex to match "take/give/administer X units" or just "X units"
+const qtyRegexEarly = new RegExp(`(?:\\b(?:take|give|administer|inhale|inject|apply|use)\\s+)?(\\d+(?:\\.\\d+)?)\\s*(${qtyWords.join('|')})(?:s)?\\b`, 'i');
+const qtyMatchEarly = orderStr.match(qtyRegexEarly);
+if (qtyMatchEarly) {
+    order.qty = parseFloat(qtyMatchEarly[1]); // Group 1 is the number
+    const matchedQtyWord = qtyMatchEarly[2].toLowerCase(); // Group 2 is the unit word
+
+    // If the matched word is a form, set order.form if not already set by a more specific term
+    if ((['tablet', 'tab', 'tablets'].includes(matchedQtyWord)) && !order.form) order.form = 'tablet';
+    else if ((['capsule', 'caps', 'caplet', 'capsules'].includes(matchedQtyWord)) && !order.form) order.form = 'capsule';
+    else if ((['puff', 'puffs'].includes(matchedQtyWord)) && !order.form) order.form = 'puff';
+    // ... add other form types if needed
+
+    orderStr = orderStr.replace(qtyMatchEarly[0], '').trim();
+}
+
   // 5. Extract Dose (mg/kg, combo-dose, then general unit parsing)
   const weightMatch = orderStr.match(/(\d+(?:\.\d+)?)\s*mg\/kg\b/i);
   if (weightMatch) {
@@ -2471,6 +2815,10 @@ if (unitMatchesFound.length > 0) {
   orderStr = orderStr.replace(bestMatch.matchStr, '').trim();
   // …and drop any leftover verb that preceded the dose phrase
   orderStr = orderStr.replace(/\b(?:give|take|administer)\b\s*/i, '').trim();
+// If the best dose unit implies a form, set it if not already set // <-- START ADDING THIS BLOCK
+  if (bestMatch.stdUnit === 'tablet' && !order.form) order.form = 'tablet';
+  else if (bestMatch.stdUnit === 'capsule' && !order.form) order.form = 'capsule';
+  else if (bestMatch.stdUnit === 'puff' && !order.form) order.form = 'puff';
 }
 // Fallback if unitMatchesLoop didn't set a dose value but a number is present
 
@@ -2526,12 +2874,47 @@ if (unitMatchesFound.length > 0) {
   }
   // console.log(`DEBUG parseOrder: After dose normalization: dose=${JSON.stringify(order.dose)}, orderStr="${orderStr}"`);
 
-  /* -------- capture count per dose (e.g. “give 2 tablets”) -------- */
-  if (order.qty === null) {
-    const q = originalRaw.match(/\b(?:give|take|administer)\s+(\d+(?:\.\d+)?)\s*(?:tab|tabs?|tablet|tablets|cap|caps?|capsule|capsules)\b/i);
-    if (q) order.qty = parseFloat(q[1]);
-  }
-  /* ---------------------------------------------------------------- */
+  // Calculate total dose if qty is present // <-- START REPLACEMENT BLOCK
+if (order.qty === null) { // If qty not parsed by qtyRegexEarly
+    // Try to find qty from originalRaw if it wasn't stripped with dose/form, e.g. "Drug 50mg 2 tablets"
+    const qtyLatePattern = new RegExp(`(?:^|\\s)(\\d+(?:\\.\\d+)?)\\s*(${qtyWords.join('|')})(?:s)?\\b`, 'i');
+    const qtyMatchLate = originalRaw.match(qtyLatePattern);
+    if (qtyMatchLate) {
+        // Check if this qty is not the same as dose.value to avoid double capture if unit was like 'tablet'
+        const potentialQty = parseFloat(qtyMatchLate[1]);
+        if (!order.dose.value || Math.abs(order.dose.value - potentialQty) > 0.001 || order.dose.unit !== qtyMatchLate[2].toLowerCase().replace(/s$/,'') ) {
+             if (orderStr.includes(qtyMatchLate[0])) { // If it's still in orderStr, remove it
+                 orderStr = orderStr.replace(qtyMatchLate[0], '').trim();
+             }
+             order.qty = potentialQty;
+        }
+    }
+}
+
+if (order.dose.value !== null && typeof order.dose.value === 'number' && order.qty !== null && typeof order.qty === 'number') {
+    order.dose.total = order.dose.value * order.qty;
+} else if (order.dose.value !== null) {
+    order.dose.total = order.dose.value; // Default total to value if qty is not applicable/found
+}
+
+
+// If dose unit itself is 'tablet' or 'capsule' and value is set, this implies qty if qty is still null
+if (order.qty === null && (order.dose.unit === 'tablet' || order.dose.unit === 'capsule' || order.dose.unit === 'puff')) {
+    if (order.dose.value && order.dose.value > 0) { // ensure value is a positive number
+        order.qty = order.dose.value;
+        if (order.dose.total === null) { // if total wasn't set by previous block
+             order.dose.total = order.dose.value * order.qty; // This would be qty*qty, should be value is strength
+        }
+        // If the drug name itself likely contains the strength, this logic is fine.
+        // Example: "Drug 50mg 1 tablet" -> dose.value=1, dose.unit=tablet, qty=1. Total=1.
+        // Example: "Drug 2 puffs" -> dose.value=2, dose.unit=puff, qty=2. Total=4 (if value isn't # of puffs).
+        // This needs care: if dose.value was *already* the count of units, then total is just value.
+        // Let's assume if unit is tablet/capsule/puff, dose.value IS the count for that unit.
+        if (order.dose.unit === 'tablet' || order.dose.unit === 'capsule' || order.dose.unit === 'puff') {
+             order.dose.total = order.dose.value; // The "value" is the number of these items
+        }
+    }
+}
 
 // 6. Extract Form (if not already identified by dose parsing)
 if (!order.form) {
@@ -2655,7 +3038,7 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
         } else {
           const freqMapping = { /* ... your existing map ... */
               "once daily": "daily", "once a day": "daily", "1 times daily": "daily", "daily": "daily", "od": "daily", "qd": "daily",
-              "twice daily": "twice daily", "2 times daily": "twice daily", "bid": "twice daily",
+              "twice daily": "twice daily", "2 times daily": "twice daily", "bid": "twice daily", "twice a day": "twice daily",
               "three times daily": "three times daily", "3 times daily": "three times daily", "tid": "three times daily",
               "four times daily": "four times daily", "4 times daily": "four times daily", "qid": "four times daily",
               "every other day": "every other day", "qod": "every other day",
@@ -2683,99 +3066,168 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
   }
   // console.log(`DEBUG parseOrder Step 8 (Frequency): order.frequency="${order.frequency}", orderStr="${orderStr}"`);
 
-// --- START OF MODIFIED STEP 9 ---
+// --- // --- START OF REVISED AND ENHANCED STEP 9 ---
 // 9. Final Drug Name and Indication Assignment from remaining orderStr
 
 orderStr = orderStr.trim();
-// One last aggressive cleanup of leading non-alphanumeric characters or isolated numbers/units from orderStr
-orderStr = orderStr.replace(/^[^a-zA-Z0-9]+/, '').trim();
-orderStr = orderStr.replace(/^(\d+(?:\.\d+)?\s*([a-zA-Zμ]+([eE][qQ])?)s?)\s*(?=[a-zA-Z]|$)/i, '').trim();
+// Add a console log to see what orderStr looks like before this final step
+// console.log(`DEBUG parseOrder Step 9 - Initial orderStr for drug/indication: "${orderStr}"`);
 
-// Tentatively assign remaining string based on what's already parsed
-if (!order.drug && orderStr.length > 0) {
-    order.drug = orderStr; // Temporarily assign full remainder to drug
-} else if (order.drug && orderStr.length > 0 && !order.indication) {
-    // If drug was already set (e.g., by a specific rule earlier)
-    // and indication is empty, the remainder is indication.
-    order.indication = orderStr;
+// Aggressively try to remove known non-drug components that might still be attached
+// This is a safety net; ideally, earlier parsing steps should have removed these.
+
+// Remove fully parsed dates again if they were missed (using the populated order.startDate/endDate)
+if (order.startDate) {
+    const sdPattern = new RegExp(`\\b(?:start|started|on)\\s*:\\s*${order.startDate.replace(/\//g, '\\/').replace(/\./g, '\\.')}\\b`, 'gi');
+    orderStr = orderStr.replace(sdPattern, '').trim();
+    orderStr = orderStr.replace(new RegExp(`\\b${order.startDate.replace(/\//g, '\\/').replace(/\./g, '\\.')}\\b`, 'gi'), '').trim(); // Remove standalone date too
 }
-// Note: orderStr is not cleared here, as its content is now in order.drug or order.indication
+if (order.endDate) {
+    const edPattern = new RegExp(`\\b(?:end|ended|stop|stopped|dc|d\\/c|discontinue(?:d)?)\\s*:\\s*${order.endDate.replace(/\//g, '\\/').replace(/\./g, '\\.')}\\b`, 'gi');
+    orderStr = orderStr.replace(edPattern, '').trim();
+    orderStr = orderStr.replace(new RegExp(`\\b${order.endDate.replace(/\//g, '\\/').replace(/\./g, '\\.')}\\b`, 'gi'), '').trim();
+}
+// Remove generic date patterns again
+orderStr = orderStr.replace(/\b\d{1,2}\/\d{1,2}\/(?:\d{2}|\d{4})\b/g, '').trim();
 
-// Attempt to extract trailing indication from order.drug if indication is still empty
-if (order.drug && !order.indication) {
-    let currentDrugString = order.drug; // Work with a copy
+// Remove common instruction prefixes/suffixes if they are still glued
+const instructionWords = ['take', 'give', 'inhale', 'inject', 'apply', 'use', 'place', 'administer', 'chew', 'dissolve', 'spray', 'sprinkle', 'one', 'two', 'three', 'tablet', 'capsule', 'cap', 'tab', 'pill'];
+instructionWords.forEach(word => {
+    orderStr = orderStr.replace(new RegExp(`^${word}\\s+`, 'i'), '').trim();
+    orderStr = orderStr.replace(new RegExp(`\\s+${word}$`, 'i'), '').trim();
+});
 
-    for (const indPattern of commonIndicationsPatterns) { // Use the global constant
-        const match = currentDrugString.match(indPattern.pattern);
-        if (match && match[0]) {
-            // Check if the match is at the end of the currentDrugString
-            if (currentDrugString.endsWith(match[0])) {
-                const potentialIndication = match[0].trim();
-                const potentialDrugName = currentDrugString.substring(0, currentDrugString.length - potentialIndication.length).trim();
+// Remove common route/frequency/formulation remnants if they are at the very end or beginning
+const trailingRemnants = ['po', 'by mouth', 'oral', 'sublingual', 'sl', 'iv', 'im', 'sc', 'subq', 'topical', 'daily', 'bid', 'tid', 'qid', 'qhs', 'prn', 'er', 'xr', 'sr', 'dr', 'odt', 'solution', 'suspension', 'ointment', 'cream', 'gel', 'patch', 'inhaler', 'for', 'with', 'at', 'and', 'as needed', 'if needed', 'in morning', 'in evening', 'at bedtime', 'unit', 'units', 'mcg', 'mg', 'ml', 'meq', 'iu'];
+trailingRemnants.forEach(remnant => {
+    // Regex to match whole word at start or end, mindful of multi-word remnants
+    const remnantPatternStart = new RegExp(`^${remnant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s+|\\b|$)`, 'i');
+    const remnantPatternEnd = new RegExp(`(\\s+|\\b|^)${remnant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    orderStr = orderStr.replace(remnantPatternStart, '').trim();
+    orderStr = orderStr.replace(remnantPatternEnd, '').trim();
+});
 
-                if (potentialDrugName.length > 0 && potentialDrugName.toLowerCase() !== potentialIndication.toLowerCase()) {
-                    // Avoid consuming the entire drug name if it's identical to the indication
-                    // or if indication itself might be a common drug name part (this is tricky)
+orderStr = orderStr.replace(/[.,;]$/, '').trim(); // Remove trailing punctuation
+orderStr = orderStr.replace(/^[.,;]/, '').trim();  // Remove leading punctuation
+orderStr = orderStr.replace(/\s\s+/g, ' ').trim(); // Collapse multiple spaces
 
-                    // Check if the potential indication is not just a part of a known multi-word drug name
-                    // This is a simple check; more sophisticated NLP would be needed for high accuracy
-                    let isSafeToExtract = true;
-                    if (potentialDrugName.split(/\s+/).length < 1 && commonMedications.some(med => med.generic.includes(potentialIndication.toLowerCase()))) {
-                        // Avoid extracting if remaining drug is too short and indication is part of a known generic
-                        isSafeToExtract = false;
+// console.log(`DEBUG parseOrder Step 9 - orderStr after targeted cleanup: "${orderStr}"`);
+
+let finalDrugName = "";
+let finalIndication = "";
+
+if (orderStr.length > 0) {
+    // Attempt to identify known medication names (longest first) from the beginning of orderStr
+    let knownMedNamesForExtraction = [];
+    commonMedications.forEach(m => {
+        knownMedNamesForExtraction.push(m.generic.toLowerCase());
+        m.brands.forEach(b => knownMedNamesForExtraction.push(b.toLowerCase()));
+    });
+    criticalMeds.forEach(cm => { // Add critical meds as they are important to identify correctly
+        if (!knownMedNamesForExtraction.includes(cm)) {
+            knownMedNamesForExtraction.push(cm);
+        }
+    });
+    knownMedNamesForExtraction = [...new Set(knownMedNamesForExtraction)].sort((a, b) => b.length - a.length);
+
+    let matchedKnownName = "";
+    for (const knownName of knownMedNamesForExtraction) {
+        if (orderStr.toLowerCase().startsWith(knownName)) {
+            // Check if the match is a whole word or followed by typical drug name extenders (XR, ER, HCTZ, numbers for strength)
+            const afterMatch = orderStr.substring(knownName.length).trim();
+            const nextWord = afterMatch.split(' ')[0].toLowerCase();
+            const knownSuffixes = ['xr', 'er', 'sr', 'hcl', 'sodium', 'potassium', 'maleate', 'tartrate', 'succinate', 'acetate', 'phosphate', 'carbonate', 'hydrochloride', 'hctz', 'plus', 'dm', 'pm', 'forte'];
+            
+            if (afterMatch === "" || !/^[a-zA-Z]/.test(afterMatch) || knownSuffixes.includes(nextWord) || /^\d/.test(nextWord) || /^\//.test(afterMatch) || /^-/.test(afterMatch)) {
+                 // It's likely the end of the drug name or followed by a strength/formulation
+                let tempDrugName = orderStr.substring(0, knownName.length);
+                let tempRemainder = afterMatch;
+
+                // Try to grab common extenders like XR, numbers, or combo parts
+                if (tempRemainder) {
+                    const comboPartRegex = /^\s*([\/\-]\s*[a-zA-Z0-9\s.]+|(?:xr|er|sr|dr|hctz|hcl|sodium|potassium|\d+(\.\d+)?(?:mg|mcg|g|units)?)(?:\s+|$))/i;
+                    const comboMatch = tempRemainder.match(comboPartRegex);
+                    if (comboMatch && comboMatch[0]) {
+                        tempDrugName += comboMatch[0];
+                        tempRemainder = tempRemainder.substring(comboMatch[0].length).trim();
                     }
+                }
+                matchedKnownName = tempDrugName.trim();
+                finalIndication = tempRemainder; // What's left is likely indication/noise
+                break;
+            }
+        }
+    }
 
-                    if (isSafeToExtract) {
-                        order.indication = indPattern.indication; // Use standardized indication
-                        order.drug = potentialDrugName;
-                        currentDrugString = potentialDrugName; // Update for next iteration if needed, though usually break
-                        // console.log(`DEBUG parseOrder Step 9: Extracted indication "<span class="math-inline">\{order\.indication\}" from drug, remaining drug\: "</span>{order.drug}"`);
-                        break; // Found an indication, assume one primary trailing indication
-                    }
+    if (matchedKnownName) {
+        finalDrugName = matchedKnownName;
+    } else {
+        // Fallback: if no known drug name matches, take first 1-3 words as drug.
+        // This is a heuristic and might be wrong for new/uncommon drugs.
+        const words = orderStr.split(/\s+/);
+        if (words.length > 0) {
+            if (words.length <= 2) {
+                finalDrugName = words.join(" ");
+            } else { // If more than 2 words, take first 2 if they seem like a drug, else first 1.
+                const firstTwo = words[0] + " " + words[1];
+                // Simple check: if first two words are not just numbers or very short common words
+                if (!/^\d+$/.test(words[0]) && !/^\d+$/.test(words[1]) && (words[0].length > 2 || words[1].length > 2) ) {
+                    finalDrugName = firstTwo;
+                    finalIndication = words.slice(2).join(" ");
+                } else {
+                    finalDrugName = words[0];
+                    finalIndication = words.slice(1).join(" ");
                 }
             }
         }
     }
 }
 
-// Cleanup and standardize drug name
-if (order.drug) {
-    let drugName = order.drug;
-    // Attempt to remove common, very generic trailing words that are not part of the core drug name
-    const genericTrailingWords = /\s+(tablet|capsule|solution|suspension|injection|ointment|cream|syrup|elixir|powder|inhale[rd]?|spray|oral|for oral use|for use|extended release|delayed release|modified release|er|xr|sr|dr|chewable|effervescent)$/i;
-    drugName = drugName.replace(genericTrailingWords, '').trim();
-    drugName = drugName.replace(genericTrailingWords, '').trim(); // Apply twice for patterns like "extended release tablet"
+// Assign to order object
+order.drug = finalDrugName.replace(/[^a-zA-Z0-9\/\s\-\.#]+/g, ' ') // Allow # for Tylenol #3
+                         .replace(/\s\s+/g, ' ')
+                         .trim()
+                         .toLowerCase();
 
-    order.drug = drugName
-        .replace(/[^a-zA-Z0-9\/\s-]+/g, ' ') // Allow alphanumeric, slash, hyphen, space
-        .replace(/\s\s+/g, ' ')              // Collapse multiple spaces
-        .trim()
-        .toLowerCase();                      // Ensure drug name is lowercase
-} else {
-    order.drug = ""; // Default to empty string if no drug found
-}
-
-// Cleanup and standardize indication
-if (order.indication) {
-    order.indication = order.indication
-        .replace(/\s\s+/g, ' ')
-        .trim()
-        .toLowerCase();
-
-    // Clear indication if it looks like a dose strength that was misparsed (safeguard)
-    const looksLikeOnlyDoseStrength = /^(\d+(\.\d+)?(\/\d+(\.\d+)?)?\s*([a-zA-Zμ]+([eE][qQ])?)s?)$/i;
-    if (looksLikeOnlyDoseStrength.test(order.indication)) {
-        // console.log(`DEBUG parseOrder: Clearing indication that is just a dose strength: "<span class="math-inline">\{order\.indication\}" for drug "</span>{order.drug}"`);
+if (!order.indication && finalIndication) { // Only set indication if it's not already set and we have something
+    order.indication = finalIndication.replace(/[^a-zA-Z0-9\s\/.,-]+/g, ' ') // Allow more chars for indication
+                                 .replace(/\s\s+/g, ' ')
+                                 .trim()
+                                 .toLowerCase();
+    order.indication = order.indication.replace(/^for\s+/i, '').trim(); // remove leading "for"
+    // Remove very generic remnants from indication if they are the whole indication
+    const genericRemnantsForIndication = /^(tablet|tab|capsule|cap|po|oral|daily|bid|tid|qid|qhs|prn|er|xr|sr|dr|odt|mg|mcg|ml|unit)$/i;
+    if (genericRemnantsForIndication.test(order.indication) && order.indication.split(' ').length <=2) {
+        // console.log(`DEBUG parseOrder Step 9: Clearing indication that looks like leftover generic term: "${order.indication}"`);
         order.indication = "";
     }
-    const veryGenericIndicationRemnants = /^(po|sc|iv|im|sl|subq|tablet|cap|unit|puff|gtt|mg|mcg|ml|cc|daily|bid|tid|qid|qhs|prn|stat)$/i;
-    if (veryGenericIndicationRemnants.test(order.indication) && order.indication.split(' ').length <= 2) {
-        order.indication = "";
-    }
-} else {
-    order.indication = ""; // Default to empty string
 }
-// --- END OF MODIFIED STEP 9 ---
+
+// If order.drug ended up empty from the above, try a last resort from initialCleanedDrugString
+if (!order.drug && initialCleanedDrugString) {
+    let fallbackDrug = initialCleanedDrugString;
+    // Remove known non-drug parts from this fallback too
+    if (order.startDate) fallbackDrug = fallbackDrug.replace(new RegExp(`\\b(?:start|started|on)\\s*:\\s*${order.startDate.replace(/\//g, '\\/').replace(/\./g, '\\.')}\\b`, 'gi'), '').trim();
+    if (order.endDate) fallbackDrug = fallbackDrug.replace(new RegExp(`\\b(?:end|ended|stop|stopped|dc|d\\/c|discontinue(?:d)?)\\s*:\\s*${order.endDate.replace(/\//g, '\\/').replace(/\./g, '\\.')}\\b`, 'gi'), '').trim();
+    fallbackDrug = fallbackDrug.replace(/\b\d{1,2}\/\d{1,2}\/(?:\d{2}|\d{4})\b/g, '').trim();
+    // Take first 1-2 words as a very basic fallback
+    order.drug = fallbackDrug.split(/\s+/).slice(0, 2).join(' ').replace(/[^a-zA-Z0-9\/\s\-\.#]+/g, ' ').replace(/\s\s+/g, ' ').trim().toLowerCase();
+    // console.log(`DEBUG parseOrder Step 9 - Fallback to initial string for drug name: "${order.drug}"`);
+}
+// console.log(`DEBUG parseOrder Step 9 - Final drug: "${order.drug}", Final indication: "${order.indication}"`);
+
+// Ensure drug field isn't empty if orderStr had content originally and nothing else was parsed // <-- START ADDING THIS
+if (!order.drug && initialCleanedDrugString &&
+    !order.startDate && !order.endDate &&
+    !order.timeOfDay && !order.frequency &&
+    !order.indication && !order.form && !order.formulation &&
+    !order.route && !order.dose.value && !order.qty &&
+    initialCleanedDrugString.trim().length > 0
+) {
+    // If orderStr contained something but nothing specific was parsed from it,
+    // it's likely the drug name itself.
+    order.drug = initialCleanedDrugString.trim().toLowerCase();
+}
 
   // console.log('FINAL DEBUG Parsed order:', { /* input: originalInputToParseOrder, */ parsed: order });
   return order;
@@ -2832,31 +3284,35 @@ function findContraIndications(allOrders) {
 }
 
     function ordersAreEqual(a, b) {
+	const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
   // — NEW: orders with different startDates should _not_ be treated as equal
   if ((a.startDate || "") !== (b.startDate || "")) {
     return false;
   }
-  // 1) drug name
-  const normA = normalizeMedicationName(a.drug);
-  const normB = normalizeMedicationName(b.drug);
-  const drugSimilarity = normA && normB
-    ? similarity(normA, normB)
-    : (normA === normB ? 1 : 0);
-  if (drugSimilarity < 0.85) return false;
 
-  // 2) dose (including combos)
-  if (Array.isArray(a.dose.value) || Array.isArray(b.dose.value)) {
-    if (!Array.isArray(a.dose.value) || !Array.isArray(b.dose.value)) return false;
-    if (a.dose.value.length !== b.dose.value.length) return false;
-    for (let i = 0; i < a.dose.value.length; i++) {
-      if (a.dose.value[i] !== b.dose.value[i]) return false;
-    }
-    if (a.dose.unit !== b.dose.unit) return false;
-  } else {
-    const totalA = (a.dose.total != null ? a.dose.total : a.dose.value);
-    const totalB = (b.dose.total != null ? b.dose.total : b.dose.value);
-    if (totalA !== totalB || a.dose.unit !== b.dose.unit) return false;
+// Compare endDates (Fix 3.2)
+  if ((a.endDate || "") !== (b.endDate || "")) {
+    return false;
   }
+
+  // 1) drug name and formulation
+  const normDrugA = normalizeMedicationName(a.drug); // Substance name
+  const normDrugB = normalizeMedicationName(b.drug); // Substance name
+  const formulationA = norm(a.formulation);
+  const formulationB = norm(b.formulation);
+
+  // For two orders to be considered "equal" for the "Unchanged" category,
+  // their substance name AND formulation should ideally match strictly.
+  if (normDrugA !== normDrugB) return false;
+  if (formulationA !== formulationB) return false;
+
+  // 2) dose, total dose, and quantity
+  const totalA = (a.dose.total != null ? a.dose.total : a.dose.value); // Prioritize total
+  const totalB = (b.dose.total != null ? b.dose.total : b.dose.value); // Prioritize total
+
+  if (totalA !== totalB || a.dose.unit !== b.dose.unit) return false;
+  // If total dose and unit are same, also ensure quantity per administration is the same for strict equality
+  if ((a.qty ?? 1) !== (b.qty ?? 1)) return false; // Default qty to 1 if null
 
   // 3) route
   if (a.route !== b.route) return false;
@@ -2903,8 +3359,8 @@ const normalizeTOD = t => {
   if (a.prn !== b.prn) return false;
 
 
-// ——— ENSURE PAIN INDICATION MATCHES ———
-if ((a.indication || b.indication) && a.indication !== b.indication) {
+// ——— ENSURE PAIN INDICATION MATCHES (NORMALIZED) ——— (Fix 1C)
+if ((a.indication || b.indication) && normalizeIndicationText(a.indication) !== normalizeIndicationText(b.indication)) {
   return false;
 }
 // ——————————————————————————————
@@ -3188,97 +3644,98 @@ for (let i = removed.length - 1; i >= 0; i--) {
     }
 
     function handleTextInput1() {
-      const text = document.getElementById('photo1-text-input').value.trim();
-      if (!text) {
-        showError('Please paste a medication list before submitting.');
-        return;
-      }
-      // Clear any old status
-      document.getElementById('photo1-status').textContent = 'List pasted.';
-      hasTextInput1 = true;
-      let lines = text.split(/\r?\n+/).map(line => cleanLine(line));
-	lines = mergeMultiLineOrders(lines);
-	lines = mergeTaperPackOrders(lines);
-	// prune off any trailing non-order text
-	// lines = lines.map(line => pruneLine(line));
-	lines = lines.filter(line => 
-		isLikelyOrderLine(line) && containsKnownMedication(line)
-		);
+  const rawPastedText = document.getElementById('photo1-text-input').value; // Get raw text
+  if (!rawPastedText.trim()) {
+    showError('Please paste a medication list before submitting.');
+    return;
+  }
+  document.getElementById('photo1-status').textContent = 'Processing pasted list...';
+  hasTextInput1 = true;
 
+  // Use keepOrderLines to process the pasted text.
+  // keepOrderLines handles splitting, cleaning, merging (including EMR), and filtering.
+  let processedOrderStrings = keepOrderLines(rawPastedText);
 
-      console.log('Raw lines after filtering:', lines); // Debug log
-      lines = [...new Set(lines)];
-      if (lines.length === 0) {
-        showError('No valid medication orders detected in the pasted list. Please try again.');
-        return;
+  console.log('handleTextInput1 - Processed Order Strings by keepOrderLines:', processedOrderStrings);
+
+  if (processedOrderStrings.length === 0) {
+    showError('No valid medication orders detected in the pasted list. Please try again.');
+    document.getElementById('photo1-status').textContent = 'No orders found.';
+    hasTextInput1 = false; // Reset if no orders found
+    return;
+  }
+
+  meds1 = processedOrderStrings.map(medStr => {
+    try {
+      const parsed = parseOrder(medStr); // parseOrder gets a hopefully complete string
+      if (!parsed || typeof parsed !== 'object') {
+        console.warn('Parse failed for (handleTextInput1):', medStr, 'returning default object');
+        return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
       }
-      meds1 = lines.map(med => {
-        try {
-          const parsed = parseOrder(med);
-          if (!parsed || typeof parsed !== 'object') {
-            console.warn('Parse failed for:', med, 'returning default object');
-            return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
-          }
-          return { original: med, parsed: parsed };
-        } catch (e) {
-          console.error('Error parsing line:', med, e.stack || e);
-          return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
-        }
-      });
-      console.log('Medications from First List (Text Input):', meds1);
-      document.getElementById('photo1-status').textContent = 'Proceeding to second list...';
-      document.getElementById('initial-photo1-options').style.display = 'none';
-      document.getElementById('additional-photo1-option').style.display = 'none';
-      document.getElementById('photo1-prompt').style.display = 'none';
-      showError('');
-      showScreen('photo2-screen');
+      return { original: medStr, parsed: parsed };
+    } catch (e) {
+      console.error('Error parsing line (handleTextInput1):', medStr, e.stack || e);
+      return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
     }
+  });
+
+  console.log('handleTextInput1 - Meds1 (parsed objects):', meds1);
+  document.getElementById('photo1-status').textContent = 'List processed. Proceeding to second list...';
+  document.getElementById('initial-photo1-options').style.display = 'none';
+  document.getElementById('additional-photo1-option').style.display = 'none';
+  document.getElementById('photo1-preview').innerHTML = "";
+  photo1Files = [];
+  document.getElementById('photo1-prompt').style.display = 'none';
+  showError('');
+  showScreen('photo2-screen');
+}
 
     function handleTextInput2() {
-      const text = document.getElementById('photo2-text-input').value.trim();
-      if (!text) {
-        showError('Please paste a medication list before submitting.');
-        return;
-      }
-      // Clear any old status
-      document.getElementById('photo2-status').textContent = 'List pasted.';
-      hasTextInput2 = true;
-          let lines = text.split(/\r?\n+/).map(line => cleanLine(line));
-    	lines = mergeMultiLineOrders(lines);
-	lines = mergeTaperPackOrders(lines);
-	// prune off any trailing non-order text
-	// lines = lines.map(line => pruneLine(line));
-    	lines = lines.filter(line => 
-		isLikelyOrderLine(line) && containsKnownMedication(line)
-		);
+  const rawPastedText = document.getElementById('photo2-text-input').value; // Get raw text
+  if (!rawPastedText.trim()) {
+    showError('Please paste a medication list before submitting.');
+    return;
+  }
+  document.getElementById('photo2-status').textContent = 'Processing pasted list...';
+  hasTextInput2 = true;
 
-      console.log('Raw lines after filtering:', lines); // Debug log
-      lines = [...new Set(lines)];
-      if (lines.length === 0) {
-        showError('No valid medication orders detected in the pasted list. Please try again.');
-        return;
+  // Use keepOrderLines to process the pasted text.
+  let processedOrderStrings = keepOrderLines(rawPastedText);
+
+  console.log('handleTextInput2 - Processed Order Strings by keepOrderLines:', processedOrderStrings);
+
+  if (processedOrderStrings.length === 0) {
+    showError('No valid medication orders detected in the pasted list. Please try again.');
+    document.getElementById('photo2-status').textContent = 'No orders found.';
+    hasTextInput2 = false; // Reset if no orders found
+    return;
+  }
+
+  meds2 = processedOrderStrings.map(medStr => {
+    try {
+      const parsed = parseOrder(medStr);
+      if (!parsed || typeof parsed !== 'object') {
+        console.warn('Parse failed for (handleTextInput2):', medStr, 'returning default object');
+        return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
       }
-      meds2 = lines.map(med => {
-        try {
-          const parsed = parseOrder(med);
-          if (!parsed || typeof parsed !== 'object') {
-            console.warn('Parse failed for:', med, 'returning default object');
-            return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
-          }
-          return { original: med, parsed: parsed };
-        } catch (e) {
-          console.error('Error parsing line:', med, e.stack || e);
-          return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
-        }
-      });
-      console.log('Medications from Second List (Text Input):', meds2);
-      document.getElementById('photo2-compare').disabled = false;
-      document.getElementById('initial-photo2-options').style.display = 'none';
-      document.getElementById('additional-photo2-option').style.display = 'flex';
-      document.getElementById('photo2-prompt').style.display = 'block';
-      document.getElementById('photo2-prompt').textContent = 'You may add a photo or click Compare to continue.';
-      showError('');
+      return { original: medStr, parsed: parsed };
+    } catch (e) {
+      console.error('Error parsing line (handleTextInput2):', medStr, e.stack || e);
+      return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
     }
+  });
+
+  console.log('handleTextInput2 - Meds2 (parsed objects):', meds2);
+  document.getElementById('photo2-status').textContent = 'List processed.';
+  document.getElementById('photo2-compare').disabled = false; // Enable compare button
+  document.getElementById('initial-photo2-options').style.display = 'none';
+  document.getElementById('additional-photo2-option').style.display = 'none'; // Usually, after text input, we don't add more photos for that list.
+  document.getElementById('photo2-preview').innerHTML = "";
+  photo2Files = [];
+  document.getElementById('photo2-prompt').style.display = 'block';
+  document.getElementById('photo2-prompt').innerHTML = 'List processed. Click <strong>Compare</strong> to continue, or upload photos to overwrite.';
+  showError('');
+}
 
     async function goToPhoto2() {
       if (!hasTextInput1 && (!photo1Files || photo1Files.length === 0)) {
@@ -3288,43 +3745,39 @@ for (let i = removed.length - 1; i >= 0; i--) {
       if (!hasTextInput1) {
         showLoading('Processing first image(s)...');
         try {
-          let combinedText = await processFiles(photo1Files);
-                      let lines = combinedText.split(/\r?\n+/).map(line => cleanLine(line));
-      		lines = mergeMultiLineOrders(lines);
-		lines = mergeTaperPackOrders(lines);
-		// prune off any trailing non-order text
-		// lines = lines.map(line => pruneLine(line));
-//=== STEP 4  removed – keepOrderLines already filtered
+      // processFiles now returns an array of fully processed order strings
+      let processedOrderStrings = await processFiles(photo1Files);
 
+      console.log('goToPhoto2 - Processed Order Strings from OCR:', processedOrderStrings);
 
-          console.log('Raw lines from OCR:', lines); // Debug log
-          lines = [...new Set(lines)];
-          if (lines.length === 0) {
-            hideLoading();
-            showError('No valid medication orders detected in the first photos. Please try again.');
-            return;
+      if (processedOrderStrings.length === 0) {
+        hideLoading();
+        showError('No valid medication orders detected in the first photos. Please try again.');
+        return;
+      }
+
+      meds1 = processedOrderStrings.map(medStr => {
+        try {
+          const parsed = parseOrder(medStr);
+          if (!parsed || typeof parsed !== 'object') {
+            console.warn('Parse failed for (goToPhoto2 OCR):', medStr, 'returning default object');
+            return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
           }
-          meds1 = lines.map(med => {
-            try {
-              const parsed = parseOrder(med);
-              if (!parsed || typeof parsed !== 'object') {
-                console.warn('Parse failed for:', med, 'returning default object');
-                return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
-              }
-              return { original: med, parsed: parsed };
-            } catch (e) {
-              console.error('Error parsing line:', med, e.stack || e);
-              return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
-            }
-          });
-          console.log('Medications from First List:', meds1);
-          hideLoading();
-          showScreen('photo2-screen');
-        } catch (err) {
-          console.error('OCR Error:', err);
-          hideLoading();
-          showError('Error extracting text from the first photos. Please try again.');
+          return { original: medStr, parsed: parsed };
+        } catch (e) {
+          console.error('Error parsing line (goToPhoto2 OCR):', medStr, e.stack || e);
+          return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
         }
+      });
+
+      console.log('goToPhoto2 - Meds1 (parsed objects from OCR):', meds1);
+      hideLoading();
+      showScreen('photo2-screen');
+    } catch (err) { // This catch is for errors from processFiles or the mapping
+      console.error('Error in goToPhoto2 OCR processing:', err);
+      hideLoading();
+      showError('Error processing text from the first photos. Please try again.');
+    }
       }
     }
 
@@ -3336,42 +3789,39 @@ for (let i = removed.length - 1; i >= 0; i--) {
       if (!hasTextInput2) {
         showLoading('Processing second image(s)...');
         try {
-          let combinedText = await processFiles(photo2Files);
-                let lines = combinedText.split(/\r?\n+/).map(line => cleanLine(line));
-      		lines = mergeMultiLineOrders(lines);
-		lines = mergeTaperPackOrders(lines);
-		// prune off any trailing non-order text
-		// lines = lines.map(line => pruneLine(line));
-//=== STEP 4  removed – keepOrderLines already filtered
+      // processFiles now returns an array of fully processed order strings
+      let processedOrderStrings = await processFiles(photo2Files);
 
-          console.log('Raw lines from OCR:', lines); // Debug log
-          lines = [...new Set(lines)];
-          if (lines.length === 0) {
-            hideLoading();
-            showError('No valid medication orders detected in the second photos. Please try again.');
-            return;
+      console.log('comparePhotos - Processed Order Strings from OCR:', processedOrderStrings);
+
+      if (processedOrderStrings.length === 0) {
+        hideLoading();
+        showError('No valid medication orders detected in the second photos. Please try again.');
+        return;
+      }
+
+      meds2 = processedOrderStrings.map(medStr => {
+        try {
+          const parsed = parseOrder(medStr);
+          if (!parsed || typeof parsed !== 'object') {
+            console.warn('Parse failed for (comparePhotos OCR):', medStr, 'returning default object');
+            return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
           }
-          meds2 = lines.map(med => {
-            try {
-              const parsed = parseOrder(med);
-              if (!parsed || typeof parsed !== 'object') {
-                console.warn('Parse failed for:', med, 'returning default object');
-                return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
-              }
-              return { original: med, parsed: parsed };
-            } catch (e) {
-              console.error('Error parsing line:', med, e.stack || e);
-              return { original: med, parsed: { drug: med, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false } };
-            }
-          });
-          console.log('Medications from Second List:', meds2);
-          hideLoading();
-          compareAndShowResults();
-        } catch (err) {
-          console.error('OCR Error:', err);
-          hideLoading();
-          showError('Error extracting text from the second photos. Please try again.');
+          return { original: medStr, parsed: parsed };
+        } catch (e) {
+          console.error('Error parsing line (comparePhotos OCR):', medStr, e.stack || e);
+          return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
         }
+      });
+
+      console.log('comparePhotos - Meds2 (parsed objects from OCR):', meds2);
+      hideLoading();
+      compareAndShowResults();
+    } catch (err) { // This catch is for errors from processFiles or the mapping
+      console.error('Error in comparePhotos OCR processing:', err);
+      hideLoading();
+      showError('Error processing text from the second photos. Please try again.');
+    }
       } else {
         compareAndShowResults();
       }
@@ -3381,8 +3831,17 @@ for (let i = removed.length - 1; i >= 0; i--) {
 const coreDrugName = n => (n || '')
   .toLowerCase()
 
-  /* 1️⃣  salts / formulations */
-  .replace(/\b(?:sodium|potassium|calcium|acetate|phosphate|carbonate|hydrochloride|succinate|tartrate|gluconate|chloride|anhydrous|choline|modified)\b/gi, '')
+  /* 1️⃣  salts / formulations (Revised - Fix C) */
+  .replace(/\b(?:sodium|calcium|acetate|phosphate|carbonate|hydrochloride|succinate|tartrate|gluconate|anhydrous|choline|modified)\b/gi, '')
+  // Specific handling for potassium/chloride to avoid removing them if they are the drug name
+  .replace(/\bpotassium\b/gi, (match, offset, str) => {
+      const s = str.toLowerCase();
+      return (s.startsWith("potassium chloride") || s.startsWith("potassium citrate") || s.startsWith("potassium phosphate")) ? match : '';
+  })
+  .replace(/\bchloride\b/gi, (match, offset, str) => {
+      const s = str.toLowerCase();
+      return (s.includes("potassium chloride") || s.includes("sodium chloride")) ? match : '';
+  })
 
   /* 2️⃣  dosage‑form words (NEW) */
   .replace(/\b(?:tab|tabs?|tablet|tablets?|cap|caps?|capsule|capsules?|caplet|patch|patches|puff|puffs|drop|drops|spray|sprays|lozenge|suppository|solution|suspension|ointment|cream|gel|inhaler|inhalation|neb|mdi|dpi)\b/gi, '')
@@ -3408,18 +3867,18 @@ const addedMap = Object.create(null);
 // --- START DEBUG LOGS FOR addedMap POPULATION ---
 console.log("--- Building addedMap (Primary Merge Step) ---");
 added.forEach(a => {
-  const originalDrugString = a.original; // For logging
-  const parsedDrugField = a.parsed.drug;
-   const normalizedKeyForMap =
-   coreDrugName(parsedDrugField)                     // base generic
-     .replace(/\b(inhaler|inhalation|neb|mdi|dpi)\b/gi, '') // strip route words
-     .trim();
-  console.log(`  [addedMap]: Adding: Original Str: "${originalDrugString}" --> Parsed Drug: "${parsedDrugField}" --> Normalized Key: "${normalizedKeyForMap}"`);
-  addedMap[normalizedKeyForMap] = a; 
-  // also index by bare generic name (first word)
-  const baseKey = normalizeMedicationName(parsedDrugField).split(' ')[0];
-  addedMap[baseKey] = a;
+  const originalDrugString = a.original; // For logging
+  const parsedDrugField = a.parsed.drug;
+  // Use the first word of the normalized generic name as the primary key
+  const primaryKey = normalizeMedicationName(parsedDrugField).split(' ')[0].trim();
+  if (primaryKey) { // Ensure the key is not empty
+      console.log(`  [addedMap]: Adding: Original Str: "<span class="math-inline">\{originalDrugString\}" \-\-\> Parsed Drug\: "</span>{parsedDrugField}" --> Primary Key: "${primaryKey}"`);
+      addedMap[primaryKey] = a;
+  } else {
+      console.log(`  [addedMap]: SKIPPING ADD due to empty primaryKey. Original Str: "<span class="math-inline">\{originalDrugString\}", Parsed Drug\: "</span>{parsedDrugField}"`);
+  }
 });
+
 console.log("--- Finished building addedMap. Keys: ", Object.keys(addedMap));
 console.log("addedMap after build:", addedMap);
 // --- END DEBUG LOGS FOR addedMap POPULATION ---
@@ -3429,23 +3888,27 @@ console.log("--- Filtering 'removed' list (Primary Merge Step) ---");
 removed = removed.filter(r => {
   const originalRemovedDrugString = r.original;
   const parsedRemovedDrugField    = r.parsed.drug;
-  const lookupKey = coreDrugName(parsedRemovedDrugField)
-    .replace(/\b(inhaler|inhalation|neb|mdi|dpi)\b/gi, '')
-    .trim();
-  console.log(
-    `  [removed.filter]: Processing Removed: "${originalRemovedDrugString}" → drug="${parsedRemovedDrugField}" → lookupKey="${lookupKey}"`
-  );
 
-  // try the full key
-  let match = addedMap[lookupKey];
-  let usedKey = lookupKey;
+  // Use the first word of the normalized generic name for lookup
+  const primaryLookupKey = normalizeMedicationName(parsedRemovedDrugField).split(' ')[0].trim();
+  let match = undefined;
+  let usedKey = "";
 
-  // fallback on bare generic if necessary
+  if (primaryLookupKey) {
+      console.log(
+        `  [removed.filter]: Processing Removed: "<span class="math-inline">\{originalRemovedDrugString\}" → drug\="</span>{parsedRemovedDrugField}" → Primary Lookup Key: "${primaryLookupKey}"`
+      );
+      match = addedMap[primaryLookupKey];
+      usedKey = primaryLookupKey;
+  } else {
+      console.log(
+        `  [removed.filter]: SKIPPING LOOKUP due to empty primaryLookupKey for Removed: "<span class="math-inline">\{originalRemovedDrugString\}", Parsed Drug\: "</span>{parsedRemovedDrugField}"`
+      );
+  }
+
   if (!match) {
-    const baseKey = normalizeMedicationName(parsedRemovedDrugField).split(' ')[0];
-    console.log(`    fallback to baseKey: "${baseKey}"`);
-    match   = addedMap[baseKey];
-    usedKey = baseKey;
+    console.log(`     NO MATCH for Primary Lookup Key: "${primaryLookupKey}" → keep in removed`);
+    return true; // Keep in removed if no match
   }
 
   if (!match) {
@@ -3457,47 +3920,13 @@ removed = removed.filter(r => {
     `    MATCH FOUND for key "${usedKey}" (merged with added original="${match.original}")`
   );
  
-// ——— Brand/Generic + Indication multi-reason detection ———
-let reasons = [];
-
-// 1) Brand ⇄ Generic swap?
-// look in the raw original text for any known brand→generic or generic→brand
-const origText = r.original.toLowerCase();
-const newText  = match.original.toLowerCase();
-for (const [brand, generic] of Object.entries(brandToGenericMap)) {
-  if (origText.includes(brand) && newText.includes(generic)) {
-    reasons.push('Brand/Generic changed');
-    break;
-  }
-}
-if (!reasons.includes('Brand/Generic changed')) {
-  for (const [brand, generic] of Object.entries(brandToGenericMap)) {
-    if (newText.includes(brand) && origText.includes(generic)) {
-      reasons.push('Brand/Generic changed');
-      break;
-    }
-  }
-}
-
-// 2) Indication text changed?
-const origInd = (r.parsed.indication || '').toLowerCase().trim();
-const newInd  = (match.parsed.indication || '').toLowerCase().trim();
-
-if (origInd !== newInd && (origInd || newInd)) { // Checks if they are different and at least one is non-empty
-  reasons.push('Indication changed');
-}
-
-// 3) If nothing flagged, fall back…
-if (reasons.length === 0) {
-  reasons.push( getChangeReason(r.parsed, match.parsed) );
-}
-
-// 4) Collapse to “Multiple changes” when more than one applies
-const reason = reasons.length > 1
-  ? 'Multiple changes'
-  : reasons[0];
+// START OF REPLACEMENT CODE (Fix 2.2)
+// Determine the reason using the comprehensive getChangeReason function,
+// which now correctly accumulates multiple changes.
+const reason = getChangeReason(r.parsed, match.parsed);
 
 merged.push({ orig: r, new: match, reason });
+// END OF REPLACEMENT CODE (Fix 2.2)
 
     // purge every key in addedMap that still points to this matched entry:
   Object.keys(addedMap).forEach(k => {
@@ -3574,7 +4003,7 @@ merged.forEach(pair => {
   const crit = isCriticalOrder(pair.new);
     html += `
     <tr class="
-          ${crit ? 'critical' : ''}
+          ${(crit && pair.reason !== 'Unchanged') ? 'critical' : ''}
           ${ciSet.has(coreDrugName(pair.orig.parsed.drug)) ||
               ciSet.has(coreDrugName(pair.new.parsed.drug))
             ? 'ci-row' : ''}">
