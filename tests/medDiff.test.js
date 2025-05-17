@@ -58,4 +58,12 @@ describe('Medication comparison', () => {
     const result = ctx.getChangeReason(p1, p2);
     expect(result).toBe('Unchanged');
   });
+
+  test('Clonidine patch to tablet not brand/generic', () => {
+    const ctx = loadAppContext();
+    const before = 'Clonidine 0.1 mg patch – Apply 1 patch topically every 7 days';
+    const after = 'Clonidine 0.1 mg tablet – Take 1 tablet by mouth twice a day';
+    const result = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
+    expect(result).toBe('Frequency changed, Route changed, Form changed');
+  });
 });

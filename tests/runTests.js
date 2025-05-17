@@ -126,7 +126,7 @@ addTest('Clonidine enumerate changes', () => {
   const before = 'Clonidine 0.1 mg patch – Apply 1 patch topically every 7 days';
   const after = 'Clonidine 0.1 mg tablet – Take 1 tablet by mouth twice a day';
   expect(diff(before, after)).toBe(
-    'Frequency changed, Brand/Generic changed, Route changed, Form changed'
+    'Frequency changed, Route changed, Form changed'
   );
 });
 
