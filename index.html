@@ -1736,7 +1736,14 @@ const commonIndicationsPatterns = [
          .replace(/\s+/g, ' ')
          .trim();
 
-  return n;
+    // 6. Drop trailing noise words like dosing instructions or route leftovers
+    n = n.replace(/\b(?:daily|weekly|bid|tid|qid|q\d+h|every|in|po|sc|im|iv|combination|combo)\b.*$/i, '');
+    // 7. Drop leading verbs that accidentally made it into the drug name
+    n = n.replace(/^(?:take|give|inject|inhale|apply|use)\b\s*/i, '');
+
+    n = n.trim();
+
+  return n;
 }
 
     const unitVariants = {
@@ -1746,12 +1753,12 @@ const commonIndicationsPatterns = [
   puff:     ['puff','puffs'],
   drop:     ['drop','drops','gtt','gtts','gt','drp'],
   patch:    ['patch','patches','transdermal patch'],
-  injection:['shot','syringe','pen','inj','auto-injector'],
+   injection:['shot','syringe','pen','inj','auto-injector','flexpen','solostar'],
   lozenge:  ['lozenge','loz','troche'],
   suppository:['supp','suppositories'],
   solution: ['solution','sol','liq','liquid','oral sol'],
   ointment: ['ointment','oint','ung','cream','gel'],
-  inhalation:['inhaler','inh','neb','nebulizer','mdi','dpi'],
+     inhalation:['inhaler','inh','neb','nebulizer','mdi','dpi','respimat','handihaler'],
   unit:     ['U','IU','units'],
   mL:       ['ml','mL','cc'],
   mcg:      ['μg','mcg','ug'],
@@ -2188,7 +2195,7 @@ function getChangeReason(orig, updated) {
 
 
   // --- Comparisons ---
-    const drugNameMatchStrict = origDrugNorm === updatedDrugNorm; // Based on fully normalized names (substance match)
+      const drugNameMatchStrict = origDrugNorm === updatedDrugNorm; // Based on fully normalized names (substance match)
   const same = (a,b) => (!a && !b) || a===b;
   function valuesEqual(v1, v2) {
     if (Array.isArray(v1) && Array.isArray(v2)) {
@@ -2203,16 +2210,18 @@ function getChangeReason(orig, updated) {
 
   const doseValueMatch = valuesEqual(orig.dose?.value, updated.dose?.value);
   const doseTotalMatch = valuesEqual((orig.dose?.total ?? orig.dose?.value), (updated.dose?.total ?? updated.dose?.value)); // Use total, fallback to value
-    const doseUnitMatch = same(orig.dose?.unit, updated.dose?.unit);
+  const doseUnitMatch = same(orig.dose?.unit, updated.dose?.unit);
   const frequencyMatch = canon(orig.frequency) === canon(updated.frequency);
   const timeOfDayMatch = same(norm(orig.timeOfDay), norm(updated.timeOfDay));
   const formMatch = same(norm(orig.form), norm(updated.form));
   const formulationMatch = same(norm(orig.formulation), norm(updated.formulation));
   const routeMatch = same(norm(orig.route), norm(updated.route));
   const prnMatch = same(orig.prn, updated.prn);
-  const normInd = s => normalizeIndicationText(s || '');
-     const indicationDiff = normInd(orig.indication) !== normInd(updated.indication);
-    const startDateMatch = same(orig.startDate, updated.startDate);
+  const normInd = s => normalizeIndicationText(s || '');
+  const indA = normInd(orig.indication);
+  const indB = normInd(updated.indication);
+  const indicationDiff = !(!indA && !indB) && indA !== indB;
+  const startDateMatch = same(orig.startDate, updated.startDate);
   const endDateMatch = same(orig.endDate, updated.endDate);
   const qtyMatch = same(orig.qty ?? 1, updated.qty ?? 1); // Default to 1 if null for comparison
 
@@ -2254,7 +2263,8 @@ const updatedGenericMapped = normalizeMedicationName(brandToGenericMap[updatedCo
 
 if (origGenericMapped !== updatedGenericMapped &&
    (brandToGenericMap[origCoreBrandCheck] || brandToGenericMap[updatedCoreBrandCheck])) {
-    add('Brand/Generic changed');}
+    add('Brand/Generic changed');
+}
 
 
 // --- Formulation Change ---
@@ -2682,11 +2692,16 @@ if (foundFormulations.length > 0) {
     orderStr = tempStr.replace(/\s\s+/g, ' ').trim();
 }
 orderStr = orderStr.trim();
+
+// Remove boilerplate phrases that might remain attached to the drug name
+orderStr = orderStr.replace(/\bcombination\b/i, '').trim();
+orderStr = orderStr.replace(/\bmay\s+increase\s+to.*$/i, '').trim();
+
 // console.log(`DEBUG parseOrder (Formulation): formulation="<span class="math-inline">\{order\.formulation\}", orderStr\="</span>{orderStr}"`);
 // END of new formulation parsing block
 
     // 3. Extract PRN  ── now catches “as needed”
-    const prnRegex = /\b(?:prn|as\s+needed|if\s+(?:needed|anxious|anxiety|pain|in\s+pain|nausea|vomiting|sob|shortness\s+of\s+breath|itching|fever|dizzy|headache))\b/i;
+  const prnRegex = /\b(?:prn|as\s+needed|if\s+(?:needed|anxious|anxiety|pain|in\s+pain|nausea|vomiting|sob|shortness\s+of\s+breath|itching|fever|dizzy|headache))\b/i;
   if (prnRegex.test(orderStr)) {
     order.prn = true;
     orderStr = orderStr.replace(prnRegex, '').trim();
@@ -2852,7 +2867,7 @@ if (unitMatchesFound.length > 0) {
                 order.dose = { value: qty, unit: unit, total: qty };
                 orderStr = orderStr.replace(fallbackMatch[0], '').trim();
                 if(formFromUnit && !order.form) order.form = formFromUnit;
-                let trailingForm2 = orderStr.match(/^[-\s]*(xr|er|sr|la|xl|cr|dr)\b/i);
+                 let trailingForm2 = orderStr.match(/^[-\s]*(xr|er|sr|la|xl|cr|dr)\b/i);
                 if (trailingForm2) {
                     order.formulation = (order.formulation ? order.formulation + ' ' : '') + trailingForm2[1].toLowerCase();
                     orderStr = orderStr.replace(trailingForm2[0], '').trim();
@@ -2960,6 +2975,10 @@ if (!order.form) {
     { term: 'gel', canonical: 'gel' },
     { term: 'inhaler', canonical: 'inhaler' },
     { term: 'mdi', canonical: 'inhaler' },
+          { term: 'flexpen', canonical: 'pen' },
+          { term: 'solostar', canonical: 'pen' },
+          { term: 'respimat', canonical: 'inhaler' },
+          { term: 'handihaler', canonical: 'inhaler' },
     { term: 'nebule', canonical: 'nebule' }, { term: 'nebulizer solution', canonical: 'nebule'}
   ];
 
@@ -3215,6 +3234,9 @@ if (!order.indication && finalIndication) { // Only set indication if it's not a
     const genericRemnantsForIndication = /^(tablet|tab|capsule|cap|po|oral|daily|bid|tid|qid|qhs|prn|er|xr|sr|dr|odt|mg|mcg|ml|unit)$/i;
     if (genericRemnantsForIndication.test(order.indication) && order.indication.split(' ').length <=2) {
         // console.log(`DEBUG parseOrder Step 9: Clearing indication that looks like leftover generic term: "${order.indication}"`);
+        order.indication = "";
+    }
+    if (/^\-?\s*\d+\s*$/.test(order.indication)) {
         order.indication = "";
     }
 }
