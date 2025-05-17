@@ -129,3 +129,9 @@ addTest('Clonidine enumerate changes', () => {
     'Frequency changed, Brand/Generic changed, Route changed, Form changed'
   );
 });
+
+addTest('AF abbreviation normalized', () => {
+  const before = 'Metoprolol 50 mg tablet - take 1 tab daily for af';
+  const after = 'Metoprolol 50 mg tablet - take 1 tab daily for atrial fibrillation';
+  expect(diff(before, after)).toBe('Unchanged');
+});

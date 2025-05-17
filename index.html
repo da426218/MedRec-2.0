@@ -2111,9 +2111,10 @@ function normalizeIndicationText(txt = '') {
              .trim();
 
   const synonyms = {
-    'afib':'atrial fibrillation',
-    'a fib':'atrial fibrillation',
-    'atrial fib':'atrial fibrillation',
+    'afib': 'atrial fibrillation',
+    'af': 'atrial fibrillation',
+    'a fib': 'atrial fibrillation',
+    'atrial fib': 'atrial fibrillation',
     'sob':'breathing difficulty',
     'shortness of breath':'breathing difficulty',
     'anxious':'anxiety'
@@ -4183,11 +4184,13 @@ if (!match) {
         // very novice-friendly override for “only indication” cases
         const origInd = (r.parsed.indication || '').toLowerCase().trim();
         const newInd  = (match.parsed.indication || '').toLowerCase().trim();
+        const normOrig = normalizeIndicationText(origInd);
+        const normNew  = normalizeIndicationText(newInd);
         if (
             normalizeMedicationName(r.parsed.drug) === normalizeMedicationName(match.parsed.drug)
             && r.parsed.dose.value === match.parsed.dose.value
             && r.parsed.dose.unit  === match.parsed.dose.unit
-            && origInd !== newInd
+            && normOrig !== normNew
         ) {
             changeType = 'Indication changed';
         }
@@ -4202,8 +4205,9 @@ if (!match) {
    if (match && (changeType === 'Generic Medication' || changeType === 'Brand Medication')) {
      // build a list of reasons
      const reasons = [ changeType ];
-     if ((r.parsed.indication || '').toLowerCase().trim()
-       !== (match.parsed.indication || '').toLowerCase().trim()) {
+     const ind1 = normalizeIndicationText((r.parsed.indication || '').toLowerCase().trim());
+     const ind2 = normalizeIndicationText((match.parsed.indication || '').toLowerCase().trim());
+     if (ind1 !== ind2) {
        reasons.push('Indication changed');
      }
             html += `
