@@ -27,4 +27,15 @@ describe('Medication comparison', () => {
     const result = ctx.getChangeReason(p1, p2);
     expect(result).toBe('Dose changed, Form changed');
   });
+
+  test('adding nerve pain indication detected', () => {
+    const ctx = loadAppContext();
+    const before = 'Gabapentin 300mg capsule - take 1 cap po tid';
+    const after = 'Gabapentin 300mg capsule - take 1 cap po tid for nerve pain';
+    const p1 = ctx.parseOrder(before);
+    const p2 = ctx.parseOrder(after);
+    expect(p2.indication).toBe('nerve pain');
+    const result = ctx.getChangeReason(p1, p2);
+    expect(result).toBe('Indication changed');
+  });
 });
