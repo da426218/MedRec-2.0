@@ -2166,9 +2166,12 @@ function getChangeReason(orig, updated) {
 
   const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
   const canon = f => {
-    f = norm(f);
-    return (f === '' || f === 'daily' || f === 'q24h') ? 'daily' : f;
-  };
+    f = norm(f);
+    if (f === '' || f === 'daily' || f === 'q24h') return 'daily';
+    if (['tid', 'tidac', 'three times daily'].includes(f)) return 'tid';
+    if (/(?:before|with) meals/.test(f) || /before breakfast lunch dinner/.test(f)) return 'tid';
+    return f;
+  };
 
   // --- Initial properties from parsed objects ---
   const origDrugNameRaw = orig.drug; // Keep as parsed, before normalizeMedicationName
@@ -2574,6 +2577,20 @@ if (order.timeOfDay && !order.frequency) {
 /* ——— NEW: capture “before / after breakfast|lunch|dinner”
           with an optional numeric offset ——— */
 if (!order.timeOfDay) {
+  const mealFreqMatch = orderStr.match(/\b(?:before|with)\s+meals\b/i);
+  if (mealFreqMatch) {
+    if (!order.frequency) order.frequency = 'tid';
+    orderStr = orderStr.replace(mealFreqMatch[0], '').trim();
+  }
+}
+if (!order.timeOfDay) {
+  const explicitMeals = orderStr.match(/\bbefore\s+breakfast\s+lunch\s+dinner\b/i);
+  if (explicitMeals) {
+    if (!order.frequency) order.frequency = 'tid';
+    orderStr = orderStr.replace(explicitMeals[0], '').trim();
+  }
+}
+if (!order.timeOfDay) {
   const mealTiming =
     orderStr.match(/\b(?:\d+\s*(?:min(?:ute)?s?|hr|hrs?|hours?)\s*)?(before|after)\s+(breakfast|lunch|dinner)\b/i);
   if (mealTiming) {
@@ -2607,6 +2624,9 @@ orderStr = orderStr
     const prefix = adminMatch[0].toLowerCase().startsWith('with') ? 'with ' : 'without ';
     const noun = (adminMatch[1] || adminMatch[2] || '').toLowerCase();
     order.administration = prefix + noun;
+    if (!order.frequency && /(?:before|with)\s+meals?/i.test(adminMatch[0])) {
+      order.frequency = 'tid';
+    }
     orderStr = orderStr.replace(adminMatch[0], '').trim();
     // console.log(`DEBUG parseOrder Step 2 (Admin): order.administration="${order.administration}", orderStr="${orderStr}"`);
   }
@@ -3071,7 +3091,7 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
           const freqMapping = { /* ... your existing map ... */
               "once daily": "daily", "once a day": "daily", "1 times daily": "daily", "daily": "daily", "od": "daily", "qd": "daily",
               "twice daily": "twice daily", "2 times daily": "twice daily", "bid": "twice daily", "twice a day": "twice daily",
-              "three times daily": "three times daily", "3 times daily": "three times daily", "tid": "three times daily",
+              "three times daily": "three times daily", "3 times daily": "three times daily", "tid": "three times daily", "tidac": "three times daily", "before meals": "three times daily", "with meals": "three times daily", "before breakfast lunch dinner": "three times daily",
               "four times daily": "four times daily", "4 times daily": "four times daily", "qid": "four times daily",
               "every other day": "every other day", "qod": "every other day",
               "stat": "immediately", "now": "immediately",
