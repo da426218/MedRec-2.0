@@ -74,3 +74,9 @@ addTest('Warfarin sodium formulation difference', () => {
   expect(diff(before, after)).toBe('Formulation changed');
 });
 
+addTest('Warfarin qPM vs evening flagged', () => {
+  const before = 'Warfarin 5 mg tablet - take one tablet qPM';
+  const after = 'Warfarin 5 mg tablet - take one tablet in the evening';
+  expect(diff(before, after)).toBe('Time of day changed');
+});
+
