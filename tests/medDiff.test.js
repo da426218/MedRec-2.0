@@ -25,7 +25,7 @@ describe('Medication comparison', () => {
     const p1 = ctx.parseOrder(before);
     const p2 = ctx.parseOrder(after);
     const result = ctx.getChangeReason(p1, p2);
-    expect(result).toBe('Dose changed, Form changed');
+    expect(result).toBe('Dose changed, Brand/Generic changed, Form changed');
   });
 
   test('adding nerve pain indication detected', () => {
