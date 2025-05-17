@@ -3074,6 +3074,7 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
 	}
     }
 }
+}
 // ... (end of Step 8 for frequency parsing)
   if (!order.frequency && order.timeOfDay) {
     order.frequency = 'daily';
@@ -3269,20 +3270,21 @@ if (!order.drug && initialCleanedDrugString &&
     }
 
     // ------------------------------------------------------------------
+// ------------------------------------------------------------------
 //  String-similarity helper  (Levenshtein, normalised 0–1 score)
 // ------------------------------------------------------------------
 function similarity(a, b) {
-  if (a === b) return 1;                 // perfect match, quick exit
+  if (a === b) return 1;               // perfect match
   const maxLen = Math.max(a.length, b.length);
-  if (maxLen === 0) return 1;            // two empty strings
+  if (maxLen === 0) return 1;          // two empty strings
   const distance = levenshteinDistance(a, b);
-  return 1 - distance / maxLen;          // normalise: 0 = no overlap, 1 = identical
+  return 1 - distance / maxLen;        // 0 = no overlap, 1 = identical
 }
 
 
-/* ===========================================================
-   Find every contra‑indicated pair present in the full list
-   =========================================================== */
+// ===========================================================
+  // Find every contra‑indicated pair present in the full list
+  // ===========================================================
 function findContraIndications(allOrders) {
   const medsFound  = allOrders
         .map(o => coreDrugName(o.parsed.drug))   // << one canonical key
@@ -3855,7 +3857,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
 const coreDrugName = n => (n || '')
   .toLowerCase()
 
-  /* 1️⃣  salts / formulations (Revised - Fix C) */
+    /* 1. salts / formulations */
   .replace(/\b(?:sodium|calcium|acetate|phosphate|carbonate|hydrochloride|succinate|tartrate|gluconate|anhydrous|choline|modified)\b/gi, '')
   // Specific handling for potassium/chloride to avoid removing them if they are the drug name
   .replace(/\bpotassium\b/gi, (match, offset, str) => {
@@ -3867,16 +3869,16 @@ const coreDrugName = n => (n || '')
       return (s.includes("potassium chloride") || s.includes("sodium chloride")) ? match : '';
   })
 
-  /* 2️⃣  dosage‑form words (NEW) */
+   /* 2. dosage-form words */
   .replace(/\b(?:tab|tabs?|tablet|tablets?|cap|caps?|capsule|capsules?|caplet|patch|patches|puff|puffs|drop|drops|spray|sprays|lozenge|suppository|solution|suspension|ointment|cream|gel|inhaler|inhalation|neb|mdi|dpi)\b/gi, '')
 
-  /* 3️⃣  throw away scheduling words that sometimes stick to the drug   */
+  /* 3. scheduling words */
   .replace(/\b(?:daily|nightly|morning|evening|bedtime|qam|qpm|qhs|am|pm|q\d+h)\b/gi, '')
   
-/* 3️⃣  stray numbers */
+  /* 3b. stray numbers */
   .replace(/\b\d+\b/g, '')
 
-  /* 4️⃣  punctuation / extra spaces */
+  /* 4. punctuation / extra spaces */
   .replace(/[^a-z0-9\s/-]+/g, ' ')
   .replace(/\s+/g, ' ')
   .trim();
