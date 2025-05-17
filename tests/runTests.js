@@ -85,3 +85,9 @@ addTest('Insulin Aspart vs Novolog brand generic detection', () => {
   const after = 'Novolog 10 units SC daily';
   expect(diff(before, after)).toBe('Brand/Generic changed');
 });
+
+addTest('PRN condition wording change detected', () => {
+  const before = 'Alprazolam 0.5mg tablet - take 1 tab q8h prn anxiety';
+  const after = 'Alprazolam 0.5mg tablet - take 1 tab q8h if anxious';
+  expect(diff(before, after)).toBe('PRN changed');
+});

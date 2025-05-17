@@ -2115,7 +2115,8 @@ function normalizeIndicationText(txt = '') {
     'a fib':'atrial fibrillation',
     'atrial fib':'atrial fibrillation',
     'sob':'breathing difficulty',
-    'shortness of breath':'breathing difficulty'
+    'shortness of breath':'breathing difficulty',
+    'anxious':'anxiety'
   };
   if (synonyms[s]) s = synonyms[s];
     return s;
@@ -2217,7 +2218,10 @@ function getChangeReason(orig, updated) {
   const formulationMatch = same(norm(orig.formulation), norm(updated.formulation));
   const routeMatch = same(norm(orig.route), norm(updated.route));
   const prnMatch = same(orig.prn, updated.prn);
+  const simpleNorm = s => (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
   const normInd = s => normalizeIndicationText(s || '');
+  const prnConditionMatch =
+    simpleNorm(orig.prnCondition) === simpleNorm(updated.prnCondition);
   const indA = normInd(orig.indication);
   const indB = normInd(updated.indication);
   const indicationDiff = !(!indA && !indB) && indA !== indB;
@@ -2334,7 +2338,7 @@ if (!routeMatch && (norm(orig.route) || norm(updated.route))) { // Only if route
 
 
 // --- PRN Change ---
-if (!prnMatch) add('PRN changed');
+if (!prnMatch || !prnConditionMatch) add('PRN changed');
 
 // --- Indication Change (general catch-all if different) ---
 if (indicationDiff) {
@@ -2495,6 +2499,7 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
     timeOfDayOriginal: "",
     administration: "",
     prn: false,
+    prnCondition: "",
     startDate: "",
     endDate: "",
     form: "",
@@ -2739,13 +2744,18 @@ orderStr = orderStr.replace(/\bmay\s+increase\s+to.*$/i, '').trim();
 // console.log(`DEBUG parseOrder (Formulation): formulation="<span class="math-inline">\{order\.formulation\}", orderStr\="</span>{orderStr}"`);
 // END of new formulation parsing block
 
-    // 3. Extract PRN  ── now catches “as needed”
-  const prnRegex = /\b(?:prn|as\s+needed|if\s+(?:needed|anxious|anxiety|pain|in\s+pain|nausea|vomiting|sob|shortness\s+of\s+breath|itching|fever|dizzy|headache))\b/i;
-  if (prnRegex.test(orderStr)) {
+    // 3. Extract PRN  ── capture condition when present
+  const prnCondWords = '(?:anxious|anxiety|pain|in\\s+pain|nausea|vomiting|sob|shortness\\s+of\\s+breath|itching|fever|dizzy|headache)';
+  let prnMatch = orderStr.match(new RegExp(`\\bprn\\s+(?:for\\s+)?(${prnCondWords})\\b`, 'i'));
+  if (!prnMatch) prnMatch = orderStr.match(new RegExp(`\\bas\\s+needed\\s+(?:for\\s+)?(${prnCondWords})\\b`, 'i'));
+  if (!prnMatch) prnMatch = orderStr.match(new RegExp(`\\bif\\s+(${prnCondWords}|needed)\\b`, 'i'));
+  if (!prnMatch) prnMatch = orderStr.match(/\b(?:prn|as\s+needed|if\s+needed)\b/i);
+  if (prnMatch) {
     order.prn = true;
-    orderStr = orderStr.replace(prnRegex, '').trim();
+    if (prnMatch[1]) order.prnCondition = prnMatch[1].toLowerCase().trim();
+    orderStr = orderStr.replace(prnMatch[0], '').trim();
 
-    // console.log(`DEBUG parseOrder Step 3 (PRN): order.prn=${order.prn}, orderStr="${orderStr}"`);
+    // console.log(`DEBUG parseOrder Step 3 (PRN): order.prn=${order.prn}, prnCondition="${order.prnCondition}", orderStr="${orderStr}"`);
   }
 
   // 4. Extract Indications - This is a critical section
