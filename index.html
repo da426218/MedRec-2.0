@@ -2325,18 +2325,33 @@ function getChangeReason(orig, updated) {
       .trim();
   const rawNamesDiffer =
     cleanForBG(origDrugNameRaw) !== cleanForBG(updatedDrugNameRaw);
-  if (
-    drugNameMatchStrict &&
-    rawNamesDiffer &&
-    !changes.includes('Formulation changed')
-  ) {
-    add('Brand/Generic changed');
-  }
+    if (
+      drugNameMatchStrict &&
+      rawNamesDiffer &&
+      !changes.includes('Formulation changed')
+    ) {
+      add('Brand/Generic changed');
+    }
 
-// --- Dose/Quantity Changes ---
-// Only flag a dose change when the per-unit amount or unit differs, or when the
-// total differs without a quantity change. This prevents "Dose changed" when
-// the strength per spray/tablet is identical but the quantity varies.
+    // Quantity-only difference (dose strength identical)
+    const quantityOnlyDiff =
+      qtyMatch === false &&
+      doseValueMatch === true &&
+      doseUnitMatch === true &&
+      doseTotalMatch === false;
+
+    if (quantityOnlyDiff) {
+      // Remove any existing Dose-change flag
+      changes = changes.filter(c => c !== 'Dose changed');
+      if (!changes.includes('Quantity changed')) {
+        changes.push('Quantity changed');
+      }
+    }
+
+  // --- Dose/Quantity Changes ---
+  // Only flag a dose change when the per-unit amount or unit differs, or when the
+  // total differs without a quantity change. This prevents "Dose changed" when
+  // the strength per spray/tablet is identical but the quantity varies.
 if (!doseUnitMatch || !doseValueMatch || (!doseTotalMatch && qtyMatch)) {
   add('Dose changed');
 }
