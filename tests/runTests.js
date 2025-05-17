@@ -135,3 +135,12 @@ addTest('AF abbreviation normalized', () => {
   const after = 'Metoprolol 50 mg tablet - take 1 tab daily for atrial fibrillation';
   expect(diff(before, after)).toBe('Unchanged');
 });
+
+addTest('Spiriva brand/generic flag', () => {
+  const before =
+    'Tiotropium Bromide (Spiriva HandiHaler) 18mcg capsule - Inhale contents of one capsule via HandiHaler once daily';
+  const after =
+    'Spiriva Respimat 2.5mcg/actuation - 2 inhalations once daily';
+  expect(diff(before, after))
+    .toBe('Dose changed, Brand/Generic changed, Form changed');
+});
