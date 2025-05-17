@@ -38,4 +38,14 @@ describe('Medication comparison', () => {
     const result = ctx.getChangeReason(p1, p2);
     expect(result).toBe('Indication changed');
   });
+
+  test('route change from oral to sublingually detected', () => {
+    const ctx = loadAppContext();
+    const before = 'Ondansetron 4 mg po q4h';
+    const after = 'Ondansetron 4 mg sublingually q4h';
+    const p1 = ctx.parseOrder(before);
+    const p2 = ctx.parseOrder(after);
+    const result = ctx.getChangeReason(p1, p2);
+    expect(result).toBe('Route changed');
+  });
 });
