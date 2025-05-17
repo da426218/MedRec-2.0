@@ -2274,9 +2274,8 @@ if (!formulationMatch) {
 // Prioritize total dose for comparison.
 if (!doseTotalMatch || !doseUnitMatch) { // If total dose or unit differs
     add('Dose changed');
-} else if (!qtyMatch && doseTotalMatch && doseUnitMatch) { // Total dose & unit same, but qty per admin different
-    add('Quantity changed');
 }
+// Quantity differences are reflected in the dose when totals differ
 
 
 // --- Frequency Change ---
@@ -2757,7 +2756,15 @@ orderStr = orderStr.replace(/\bmay\s+increase\s+to.*$/i, '').trim();
 
 
 // Extract Quantity (e.g., "2 tabs") before dose, as it might be part of the dose string // <-- START ADDING THIS BLOCK
-const qtyWords = ['tabs', 'tab', 'tablets', 'caps', 'capsules', 'caplets', 'puffs', 'sprays', 'drops', 'lozenges', 'patches'];
+const qtyWords = [
+  'tabs', 'tab', 'tablets',
+  'caps', 'capsules', 'caplets',
+  'puff', 'puffs',
+  'spray', 'sprays',
+  'drop', 'drops',
+  'lozenge', 'lozenges',
+  'patch', 'patches'
+];
 // Regex to match "take/give/administer X units" or just "X units"
 const qtyRegexEarly = new RegExp(`(?:\\b(?:take|give|administer|inhale|inject|apply|use)\\s+)?(\\d+(?:\\.\\d+)?)\\s*(${qtyWords.join('|')})(?:s)?\\b`, 'i');
 const qtyMatchEarly = orderStr.match(qtyRegexEarly);
@@ -2813,7 +2820,7 @@ for (let u of allUnits) {
 
 if (unitMatchesFound.length > 0) {
   const precedence = ['mcg','mg','g','mEq','unit','mL',
-                      'tablet','capsule','patch','puff','drop'];
+                      'tablet','capsule','patch','puff','spray','drop'];
 
   const hits = unitMatchesFound.map(m => {
     const stdUnit = Object.entries(unitVariants)
@@ -2827,9 +2834,20 @@ if (unitMatchesFound.length > 0) {
   });
 
   const bestMatch = hits[0];
+  const sprayHit = hits.find(h => h.stdUnit === 'spray');
   order.dose = { value: bestMatch.qty,
                  unit:  bestMatch.stdUnit,
                  total: bestMatch.qty };
+
+  if (sprayHit && order.qty === null) {
+    order.qty = sprayHit.qty;
+  }
+  if (bestMatch.stdUnit === 'spray' && order.qty === null) {
+    order.qty = bestMatch.qty;
+  }
+  if (order.qty !== null) {
+    order.dose.total = bestMatch.qty * order.qty;
+  }
 
   orderStr = orderStr.replace(bestMatch.matchStr, '').trim();
   // Capture trailing formulation tokens that may follow the strength (e.g. "1000 mg ER")
@@ -2929,7 +2947,7 @@ if (order.dose.value !== null && typeof order.dose.value === 'number' && order.q
 
 
 // If dose unit itself is 'tablet' or 'capsule' and value is set, this implies qty if qty is still null
-if (order.qty === null && (order.dose.unit === 'tablet' || order.dose.unit === 'capsule' || order.dose.unit === 'puff')) {
+if (order.qty === null && (order.dose.unit === 'tablet' || order.dose.unit === 'capsule' || order.dose.unit === 'puff' || order.dose.unit === 'spray')) {
     if (order.dose.value && order.dose.value > 0) { // ensure value is a positive number
         order.qty = order.dose.value;
         if (order.dose.total === null) { // if total wasn't set by previous block
@@ -2940,7 +2958,7 @@ if (order.qty === null && (order.dose.unit === 'tablet' || order.dose.unit === '
         // Example: "Drug 2 puffs" -> dose.value=2, dose.unit=puff, qty=2. Total=4 (if value isn't # of puffs).
         // This needs care: if dose.value was *already* the count of units, then total is just value.
         // Let's assume if unit is tablet/capsule/puff, dose.value IS the count for that unit.
-        if (order.dose.unit === 'tablet' || order.dose.unit === 'capsule' || order.dose.unit === 'puff') {
+        if (order.dose.unit === 'tablet' || order.dose.unit === 'capsule' || order.dose.unit === 'puff' || order.dose.unit === 'spray') {
              order.dose.total = order.dose.value; // The "value" is the number of these items
         }
     }
