@@ -47,7 +47,7 @@ require('./medDiff.test');
 addTest('Insulin before-meals equals TIDAC dose & freq change', () => {
   const before = 'Insulin Aspart (Novolog) FlexPen - Inject 10 units subcutaneously TIDAC';
   const after = 'Novolog FlexPen - Inject 12 units SC before meals (breakfast lunch dinner)';
-  expect(diff(before, after)).toBe('Dose changed');
+  expect(diff(before, after)).toBe('Dose changed, Frequency changed');
 });
 
 addTest('Metformin evening vs nightly time change', () => {
