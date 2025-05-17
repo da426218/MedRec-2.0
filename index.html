@@ -2101,41 +2101,25 @@ function normalizeText(str) {
     .trim();
 }
 
-// START OF CODE TO ADD (Fix 1A)
-function normalizeIndicationText(indicationStr) {
-  if (!indicationStr) return '';
-  let lowerStr = indicationStr.toLowerCase().trim();
-
-  // Remove "start" if it's a trailing word from parsing (seen in logs)
-  lowerStr = lowerStr.replace(/\s+start$/, '').trim();
-  // Remove "for " prefix if present, as indications are often captured with it
-  lowerStr = lowerStr.replace(/^for\s+/, '').trim();
+function normalizeIndicationText(txt = '') {
+  let s = txt.toLowerCase()
+             .replace(/[.;,]+/g, ' ')
+               .replace(/\bstart\s*date.*$/g,'')
+              .replace(/\b(?:start|date)\b/g,'')
+              .replace(/\b(?:spray|inject|inhale|use|apply|puff|inhalations?|contents|device|handihaler|respimat|flexpen|each|per|in|via|of|one|two)\b/gi,'')
+             .replace(/\s+/g,' ')
+             .trim();
 
   const synonyms = {
-          'afib': 'atrial fibrillation',
-          'a fib': 'atrial fibrillation',
-          'a-fib': 'atrial fibrillation',
-          'atrial fib': 'atrial fibrillation',
-    'hypertension': 'high blood pressure',
-    'htn': 'high blood pressure',
-    'gerd': 'acid reflux',
-    'gastroesophageal reflux disease': 'acid reflux',
-    'type 2 diabetes': 'diabetes',
-    'type ii diabetes': 'diabetes',
-    'diabetes mellitus': 'diabetes',
-    'shortness of breath': 'breathing difficulty',
-    'sob': 'breathing difficulty',
-    'blood pressure': 'high blood pressure', // Normalize 'blood pressure' to 'high blood pressure'
-    'cholesterol': 'high cholesterol' // Normalize 'cholesterol' to 'high cholesterol'
-    // Add more common synonyms as needed, ensuring the right-hand side is the canonical term.
+    'afib':'atrial fibrillation',
+    'a fib':'atrial fibrillation',
+    'atrial fib':'atrial fibrillation',
+    'sob':'breathing difficulty',
+    'shortness of breath':'breathing difficulty'
   };
-
-  if (synonyms[lowerStr]) {
-    return synonyms[lowerStr];
-  }
-  return lowerStr;
+  if (synonyms[s]) s = synonyms[s];
+    return s;
 }
-// END OF CODE TO ADD (Fix 1A)
 
 // <<< START OF WHERE YOU PASTE THE NEW FUNCTION >>>
 function inhaled(parsedOrder) {
@@ -3149,7 +3133,6 @@ orderStr = orderStr.replace(/\b(?:in|at|on)\s*$/i, '').trim();
 // console.log(`DEBUG parseOrder Step 9 - orderStr after targeted cleanup: "${orderStr}"`);
 
 let finalDrugName = "";
-let finalIndication = "";
 
 if (orderStr.length > 0) {
     // Attempt to identify known medication names (longest first) from the beginning of orderStr
@@ -3188,7 +3171,6 @@ if (orderStr.length > 0) {
                     }
                 }
                 matchedKnownName = tempDrugName.trim();
-                finalIndication = tempRemainder; // What's left is likely indication/noise
                 break;
             }
         }
@@ -3208,10 +3190,10 @@ if (orderStr.length > 0) {
                 // Simple check: if first two words are not just numbers or very short common words
                 if (!/^\d+$/.test(words[0]) && !/^\d+$/.test(words[1]) && (words[0].length > 2 || words[1].length > 2) ) {
                     finalDrugName = firstTwo;
-                    finalIndication = words.slice(2).join(" ");
+                    
                 } else {
                     finalDrugName = words[0];
-                    finalIndication = words.slice(1).join(" ");
+                    
                 }
             }
         }
@@ -3224,22 +3206,13 @@ order.drug = finalDrugName.replace(/[^a-zA-Z0-9\/\s\-\.#]+/g, ' ') // Allow # fo
                          .trim()
                          .toLowerCase();
 
-if (!order.indication && finalIndication) { // Only set indication if it's not already set and we have something
-    order.indication = finalIndication.replace(/[^a-zA-Z0-9\s\/.,-]+/g, ' ') // Allow more chars for indication
-                                 .replace(/\s\s+/g, ' ')
-                                 .trim()
-                                 .toLowerCase();
-    order.indication = order.indication.replace(/^for\s+/i, '').trim(); // remove leading "for"
-    // Remove very generic remnants from indication if they are the whole indication
-    const genericRemnantsForIndication = /^(tablet|tab|capsule|cap|po|oral|daily|bid|tid|qid|qhs|prn|er|xr|sr|dr|odt|mg|mcg|ml|unit)$/i;
-    if (genericRemnantsForIndication.test(order.indication) && order.indication.split(' ').length <=2) {
-        // console.log(`DEBUG parseOrder Step 9: Clearing indication that looks like leftover generic term: "${order.indication}"`);
-        order.indication = "";
-    }
-    if (/^\-?\s*\d+\s*$/.test(order.indication)) {
-        order.indication = "";
-    }
-}
+// --- Indication catcher (only if the token 'for' is present) ---
+const indMatch = orderStr.match(/\bfor\s+(.+?)$/i);
+if (indMatch) {
+  order.indication = indMatch[1].trim();
+  orderStr = orderStr.replace(indMatch[0], '').trim();
+} else {
+  order.indication = '';}
 
 // If order.drug ended up empty from the above, try a last resort from initialCleanedDrugString
 if (!order.drug && initialCleanedDrugString) {
