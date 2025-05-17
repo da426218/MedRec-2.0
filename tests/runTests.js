@@ -53,7 +53,7 @@ addTest('Insulin before-meals equals TIDAC dose & freq change', () => {
 addTest('Metformin evening vs nightly time change', () => {
   const before = 'Metformin hydrochloride 1000mg ER - take one tablet by mouth every evening with supper';
   const after = 'Metformin ER 1000mg - take 1 tab PO nightly with food';
-  expect(diff(before, after)).toBe('Formulation changed, Time of day changed');
+  expect(diff(before, after)).toBe('Formulation changed');
 });
 
 addTest('Vitamin D brand/generic without formulation change', () => {
@@ -89,7 +89,7 @@ addTest('Warfarin sodium formulation difference', () => {
 addTest('Warfarin qPM vs evening flagged', () => {
   const before = 'Warfarin 5 mg tablet - take one tablet qPM';
   const after = 'Warfarin 5 mg tablet - take one tablet in the evening';
-  expect(diff(before, after)).toBe('Time of day changed');
+  expect(diff(before, after)).toBe('Unchanged');
 });
 
 addTest('Insulin Aspart vs Novolog brand generic detection', () => {

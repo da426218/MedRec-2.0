@@ -2122,6 +2122,36 @@ function normalizeIndicationText(txt = '') {
     return s;
 }
 
+function normalizeTimeOfDay(t) {
+  if (!t) return '';
+  t = t.toLowerCase().trim();
+  if (
+    t === 'morning' ||
+    t === 'qam' ||
+    t === 'am' ||
+    t.includes('in morning') ||
+    t.includes('in the am')
+  )
+    return 'morning';
+  if (
+    t === 'evening' ||
+    t === 'pm' ||
+    t === 'qpm' ||
+    t.includes('every evening') ||
+    t.includes('daily in evening') ||
+    t.includes('in evening') ||
+    t.includes('in the pm') ||
+    t === 'bedtime' ||
+    t === 'night' ||
+    t === 'qhs' ||
+    t === 'nightly' ||
+    t.includes('at bedtime') ||
+    t.includes('at night')
+  )
+    return 'evening';
+  return t;
+}
+
 // <<< START OF WHERE YOU PASTE THE NEW FUNCTION >>>
 function inhaled(parsedOrder) {
     if (!parsedOrder) return false;
@@ -2209,7 +2239,8 @@ function getChangeReason(orig, updated) {
   };
   const mealsTokens = ['tidac','before meals','with meals','before breakfast lunch dinner'];
   const containsMeals = tokens => (tokens||[]).map(norm).some(t => mealsTokens.includes(t));
-  const timeOfDayMatch = same(norm(orig.timeOfDay), norm(updated.timeOfDay));
+  const timeOfDayMatch =
+    normalizeTimeOfDay(orig.timeOfDay) === normalizeTimeOfDay(updated.timeOfDay);
   const timeOfDayRawMatch = same(
     norm(orig.timeOfDayOriginal),
     norm(updated.timeOfDayOriginal)
@@ -2313,7 +2344,7 @@ if (!frequencyMatch) {
 }
 
 // --- Time of Day Change ---
-if (!timeOfDayMatch || (!timeOfDayRawMatch && norm(orig.timeOfDayOriginal) && norm(updated.timeOfDayOriginal))) {
+if (!timeOfDayMatch && (norm(orig.timeOfDay) || norm(updated.timeOfDay))) {
   add('Time of day changed');
 }
 
@@ -3445,16 +3476,7 @@ function findContraIndications(allOrders) {
 }
 
   // ─── normalize time-of-day equivalence ───
-const normalizeTOD = t => {
-  if (!t) return '';
-  t = t.toLowerCase().trim(); // Added .trim()
-  if (t === 'morning' || t === 'qam' || t === 'am' || t.includes('in morning') || t.includes('in the am')) return 'morning';
-  if (t === 'evening' || t === 'pm' || t.includes('in evening') || t.includes('in the pm')) return 'evening';
-   if (t === 'bedtime' || t === 'night' || t === 'qhs' || t === 'nightly' || t.includes('at bedtime') || t.includes('at night')) return 'evening';
-  return t;
-};
-
-  if (normalizeTOD(a.timeOfDay) !== normalizeTOD(b.timeOfDay)) {
+  if (normalizeTimeOfDay(a.timeOfDay) !== normalizeTimeOfDay(b.timeOfDay)) {
     return false;
   }
   // ────────────────────────────────────────────
