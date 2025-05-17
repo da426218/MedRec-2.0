@@ -65,7 +65,13 @@ addTest('Vitamin D brand/generic without formulation change', () => {
 addTest('Fluticasone spray dose total', () => {
   const before = 'Fluticasone Propionate Nasal Spray 50 mcg/spray - 2 sprays in each nostril once daily';
   const after = 'Fluticasone Nasal Spray 50mcg - Use 1 spray per nostril qd';
-  expect(diff(before, after)).toBe('Dose changed, Quantity changed');
+  expect(diff(before, after)).toBe('Quantity changed');
+});
+
+addTest('Fluticasone quantity change', () => {
+  const before = 'Fluticasone Propionate Nasal Spray 50 mcg/spray – 2 sprays in each nostril daily';
+  const after = 'Fluticasone Nasal Spray 50 mcg – 1 spray per nostril qd';
+  expect(diff(before, after)).toBe('Quantity changed');
 });
 
 addTest('Warfarin sodium formulation difference', () => {

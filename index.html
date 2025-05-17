@@ -2303,13 +2303,16 @@ if (!formulationMatch) {
 
 
 // --- Dose/Quantity Changes ---
-// Prioritize total dose for comparison.
-if (!doseTotalMatch || !doseUnitMatch) { // If total dose or unit differs
-    add('Dose changed');
+// Only flag a dose change when the per-unit amount or unit differs, or when the
+// total differs without a quantity change. This prevents "Dose changed" when
+// the strength per spray/tablet is identical but the quantity varies.
+if (!doseUnitMatch || !doseValueMatch || (!doseTotalMatch && qtyMatch)) {
+  add('Dose changed');
 }
-// Quantity differences are reflected in the dose when totals differ
+// Quantity differences are reflected in the dose when totals differ, but still
+// list them separately to highlight dispensing changes.
 if (!qtyMatch) {
-    add('Quantity changed');
+  add('Quantity changed');
 }
 
 
