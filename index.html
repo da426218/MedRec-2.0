@@ -1623,7 +1623,7 @@ function hasContra(orderObj, wholeList = []) {
       { generic: "fluticasone/umeclidinium/vilanterol", brands: ["Trelegy"] },
       { generic: "empagliflozin", brands: ["Jardiance"] },
       { generic: "semaglutide", brands: ["Ozempic", "Wegovy"] },
-      { generic: "vitamin d", brands: ["Drisdol"] },
+               { generic: "vitamin d", brands: ["Drisdol", "vitamin d3", "cholecalciferol"] },
       { generic: "prednisolone", brands: ["Pred Forte"] },
       { generic: "enoxaparin", brands: ["Lovenox", "Clexane"] },
       { generic: "doxorubicin", brands: ["Adriamycin"] },
@@ -1631,6 +1631,7 @@ function hasContra(orderObj, wholeList = []) {
       { generic: "rivaroxaban", brands: ["Xarelto"] },
       { generic: "methylphenidate", brands: ["Ritalin", "Concerta"] },
       { generic: "memantine", brands: ["Namenda"] },
+               { generic: "tiotropium", brands: ["Spiriva", "Spiriva HandiHaler", "Spiriva Respimat"] },
       { generic: "isosorbide", brands: [] },
       { generic: "isosorbide dinitrate", brands: [] }
     ];
@@ -1689,63 +1690,51 @@ const commonIndicationsPatterns = [
 });
 
   function normalizeMedicationName(name) {
-  if (!name) return '';
-  let n = name.toLowerCase().trim();
+          if (!name) return '';
+    let n = name.toLowerCase().trim();
 
-// AT THE BEGINNING of normalizeMedicationName, after 'let n = name.toLowerCase().trim();'
+    // separate letters and numbers so "warfarin5mg" becomes "warfarin 5mg"
+    n = n.replace(/([a-z])([0-9])/gi, '$1 $2')
+         .replace(/([0-9])([a-z])/gi, '$1 $2');
 
-// Attempt to separate numbers from attached units/text, and text from attached numbers
-// e.g., "drug50mg" -> "drug 50 mg", "drugname50" -> "drugname 50"
-// This helps word-boundary regexes later.
-n = n.replace(/([a-zA-Z])(\d)/g, '$1 $2'); // drugName50 -> drugName 50
-n = n.replace(/(\d)([a-zA-Z])/g, '$1 $2'); // 50mg -> 50 mg
-n = n.replace(/\s+/g, ' ').trim(); // Clean up spaces created immediately
+    /* 1 .  Convert any brand name that appears anywhere in the text
+       (e.g. "symbicort 160/4.5") to its generic. */
+    for (const brand in brandToGenericMap) {
+      const re = new RegExp('\\b' + brand + '\\b', 'gi');
+      n = n.replace(re, brandToGenericMap[brand]);
+    }
 
-  /* 1 .  Convert any brand name that appears anywhere in the text
-         (e.g. “symbicort 160/4.5”) to its generic. */
-  for (const brand in brandToGenericMap) {
-  const re = new RegExp('\\b' + brand + '\\b', 'gi');   // word‑boundary match
-  n = n.replace(re, brandToGenericMap[brand]);          // swap **inside** the string
-}
+    /* 2 .  Strip common salt words */
+    const commonSalts = [
+      'hydrochloride', 'hcl',
+      'sodium', 'potassium',
+      'acetate', 'phosphate', 'carbonate',
+      'maleate', 'succinate', 'tartrate',
+      'besylate', 'camsylate', 'mesylate',
+      'gluconate', 'propionate', 'bitartrate', 'edisylate',
+      'nacl'
+    ];
+    commonSalts.sort((a,b) => b.length - a.length);
+    for (const salt of commonSalts) {
+      const saltRegex = new RegExp(salt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      n = n.replace(saltRegex, ' ');
+    }
+    n = n.replace(/\s+/g, ' ').trim();
+
+    /* 3 .  Remove timing / meal phrases that sneak into the name */
+    n = n.replace(/\b(?:\d+\s*(?:min(?:ute)?s?|hr|hrs?|hours?)\s*)?(?:at|before|after|with|without)\s+(?:breakfast|lunch|dinner|meal(?:s)?|night|bedtime|morning|evening)\b/ig, '')
+         .trim();
 
 
-// /* 2. Strip common salt words */
-const commonSalts = [
-    'hydrochloride', 'hcl', // Process longer ones like hydrochloride before hcl
-    'sodium', 'potassium', 
-    'acetate', 'phosphate', 'carbonate', 
-    'maleate', 'succinate', 'tartrate', 
-    'besylate', 'camsylate', 'mesylate', 
-    'gluconate', 'propionate', 'bitartrate', 'edisylate', // Add more as needed
-    'nacl' // for sodium chloride if written that way
-];
-commonSalts.sort((a,b) => b.length - a.length); // Process longer salt names first
+    /* 4. Remove common leftover instructional/form words and numbers from name string */
+    n = n.replace(/\b\d+(?:\.\d+)?\b/g, '');
+    n = n.replace(/\b(?:tablet|tablets|tab|tabs|cap|capsule|capsules|caplet|oral|po|subq|sc|im|iv|id|pr|sl|os|od|au|oin|oint|ophth|neb|inh|inj|inject|supp|sol|solution|susp|elix|syr|tr|tinct|lot|crm|crm.|ung|gel|aero|conc|dil|dp|ds|emuls|enema|er|film|gas|gran|gum|impl|inf|ins|irrig|jec|liq|lotn|loz|mdi|mis|nebu|oint|oph|pad|part|pas|past|pel|pen|pill|plst|powd|pwd|rinse|sat|shamp|soak|spg|spl|spray|stk|strip|subl|sup|swab|syr|sys|tab|tamp|tape|top|troche|twa|vag|wafer|xt|xr|xl|xd|sr|cr|dr|la|patch|puffs|drops|lozenge|spray|unit|units|ml|mcg|mg|g|solostar)\b/gi, '');
 
-for (const salt of commonSalts) {
-    // Create a regex to find the salt name, trying to ensure it's not part of a different longer word
-    // but allowing it to be at the end of the drug name or a separate word.
-    // Replacing with a space helps separate concatenated drug-salt names.
-    const saltRegex = new RegExp(salt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-    n = n.replace(saltRegex, ' '); 
-}
-n = n.replace(/\s+/g, ' ').trim(); // Consolidate multiple spaces into one and trim
-
-  /* 3 .  Remove timing / meal phrases that sneak into the name */
-  n = n.replace(
-  /\b(?:\d+\s*(?:min(?:ute)?s?|hr|hrs?|hours?)\s*)?(?:at|before|after|with|without)\s+(?:breakfast|lunch|dinner|meal(?:s)?|night|bedtime|morning|evening)\b/ig,
-  ''
-).trim();
-
-  /* 4. Remove common leftover instructional/form words and numbers from name string */
-n = n.replace(/\b\d+(?:\.\d+)?\b/g, ''); // Remove standalone numbers (e.g., "1" if left in "levothyroxine 1")
-n = n.replace(/\b(?:tablet|tablets|tab|tabs|cap|capsule|capsules|caplet|oral|po|subq|sc|im|iv|id|pr|sl|os|od|au|oin|oint|ophth|neb|inh|inj|inject|supp|sol|solution|susp|elix|syr|tr|tinct|lot|crm|crm.|ung|gel|aero|conc|dil|dp|ds|emuls|enema|er|film|gas|gran|gum|impl|inf|ins|irrig|jec|liq|lotn|loz|mdi|mis|nebu|oint|oph|pad|part|pas|past|pel|pen|pill|plst|powd|pwd|rinse|sat|shamp|soak|spg|spl|spray|stk|strip|subl|sup|swab|syr|sys|tab|tamp|tape|top|troche|twa|vag|wafer|xt|xr|xl|xd|sr|cr|dr|la|patch|puffs|drops|lozenge|spray|unit|units|ml|mcg|mg|g|solostar)\b/gi, '');
-  
-/* 5. Final cleanup */
-// In normalizeMedicationName function, for step #5:
-n = n.replace(/[\/\-]/g, ' ') // Convert slashes and hyphens to spaces
-     .replace(/[^a-z0-9 ]+/g, '') // Remove other non-alphanumeric (keeps numbers for multi-strength drugs if not stripped as standalone)
-     .replace(/\s+/g, ' ')
-     .trim();
+    /* 5. Final cleanup */
+    n = n.replace(/[\/\-]/g, ' ')
+         .replace(/[^a-z0-9 ]+/g, '')
+         .replace(/\s+/g, ' ')
+         .trim();
 
   return n;
 }
@@ -2105,6 +2094,34 @@ function normalizeText(str) {
     .trim();
 }
 
+// Normalize indication text to canonical forms
+function normalizeIndicationText(str) {
+  if (!str) return '';
+  let text = str.toLowerCase().trim();
+  // strip leading 'for' and any trailing start date fragments
+  text = text.replace(/^for\s+/, '').replace(/\bstart date.*$/, '').trim();
+  const synonyms = {
+    'afib': 'atrial fibrillation',
+    'a fib': 'atrial fibrillation',
+    'atrial fib': 'atrial fibrillation',
+    'htn': 'high blood pressure',
+    'hbp': 'high blood pressure',
+    'hypertension': 'high blood pressure',
+    'blood pressure': 'high blood pressure',
+    'gerd': 'acid reflux',
+    'gastroesophageal reflux disease': 'acid reflux',
+    'type 2 diabetes': 'diabetes',
+    'type ii diabetes': 'diabetes',
+    'diabetes mellitus': 'diabetes',
+    'cholesterol': 'high cholesterol',
+    'sob': 'shortness of breath'
+  };
+  if (synonyms[text]) text = synonyms[text];
+  return text;
+}
+
+
+
 // START OF CODE TO ADD (Fix 1A)
 function normalizeIndicationText(indicationStr) {
   if (!indicationStr) return '';
@@ -2205,7 +2222,8 @@ function getChangeReason(orig, updated) {
   const formulationMatch = norm(orig.formulation) === norm(updated.formulation);
   const routeMatch = norm(orig.route) === norm(updated.route);
   const prnMatch = orig.prn === updated.prn;
-  const indicationDiff = normalizeIndicationText(orig.indication) !== normalizeIndicationText(updated.indication);
+  const normInd = s => normalizeIndicationText(s || '');
+     const indicationDiff = normInd(orig.indication) !== normInd(updated.indication);
   const startDateMatch = (orig.startDate || "") === (updated.startDate || "");
   const endDateMatch = (orig.endDate || "") === (updated.endDate || "");
   const qtyMatch = (orig.qty ?? 1) === (updated.qty ?? 1); // Default to 1 if null for comparison
@@ -2227,7 +2245,7 @@ function getChangeReason(orig, updated) {
   console.log('  formMatch:', formMatch, `(orig: ${norm(orig.form)} vs upd: ${norm(updated.form)})`);
   console.log('  routeMatch:', routeMatch, `(orig: ${norm(orig.route)} vs upd: ${norm(updated.route)})`);
   console.log('  prnMatch:', prnMatch, `(orig: ${orig.prn} vs upd: ${updated.prn})`);
-  console.log('  indicationDiff:', indicationDiff, `(orig: ${normalizeIndicationText(orig.indication)} vs upd: ${normalizeIndicationText(updated.indication)})`);
+  console.log('  indicationDiff:', indicationDiff, `(${normInd(orig.indication)} vs ${normInd(updated.indication)})`);
   console.log('  startDateMatch:', startDateMatch, `(orig: ${orig.startDate || ""} vs upd: ${updated.startDate || ""})`);
   console.log('  endDateMatch:', endDateMatch, `(orig: ${orig.endDate || ""} vs upd: ${updated.endDate || ""})`);
 
@@ -2380,7 +2398,7 @@ if (
   prnMatch &&
   startDateMatch &&     // <-- ADD
   endDateMatch &&       // <-- ADD
-  normalizeIndicationText(orig.indication) === normalizeIndicationText(updated.indication) // Indication IS THE SAME
+  normInd(orig.indication) === normInd(updated.indication)
 ) {
   console.log("--- BLOCK #3 CONDITION MET --- Returning 'Time of day changed'");
   changes = ['Time of day changed']; // Override other changes if this specific condition is met
@@ -2415,7 +2433,7 @@ const updatedTODIsSet = norm(updated.timeOfDay) !== '';
 if (changes.includes('Frequency changed') && changes.includes('Time of day changed') &&
     origFreqIsImmediately && updatedFreqIsDaily && origTODIsEmpty && updatedTODIsSet) {
   changes = changes.filter(c => c !== 'Time of day changed');
-  if (norm(orig.indication) === 'immediately' && norm(updated.indication) === '') {
+    if (normInd(orig.indication) === 'immediately' && normInd(updated.indication) === '') {
     changes = changes.filter(c => c !== 'Indication changed');
   }
 }
@@ -3251,9 +3269,10 @@ if (!order.drug && initialCleanedDrugString &&
     }
 
     function similarity(a, b) {
-      const distance = levenshteinDistance(a, b);
       const maxLen = Math.max(a.length, b.length);
       return 1 - distance / maxLen;
+      if (maxLen === 0) return 1; // avoid divide-by-zero for two empty strings
+      const distance = levenshteinDistance(a, b);
     }
 
 /* ===========================================================
@@ -4193,7 +4212,7 @@ if (!match) {
           ).join('')}
         </ul>
         <p style="font-size:0.85rem;">
-          These flags are a quick screen and do <em>not</em> replace clinical judgement.
+          These flags are a quick screen and do <em>not</em> replace clinical judgment.
         </p>
       `;
     }
@@ -4256,7 +4275,7 @@ if (!match) {
     // 3) Footnote
     pdf.setFontSize(9);
     pdf.text(
-      "These flags are a quick screen and do not replace clinical judgement.",
+      "These flags are a quick screen and do not replace clinical judgment.",
       40,
       finalY + 15 + window.currentContraAlerts.length * 12 + 10
     );
