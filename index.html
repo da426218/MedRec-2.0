@@ -2258,49 +2258,34 @@ function getChangeReason(orig, updated) {
   if (!startDateMatch) add('Date changed');
   if (!endDateMatch) add('End Date changed');
 
-// --- Brand/Generic Change ---
-// Flag when raw names differ but they resolve to the same active ingredient,
-// or when different generics map to a known brand/generic pairing.
-const origCoreBrandCheck = origDrugNameRaw.split(' ')[0].toLowerCase();
-const updatedCoreBrandCheck = updatedDrugNameRaw.split(' ')[0].toLowerCase();
-const origGenericMapped = normalizeMedicationName(
-  brandToGenericMap[origCoreBrandCheck] || origDrugNameRaw
-);
-const updatedGenericMapped = normalizeMedicationName(
-  brandToGenericMap[updatedCoreBrandCheck] || updatedDrugNameRaw
-);
-const rawNamesDiffer =
-  origDrugNameRaw.toLowerCase().trim() !==
-  updatedDrugNameRaw.toLowerCase().trim();
-const genericsEqual = origGenericMapped === updatedGenericMapped;
+  // --- Formulation Change ---
+  if (!formulationMatch) {
+      // Do not flag a formulation change when both orders lack a formulation and the
+      // core drug names match strictly. This avoids false positives such as
+      // "Vitamin D3" vs "Cholecalciferol" where neither mentions a formulation.
+      if (drugNameMatchStrict && !orig.formulation && !updated.formulation) {
+          // nothing
+      } else if (orig.formulation || updated.formulation) {
+          // Avoid if Brand/Generic already implies this (e.g. Lopressor vs Metoprolol Tartrate)
+          // This needs careful thought. For now, if drugNameMatchStrict is true AND formulations differ, it's a formulation change.
+          // If drugNameMatchStrict is false, it might be a different drug OR a salt form change handled by B/G.
+          if (drugNameMatchStrict || (!changes.includes("Brand/Generic changed") && (norm(orig.formulation) !== norm(updated.formulation))) ) {
+               add('Formulation changed');
+          }
+      }
+  }
 
-if (
-  (genericsEqual && rawNamesDiffer) ||
-  (!genericsEqual &&
-    (brandToGenericMap[origCoreBrandCheck] ||
-      brandToGenericMap[updatedCoreBrandCheck]))
-) {
-  add('Brand/Generic changed');
-}
-
-
-// --- Formulation Change ---
-if (!formulationMatch) {
-    // Do not flag a formulation change when both orders lack a formulation and the
-    // core drug names match strictly. This avoids false positives such as
-    // "Vitamin D3" vs "Cholecalciferol" where neither mentions a formulation.
-    if (drugNameMatchStrict && !orig.formulation && !updated.formulation) {
-        // nothing
-    } else if (orig.formulation || updated.formulation) {
-        // Avoid if Brand/Generic already implies this (e.g. Lopressor vs Metoprolol Tartrate)
-        // This needs careful thought. For now, if drugNameMatchStrict is true AND formulations differ, it's a formulation change.
-        // If drugNameMatchStrict is false, it might be a different drug OR a salt form change handled by B/G.
-        if (drugNameMatchStrict || (!changes.includes("Brand/Generic changed") && (norm(orig.formulation) !== norm(updated.formulation))) ) {
-             add('Formulation changed');
-        }
-    }
-}
-
+  // --- Brand/Generic Change ---
+  const rawNamesDiffer =
+    origDrugNameRaw.toLowerCase().trim() !==
+    updatedDrugNameRaw.toLowerCase().trim();
+  if (
+    drugNameMatchStrict &&
+    rawNamesDiffer &&
+    !changes.includes('Formulation changed')
+  ) {
+    add('Brand/Generic changed');
+  }
 
 // --- Dose/Quantity Changes ---
 // Only flag a dose change when the per-unit amount or unit differs, or when the
@@ -2471,7 +2456,7 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
 
   if (changes.length === 0) return 'Unchanged'; // Default to Unchanged if no specific diffs were added
   if (changes.length === 1) return changes[0];
-  if (changes.length <= 3) { // List up to 3 specific changes
+  if (changes.length <= 4) { // List up to 4 specific changes
       // Prioritize more significant changes if too many minor ones
       const priorityOrder = ["Dose changed", "Frequency changed", "Formulation changed", "Brand/Generic changed", "Route changed", "Form changed", "PRN changed", "Indication changed", "Date changed", "End Date changed", "Quantity changed", "Time of day changed"];
       changes.sort((a, b) => {
@@ -2481,9 +2466,9 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
           if (idxB === -1) idxB = priorityOrder.length;
           return idxA - idxB;
       });
-      return changes.slice(0, 3).join(', ');
+      return changes.slice(0, 4).join(', ');
   }
-  return 'Multiple changes'; // For more than 3
+  return 'Multiple changes'; // For 5 or more
 }
 
     function parseOrder(orderStr) {
