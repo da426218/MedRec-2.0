@@ -2308,9 +2308,14 @@ function getChangeReason(orig, updated) {
   }
 
   // --- Brand/Generic Change ---
+  const cleanForBG = n =>
+    coreDrugName(n)
+      .replace(/\b(?:apply|take|use|give|topically|by mouth|po|every|day|days)\b/gi, '')
+      .replace(/[\/-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   const rawNamesDiffer =
-    origDrugNameRaw.toLowerCase().trim() !==
-    updatedDrugNameRaw.toLowerCase().trim();
+    cleanForBG(origDrugNameRaw) !== cleanForBG(updatedDrugNameRaw);
   if (
     drugNameMatchStrict &&
     rawNamesDiffer &&
