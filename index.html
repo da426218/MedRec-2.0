@@ -2209,6 +2209,10 @@ function getChangeReason(orig, updated) {
   const mealsTokens = ['tidac','before meals','with meals','before breakfast lunch dinner'];
   const containsMeals = tokens => (tokens||[]).map(norm).some(t => mealsTokens.includes(t));
   const timeOfDayMatch = same(norm(orig.timeOfDay), norm(updated.timeOfDay));
+  const timeOfDayRawMatch = same(
+    norm(orig.timeOfDayOriginal),
+    norm(updated.timeOfDayOriginal)
+  );
   const formMatch = same(norm(orig.form), norm(updated.form));
   const formulationMatch = same(norm(orig.formulation), norm(updated.formulation));
   const routeMatch = same(norm(orig.route), norm(updated.route));
@@ -2235,6 +2239,7 @@ function getChangeReason(orig, updated) {
   console.log('  qtyMatch:', qtyMatch, `(orig: ${(orig.qty ?? 1)} vs upd: ${(updated.qty ?? 1)})`);
   console.log('  frequencyMatch:', frequencyMatch, `(orig: ${canon(orig.frequency)} vs upd: ${canon(updated.frequency)})`);
   console.log('  timeOfDayMatch:', timeOfDayMatch, `(orig: ${norm(orig.timeOfDay)} vs upd: ${norm(updated.timeOfDay)})`);
+  console.log('  timeOfDayRawMatch:', timeOfDayRawMatch, `(orig: ${norm(orig.timeOfDayOriginal)} vs upd: ${norm(updated.timeOfDayOriginal)})`);
   console.log('  formMatch:', formMatch, `(orig: ${norm(orig.form)} vs upd: ${norm(updated.form)})`);
   console.log('  routeMatch:', routeMatch, `(orig: ${norm(orig.route)} vs upd: ${norm(updated.route)})`);
   console.log('  prnMatch:', prnMatch, `(orig: ${orig.prn} vs upd: ${updated.prn})`);
@@ -2301,7 +2306,9 @@ if (!frequencyMatch) {
 }
 
 // --- Time of Day Change ---
-if (!timeOfDayMatch) add('Time of day changed');
+if (!timeOfDayMatch || (!timeOfDayRawMatch && norm(orig.timeOfDayOriginal) && norm(updated.timeOfDayOriginal))) {
+  add('Time of day changed');
+}
 
 // --- Form Change (tablet, capsule, etc.) ---
 if (!formMatch && (norm(orig.form) || norm(updated.form))) {
@@ -2473,6 +2480,7 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
     frequency: "",
     frequencyTokens: [],
     timeOfDay: "",
+    timeOfDayOriginal: "",
     administration: "",
     prn: false,
     startDate: "",
@@ -2569,6 +2577,7 @@ for (const mapping of timeOfDayMappings) {
   const match = orderStr.match(mapping.regex);
   if (match) {
     order.timeOfDay = mapping.timeOfDay;
+    order.timeOfDayOriginal = (mapping.originalTerm || match[0]).toLowerCase().trim();
     
 // Determine the exact string that was matched to replace it accurately
     orderStr = orderStr.replace(match[0], '').trim(); // Replace the entire matched part
@@ -2610,6 +2619,7 @@ if (!order.timeOfDay) {
     orderStr.match(/\b(?:\d+\s*(?:min(?:ute)?s?|hr|hrs?|hours?)\s*)?(before|after)\s+(breakfast|lunch|dinner)\b/i);
   if (mealTiming) {
     order.timeOfDay = mealTiming[0].replace(/\s+/g, ' ').trim();
+    order.timeOfDayOriginal = mealTiming[0].toLowerCase().replace(/\s+/g, ' ').trim();
     if (!order.frequency) order.frequency = 'daily';      // give it a default
     orderStr = orderStr.replace(mealTiming[0], '').trim(); // strip the phrase
 
