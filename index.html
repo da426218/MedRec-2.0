@@ -2199,6 +2199,15 @@ function getChangeReason(orig, updated) {
   const doseTotalMatch = valuesEqual((orig.dose?.total ?? orig.dose?.value), (updated.dose?.total ?? updated.dose?.value)); // Use total, fallback to value
   const doseUnitMatch = same(orig.dose?.unit, updated.dose?.unit);
   const frequencyMatch = canon(orig.frequency) === canon(updated.frequency);
+  const tokensEqual = (a,b) => {
+    a = (a || []).map(norm).sort();
+    b = (b || []).map(norm).sort();
+    if (a.length !== b.length) return false;
+    for (let i=0; i<a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  };
+  const mealsTokens = ['tidac','before meals','with meals','before breakfast lunch dinner'];
+  const containsMeals = tokens => (tokens||[]).map(norm).some(t => mealsTokens.includes(t));
   const timeOfDayMatch = same(norm(orig.timeOfDay), norm(updated.timeOfDay));
   const formMatch = same(norm(orig.form), norm(updated.form));
   const formulationMatch = same(norm(orig.formulation), norm(updated.formulation));
@@ -2286,6 +2295,9 @@ if (!frequencyMatch) {
            (orig.frequency === '' && canon(updated.frequency)==='daily') )) {
        add('Frequency changed');
     }
+} else if (!tokensEqual(orig.frequencyTokens, updated.frequencyTokens) &&
+           (containsMeals(orig.frequencyTokens) || containsMeals(updated.frequencyTokens))) {
+    add('Frequency changed');
 }
 
 // --- Time of Day Change ---
@@ -2459,6 +2471,7 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
     qty: null,
     route: "",
     frequency: "",
+    frequencyTokens: [],
     timeOfDay: "",
     administration: "",
     prn: false,
@@ -3065,6 +3078,7 @@ if (!order.form) {
 const immediatelyPattern = /\bimmediately\b/i;
 if (!order.frequency && immediatelyPattern.test(orderStr)) {
     order.frequency = "immediately";
+    order.frequencyTokens.push('immediately');
     orderStr = orderStr.replace(immediatelyPattern, '').trim();
     // console.log(`DEBUG parseOrder Step 8a (Immediately): order.frequency="<span class="math-inline">\{order\.frequency\}", orderStr\="</span>{orderStr}"`);
 }
@@ -3074,6 +3088,7 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
   const qhMatch = orderStr.match(/\bq(\d+)h\b/i);
   if (qhMatch) {
     order.frequency = `q${qhMatch[1]}h`;
+    order.frequencyTokens.push(qhMatch[0].toLowerCase());
     orderStr = orderStr.replace(qhMatch[0], '').trim();
   } else {
     
@@ -3081,12 +3096,14 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
     const qhrsMatch = orderStr.match(/\bq(\d+)(?:hrs|hr)\b/i); // Match q<number>hrs or q<number>hr
     if (qhrsMatch) {
         order.frequency = `q${qhrsMatch[1]}h`; // Normalize to qXh
+        order.frequencyTokens.push(qhrsMatch[0].toLowerCase());
         orderStr = orderStr.replace(qhrsMatch[0], '').trim();
         // console.log(`DEBUG parseOrder Step 8b (qXhrs): freq="<span class="math-inline">\{order\.frequency\}", orderStr\="</span>{orderStr}"`);
     } else { // This 'else' means qXhrs also failed
         const everyHours = orderStr.match(/\bevery\s*(\d+)\s*hours?\b/i);
         if (everyHours) {
           order.frequency = `q${everyHours[1]}h`;
+          order.frequencyTokens.push(everyHours[0].toLowerCase());
           orderStr = orderStr.replace(everyHours[0], '').trim();
         } else {
           const freqMapping = { /* ... your existing map ... */
@@ -3104,7 +3121,9 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
             const pattern = new RegExp(`\\b${key.replace(/\s+/g, '\\s+')}\\b`, 'i');
             // Check !order.frequency again inside the loop
             if (!order.frequency && pattern.test(orderStr)) {
+              const m = orderStr.match(pattern);
               order.frequency = freqMapping[key];
+              if (m) order.frequencyTokens.push(m[0].toLowerCase());
               orderStr = orderStr.replace(pattern, '').trim();
               break;
             }
