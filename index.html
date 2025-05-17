@@ -2094,34 +2094,6 @@ function normalizeText(str) {
     .trim();
 }
 
-// Normalize indication text to canonical forms
-function normalizeIndicationText(str) {
-  if (!str) return '';
-  let text = str.toLowerCase().trim();
-  // strip leading 'for' and any trailing start date fragments
-  text = text.replace(/^for\s+/, '').replace(/\bstart date.*$/, '').trim();
-  const synonyms = {
-    'afib': 'atrial fibrillation',
-    'a fib': 'atrial fibrillation',
-    'atrial fib': 'atrial fibrillation',
-    'htn': 'high blood pressure',
-    'hbp': 'high blood pressure',
-    'hypertension': 'high blood pressure',
-    'blood pressure': 'high blood pressure',
-    'gerd': 'acid reflux',
-    'gastroesophageal reflux disease': 'acid reflux',
-    'type 2 diabetes': 'diabetes',
-    'type ii diabetes': 'diabetes',
-    'diabetes mellitus': 'diabetes',
-    'cholesterol': 'high cholesterol',
-    'sob': 'shortness of breath'
-  };
-  if (synonyms[text]) text = synonyms[text];
-  return text;
-}
-
-
-
 // START OF CODE TO ADD (Fix 1A)
 function normalizeIndicationText(indicationStr) {
   if (!indicationStr) return '';
@@ -2133,6 +2105,9 @@ function normalizeIndicationText(indicationStr) {
   lowerStr = lowerStr.replace(/^for\s+/, '').trim();
 
   const synonyms = {
+          'afib': 'atrial fibrillation',
+          'a fib': 'atrial fibrillation',
+          'atrial fib': 'atrial fibrillation',
     'hypertension': 'high blood pressure',
     'htn': 'high blood pressure',
     'gerd': 'acid reflux',
@@ -2213,8 +2188,19 @@ function getChangeReason(orig, updated) {
 
   // --- Comparisons ---
   const drugNameMatchStrict = origDrugNorm === updatedDrugNorm; // Based on fully normalized names (substance match)
-  const doseValueMatch = orig.dose?.value === updated.dose?.value;
-  const doseTotalMatch = (orig.dose?.total ?? orig.dose?.value) === (updated.dose?.total ?? updated.dose?.value); // Use total, fallback to value
+  function valuesEqual(v1, v2) {
+    if (Array.isArray(v1) && Array.isArray(v2)) {
+      if (v1.length !== v2.length) return false;
+      for (let i = 0; i < v1.length; i++) {
+        if (Number(v1[i]) !== Number(v2[i])) return false;
+      }
+      return true;
+    }
+    return v1 === v2;
+  }
+
+  const doseValueMatch = valuesEqual(orig.dose?.value, updated.dose?.value);
+  const doseTotalMatch = valuesEqual((orig.dose?.total ?? orig.dose?.value), (updated.dose?.total ?? updated.dose?.value)); // Use total, fallback to value
   const doseUnitMatch = orig.dose?.unit === updated.dose?.unit;
   const frequencyMatch = canon(orig.frequency) === canon(updated.frequency);
   const timeOfDayMatch = norm(orig.timeOfDay) === norm(updated.timeOfDay);
@@ -2789,15 +2775,25 @@ if (qtyMatchEarly) {
     order.dose = { value: parseFloat(weightMatch[1]), unit: 'mg/kg', total: null }; // total might need patient weight
     orderStr = orderStr.replace(weightMatch[0], '').trim();
   } else {
-    const comboMatch = orderStr.match(/(\d+)\s*-\s*(\d+)\s*mg\b/);
+        const comboMatch = orderStr.match(/(\d+(?:\.\d+)?)\s*(?:mg)?\s*(?:-|\/|\+)\s*(\d+(?:\.\d+)?)\s*mg\b/i);
     if (comboMatch) {
       order.dose = {
-        value: [parseInt(comboMatch[1], 10), parseInt(comboMatch[2], 10)],
+                value: [parseFloat(comboMatch[1]), parseFloat(comboMatch[2])],
         unit: 'mg',
-        total: null // Or sum them: parseInt(comboMatch[1], 10) + parseInt(comboMatch[2], 10)
+        total: null
       };
       orderStr = orderStr.replace(comboMatch[0], '').trim();
     } else {
+      const multiMgMatches = [...orderStr.matchAll(/(\d+(?:\.\d+)?)\s*mg\b/ig)];
+      if (multiMgMatches.length >= 2) {
+        order.dose = {
+          value: multiMgMatches.map(m => parseFloat(m[1])),
+          unit: 'mg',
+          total: null
+        };
+        multiMgMatches.forEach(m => { orderStr = orderStr.replace(m[0], '').trim(); });
+      } else {
+
       // General dose unit parsing
 const allUnits = Object.values(unitVariants).flat();
 let unitMatchesFound = [];
@@ -3128,6 +3124,10 @@ trailingRemnants.forEach(remnant => {
 orderStr = orderStr.replace(/[.,;]$/, '').trim(); // Remove trailing punctuation
 orderStr = orderStr.replace(/^[.,;]/, '').trim();  // Remove leading punctuation
 orderStr = orderStr.replace(/\s\s+/g, ' ').trim(); // Collapse multiple spaces
+// Remove stray leading or trailing hyphens introduced by formatting
+orderStr = orderStr.replace(/^\s*-\s*/, '').replace(/\s*-\s*$/, '').trim();
+// Remove trailing solitary prepositions like "in" or "at"
+orderStr = orderStr.replace(/\b(?:in|at|on)\s*$/i, '').trim();
 
 // console.log(`DEBUG parseOrder Step 9 - orderStr after targeted cleanup: "${orderStr}"`);
 
@@ -3268,12 +3268,17 @@ if (!order.drug && initialCleanedDrugString &&
       return matrix[b.length][a.length];
     }
 
-    function similarity(a, b) {
-      const maxLen = Math.max(a.length, b.length);
-      return 1 - distance / maxLen;
-      if (maxLen === 0) return 1; // avoid divide-by-zero for two empty strings
-      const distance = levenshteinDistance(a, b);
-    }
+    // ------------------------------------------------------------------
+//  String-similarity helper  (Levenshtein, normalised 0–1 score)
+// ------------------------------------------------------------------
+function similarity(a, b) {
+  if (a === b) return 1;                 // perfect match, quick exit
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 1;            // two empty strings
+  const distance = levenshteinDistance(a, b);
+  return 1 - distance / maxLen;          // normalise: 0 = no overlap, 1 = identical
+}
+
 
 /* ===========================================================
    Find every contra‑indicated pair present in the full list
