@@ -2596,9 +2596,9 @@ orderStr = orderStr
   // 2. Extract Administration (with/without food/water)
   const adminMatch = orderStr.match(
   new RegExp(
-    String.raw`\b(?:with|w\/)\s*(?:meals?|food|water|juice|liquid)\b|` +
-    String.raw`\b(?:without|w\/o)\s*(?:meals?|food|water|juice|liquid)\b|` +
-    String.raw`\b(?:before|after)\s*(?:meals?|food)\b`,
+    String.raw`\b(?:with|w\/)\s*(?:meals?|food|water|juice|liquid|supper|breakfast|lunch|dinner)\b|` +
+    String.raw`\b(?:without|w\/o)\s*(?:meals?|food|water|juice|liquid|supper|breakfast|lunch|dinner)\b|` +
+    String.raw`\b(?:before|after)\s*(?:meals?|food|supper|breakfast|lunch|dinner)\b`,
     'i'
   )
 );
@@ -2617,8 +2617,7 @@ const formulationKeywords = [
     'modified release', 'delayed release', 'extended release', 'controlled release', // Multi-word first
     'xr', 'er', 'sr', 'la', 'xl', 'cr', 'dr',
     'succinate', 'tartrate', 'maleate', 'fumarate', 'besylate', 'camsylate', 'mesylate',
-    'acetate', 'phosphate', 'carbonate', 'gluconate',
-    'hcl', 'hydrochloride'
+    'acetate', 'phosphate', 'carbonate', 'gluconate'
 ].sort((a, b) => b.length - a.length); // Sort by length, longest first is crucial
 
 let processedOrderStrForFormulation = orderStr; // Work on a copy
