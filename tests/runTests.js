@@ -96,4 +96,10 @@ addTest('Alprazolam PRN change detected', () => {
   const before = 'Alprazolam 0.25 mg ODT – 1 tab sublingually q6h prn anxiety';
   const after = 'Alprazolam 0.25 mg tablet – 1 tab PO q6h if anxious';
   expect(diff(before, after)).toBe('Route changed, Form changed, PRN changed');
+
+addTest('Novolog brand name flagged', () => {
+  const before = 'Insulin Aspart (Novolog) FlexPen - Inject 10 units subcutaneously TIDAC';
+  const after = 'Novolog FlexPen - Inject 12 units SC before meals (breakfast lunch dinner)';
+  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Brand/Generic changed');
+
 });
