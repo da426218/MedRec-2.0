@@ -2107,6 +2107,7 @@ function normalizeIndicationText(indicationStr) {
   const synonyms = {
           'afib': 'atrial fibrillation',
           'a fib': 'atrial fibrillation',
+          'a-fib': 'atrial fibrillation',
           'atrial fib': 'atrial fibrillation',
     'hypertension': 'high blood pressure',
     'htn': 'high blood pressure',
@@ -2169,11 +2170,11 @@ function getChangeReason(orig, updated) {
   if (!orig || !updated) return 'Misc. Change'; // <-- THIS LINE STAYS OR IS RE-ADDED
 
 // START OF REPLACEMENT/ADDITION
-  let changes = [];
-  const add = lbl => { if (!changes.includes(lbl)) changes.push(lbl); };
+  let changes = [];
+  const add = lbl => { if (!changes.includes(lbl)) changes.push(lbl); };
 
-  const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
-  const canon = f => {
+  const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  const canon = f => {
     f = norm(f);
     return (f === '' || f === 'daily' || f === 'q24h') ? 'daily' : f;
   };
@@ -2187,7 +2188,8 @@ function getChangeReason(orig, updated) {
 
 
   // --- Comparisons ---
-  const drugNameMatchStrict = origDrugNorm === updatedDrugNorm; // Based on fully normalized names (substance match)
+    const drugNameMatchStrict = origDrugNorm === updatedDrugNorm; // Based on fully normalized names (substance match)
+  const same = (a,b) => (!a && !b) || a===b;
   function valuesEqual(v1, v2) {
     if (Array.isArray(v1) && Array.isArray(v2)) {
       if (v1.length !== v2.length) return false;
@@ -2201,18 +2203,18 @@ function getChangeReason(orig, updated) {
 
   const doseValueMatch = valuesEqual(orig.dose?.value, updated.dose?.value);
   const doseTotalMatch = valuesEqual((orig.dose?.total ?? orig.dose?.value), (updated.dose?.total ?? updated.dose?.value)); // Use total, fallback to value
-  const doseUnitMatch = orig.dose?.unit === updated.dose?.unit;
-  const frequencyMatch = canon(orig.frequency) === canon(updated.frequency);
-  const timeOfDayMatch = norm(orig.timeOfDay) === norm(updated.timeOfDay);
-  const formMatch = norm(orig.form) === norm(updated.form);
-  const formulationMatch = norm(orig.formulation) === norm(updated.formulation);
-  const routeMatch = norm(orig.route) === norm(updated.route);
-  const prnMatch = orig.prn === updated.prn;
+    const doseUnitMatch = same(orig.dose?.unit, updated.dose?.unit);
+  const frequencyMatch = canon(orig.frequency) === canon(updated.frequency);
+  const timeOfDayMatch = same(norm(orig.timeOfDay), norm(updated.timeOfDay));
+  const formMatch = same(norm(orig.form), norm(updated.form));
+  const formulationMatch = same(norm(orig.formulation), norm(updated.formulation));
+  const routeMatch = same(norm(orig.route), norm(updated.route));
+  const prnMatch = same(orig.prn, updated.prn);
   const normInd = s => normalizeIndicationText(s || '');
      const indicationDiff = normInd(orig.indication) !== normInd(updated.indication);
-  const startDateMatch = (orig.startDate || "") === (updated.startDate || "");
-  const endDateMatch = (orig.endDate || "") === (updated.endDate || "");
-  const qtyMatch = (orig.qty ?? 1) === (updated.qty ?? 1); // Default to 1 if null for comparison
+    const startDateMatch = same(orig.startDate, updated.startDate);
+  const endDateMatch = same(orig.endDate, updated.endDate);
+  const qtyMatch = same(orig.qty ?? 1, updated.qty ?? 1); // Default to 1 if null for comparison
 
 // END OF REPLACEMENT/ADDITION (The original `if (!orig || !updated)` should still be there or re-added right before this block)
 
@@ -2245,30 +2247,14 @@ function getChangeReason(orig, updated) {
 // --- Brand/Generic Change ---
 // Check if normalized names (substance) are same, but raw inputs were different,
 // or if one is a known brand of the other.
-const origNameForBGCheck = norm(origDrugNameRaw.replace(norm(orig.formulation), '').trim()); // Raw name minus its own formulation
-const updatedNameForBGCheck = norm(updatedDrugNameRaw.replace(norm(updated.formulation), '').trim()); // Raw name minus its own formulation
+const origCoreBrandCheck = origDrugNameRaw.split(' ')[0].toLowerCase();
+const updatedCoreBrandCheck = updatedDrugNameRaw.split(' ')[0].toLowerCase();
+const origGenericMapped = normalizeMedicationName(brandToGenericMap[origCoreBrandCheck] || origDrugNameRaw);
+const updatedGenericMapped = normalizeMedicationName(brandToGenericMap[updatedCoreBrandCheck] || updatedDrugNameRaw);
 
-if (drugNameMatchStrict) { // Same substance after full normalization
-    // If substance is same, but the original drug strings (minus their specific formulations) were different
-    // it implies a brand/generic swap or a very minor naming difference.
-    if (origNameForBGCheck !== updatedNameForBGCheck) {
-         // Further check: is one a brand of the other?
-        const origCoreBrandCheck = origDrugNameRaw.split(' ')[0].toLowerCase();
-        const updatedCoreBrandCheck = updatedDrugNameRaw.split(' ')[0].toLowerCase();
-        if ((brandToGenericMap[origCoreBrandCheck] && normalizeMedicationName(brandToGenericMap[origCoreBrandCheck]) === updatedDrugNorm) ||
-            (brandToGenericMap[updatedCoreBrandCheck] && normalizeMedicationName(brandToGenericMap[updatedCoreBrandCheck]) === origDrugNorm) ||
-            origDrugNorm !== updatedDrugNorm ) { // if normalizeMedicationName changed one to match the other
-             add('Brand/Generic changed');
-        }
-    }
-} else { // Different substances after full normalization - could still be B/G if mapping exists
-    const origCoreBrandCheck = origDrugNameRaw.split(' ')[0].toLowerCase();
-    const updatedCoreBrandCheck = updatedDrugNameRaw.split(' ')[0].toLowerCase();
-    if ((brandToGenericMap[origCoreBrandCheck] && normalizeMedicationName(brandToGenericMap[origCoreBrandCheck]) === updatedDrugNorm) ||
-        (brandToGenericMap[updatedCoreBrandCheck] && normalizeMedicationName(brandToGenericMap[updatedCoreBrandCheck]) === origDrugNorm)) {
-        add('Brand/Generic changed');
-    }
-}
+if (origGenericMapped !== updatedGenericMapped &&
+   (brandToGenericMap[origCoreBrandCheck] || brandToGenericMap[updatedCoreBrandCheck])) {
+    add('Brand/Generic changed');}
 
 
 // --- Formulation Change ---
@@ -2700,7 +2686,7 @@ orderStr = orderStr.trim();
 // END of new formulation parsing block
 
     // 3. Extract PRN  ── now catches “as needed”
-  const prnRegex = /\b(?:prn|as\s+needed)\b/i;
+    const prnRegex = /\b(?:prn|as\s+needed|if\s+(?:needed|anxious|anxiety|pain|in\s+pain|nausea|vomiting|sob|shortness\s+of\s+breath|itching|fever|dizzy|headache))\b/i;
   if (prnRegex.test(orderStr)) {
     order.prn = true;
     orderStr = orderStr.replace(prnRegex, '').trim();
@@ -2827,6 +2813,12 @@ if (unitMatchesFound.length > 0) {
                  total: bestMatch.qty };
 
   orderStr = orderStr.replace(bestMatch.matchStr, '').trim();
+  // Capture trailing formulation tokens that may follow the strength (e.g. "1000 mg ER")
+  let trailingForm = orderStr.match(/^[-\s]*(xr|er|sr|la|xl|cr|dr)\b/i);
+  if (trailingForm) {
+    order.formulation = (order.formulation ? order.formulation + ' ' : '') + trailingForm[1].toLowerCase();
+    orderStr = orderStr.replace(trailingForm[0], '').trim();
+  }
   // …and drop any leftover verb that preceded the dose phrase
   orderStr = orderStr.replace(/\b(?:give|take|administer)\b\s*/i, '').trim();
 // If the best dose unit implies a form, set it if not already set // <-- START ADDING THIS BLOCK
@@ -2860,6 +2852,11 @@ if (unitMatchesFound.length > 0) {
                 order.dose = { value: qty, unit: unit, total: qty };
                 orderStr = orderStr.replace(fallbackMatch[0], '').trim();
                 if(formFromUnit && !order.form) order.form = formFromUnit;
+                let trailingForm2 = orderStr.match(/^[-\s]*(xr|er|sr|la|xl|cr|dr)\b/i);
+                if (trailingForm2) {
+                    order.formulation = (order.formulation ? order.formulation + ' ' : '') + trailingForm2[1].toLowerCase();
+                    orderStr = orderStr.replace(trailingForm2[0], '').trim();
+                }
                 // console.log(`DEBUG parseOrder Step 5 (Dose - fallbackDoseRegex): dose=${JSON.stringify(order.dose)}, orderStr="${orderStr}"`);
             }
          }
@@ -3248,6 +3245,12 @@ if (!order.drug && initialCleanedDrugString &&
     order.drug = initialCleanedDrugString.trim().toLowerCase();
 }
 
+// Default route to 'po' if form implies oral administration and route not set
+const oralFormsForPo = ['tablet','capsule','caplet','softgel','lozenge','syrup','solution','suspension','elixir','liquid','oral disintegrating tablet'];
+if (!order.route && oralFormsForPo.includes(order.form)) {
+    order.route = 'po';
+}
+
   // console.log('FINAL DEBUG Parsed order:', { /* input: originalInputToParseOrder, */ parsed: order });
   return order;
 }
@@ -3370,7 +3373,7 @@ const normalizeTOD = t => {
   t = t.toLowerCase().trim(); // Added .trim()
   if (t === 'morning' || t === 'qam' || t === 'am' || t.includes('in morning') || t.includes('in the am')) return 'morning';
   if (t === 'evening' || t === 'pm' || t.includes('in evening') || t.includes('in the pm')) return 'evening';
-  if (t === 'bedtime' || t === 'night' || t === 'qhs' || t.includes('at bedtime')) return 'bedtime';
+   if (t === 'bedtime' || t === 'night' || t === 'qhs' || t === 'nightly' || t.includes('at bedtime') || t.includes('at night')) return 'evening';
   return t;
 };
 
