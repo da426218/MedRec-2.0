@@ -91,3 +91,9 @@ addTest('PRN condition wording change detected', () => {
   const after = 'Alprazolam 0.5mg tablet - take 1 tab q8h if anxious';
   expect(diff(before, after)).toBe('PRN changed');
 });
+
+addTest('Alprazolam PRN change detected', () => {
+  const before = 'Alprazolam 0.25 mg ODT – 1 tab sublingually q6h prn anxiety';
+  const after = 'Alprazolam 0.25 mg tablet – 1 tab PO q6h if anxious';
+  expect(diff(before, after)).toBe('Route changed, Form changed, PRN changed');
+});
