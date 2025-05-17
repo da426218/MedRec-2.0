@@ -2256,10 +2256,12 @@ if (origGenericMapped !== updatedGenericMapped &&
 
 // --- Formulation Change ---
 if (!formulationMatch) {
-    // Only add if a formulation was parsed for at least one, and they are different
-    // And if it's not already covered by a brand change that implies formulation (this is complex)
-    // A simple check: if formulations differ and drug substances are the same (drugNameMatchStrict)
-    if (orig.formulation || updated.formulation) { // Ensure there's something to compare
+    // Do not flag a formulation change when both orders lack a formulation and the
+    // core drug names match strictly. This avoids false positives such as
+    // "Vitamin D3" vs "Cholecalciferol" where neither mentions a formulation.
+    if (drugNameMatchStrict && !orig.formulation && !updated.formulation) {
+        // nothing
+    } else if (orig.formulation || updated.formulation) {
         // Avoid if Brand/Generic already implies this (e.g. Lopressor vs Metoprolol Tartrate)
         // This needs careful thought. For now, if drugNameMatchStrict is true AND formulations differ, it's a formulation change.
         // If drugNameMatchStrict is false, it might be a different drug OR a salt form change handled by B/G.
