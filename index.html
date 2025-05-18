@@ -3068,7 +3068,8 @@ for (let u of allUnits) {
   const re = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${u.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`, 'ig');
   let m;
   while ((m = re.exec(orderStr)) !== null) {
-    unitMatchesFound.push({ idx: m.index, qty: +m[1], rawUnit: u, matchStr: m[0] });
+    const normUnit = u.toLowerCase() === "gram" ? "g" : u.toLowerCase();
+    unitMatchesFound.push({ idx: m.index, qty: +m[1], rawUnit: normUnit, matchStr: m[0] });
   }
 }
 
@@ -3089,8 +3090,10 @@ if (unitMatchesFound.length > 0) {
 
   const bestMatch = hits[0];
   const sprayHit = hits.find(h => h.stdUnit === 'spray');
+  let unitLower = bestMatch.stdUnit.toLowerCase();
+  if (unitLower === "gram") unitLower = "g";
   order.dose = { value: bestMatch.qty,
-                 unit:  bestMatch.stdUnit,
+                 unit:  unitLower,
                  total: bestMatch.qty };
 
   if (sprayHit && order.qty === null) {
@@ -3133,7 +3136,8 @@ if (unitMatchesFound.length > 0) {
             if (unit) {
                 // Normalize unit from unitVariants
                 const foundStdUnit = Object.entries(unitVariants).find(([std, arr])=> arr.includes(unit));
-                if(foundStdUnit) unit = foundStdUnit[0];
+                if(foundStdUnit) unit = foundStdUnit[0].toLowerCase();
+                if (unit === "gram") unit = "g";
 
                 // Check if this "unit" is actually a form
                 if (unitVariants.tablet.includes(unit)) { formFromUnit = 'tablet'; unit = 'tablet';} // or keep unit as 'tablet'
