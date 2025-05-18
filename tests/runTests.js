@@ -282,3 +282,9 @@ addTest('Klor-Con brand only', () => {
   const a = 'Klor-Con 10 mEq tab po BID';
   expect(diff(b,a)).toBe('Brand/Generic changed');
 });
+
+addTest('Tylenol brand flag', () => {
+  const b = 'Tylenol 500 mg 2 tabs PO q6h prn pain';
+  const a = 'Acetaminophen 1000 mg tab PO every 6 hours as needed for pain';
+  expect(diff(b, a)).toBe('Dose changed, Quantity changed, Brand/Generic changed');
+});
