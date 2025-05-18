@@ -415,3 +415,21 @@ addTest('Coumadin brand + dose change, INR same', () => {
 addTest('Iron vs Ferrous frequency change only', () => {
   expect(diff('Ferrous sulfate 325 mg TID', 'Iron sulfate 325 mg BID')).toBe('Frequency changed');
 });
+
+addTest('Synthroid brand + AM equal', () => {
+  const before = 'Levothyroxine sodium 100 mcg qam';
+  const after  = 'Synthroid 100 mcg every morning';
+  expect(diff(before, after)).toBe('Brand/Generic changed');
+});
+
+addTest('Coumadin brand, INR text equal, dose diff', () => {
+  const b = 'Warfarin 3 mg daily INR 2-3';
+  const a = 'Coumadin 5 mg daily INR 2.0-3.0';
+  expect(diff(b, a)).toBe('Dose changed, Brand/Generic changed');
+});
+
+addTest('Pred taper wording ignored', () => {
+  const b = 'Prednisone 20 mg tablet take 5 tabs daily taper';
+  const a = 'Prednisone 40 mg tablet take 6 tabs daily taper';
+  expect(diff(b, a)).toBe('Dose changed, Quantity changed');
+});
