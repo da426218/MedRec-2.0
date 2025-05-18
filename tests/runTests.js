@@ -376,3 +376,26 @@ addTest('Microgram to milligram normalization', () => {
   expect(order.dose.value).toBe(0.1);
   expect(order.dose.unit).toBe('mg');
 });
+
+addTest('Vancomycin gram vs g unchanged', () => {
+  expect(diff('Vancomycin 1 gram q12h', 'Vancomycin 1 g q12h')).toBe('Unchanged');
+});
+
+addTest('Synthroid brand detected', () => {
+  expect(diff('Levothyroxine 112 mcg qam', 'Synthroid 0.112 mg qAM')).toMatch(/brand\/generic/i);
+});
+
+addTest('Fosamax brand only', () => {
+  expect(diff('Alendronate 70 mg once per week Sunday',
+              'Fosamax 70 mg once weekly (Sunday)')).toBe('Brand/Generic changed');
+});
+
+addTest('Coumadin brand + dose change, INR same', () => {
+  expect(diff('Warfarin 3 mg MWF 3 mg, TTSu 1.5 mg INR 2-3',
+              'Coumadin 3 mg M/W/F 3 mg; Tu/Th/Sa/Su 1.5 mg INR 2.0-3.0'))
+    .toBe('Unchanged');
+});
+
+addTest('Iron vs Ferrous frequency change only', () => {
+  expect(diff('Ferrous sulfate 325 mg TID', 'Iron sulfate 325 mg BID')).toBe('Frequency changed');
+});
