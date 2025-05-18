@@ -4254,42 +4254,24 @@ const ciSet = new Set(
   })
 );
 
+const finalResults = [];
+
 
 // ---------------------------------------------
-
-    // Build a numbered, four-column table of changes
-    let html = `
-        <table class="changes-table">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Original Order (Facility)</th>
-                    <th>New Order (Hospital)</th>
-                    <th>Suspected Change</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-
-    let idx = 1;
 
     // Process removed orders (potential changes or removals)
 
 // ‑‑‑ FIRST: show the neatly‑merged pairs ‑‑‑
 merged.forEach(pair => {
-  const crit = isCriticalOrder(pair.new);
-    html += `
-    <tr class="
-          ${(crit && pair.reason !== 'Unchanged') ? 'critical' : ''}
-          ${ciSet.has(coreDrugName(pair.orig.parsed.drug)) ||
-              ciSet.has(coreDrugName(pair.new.parsed.drug))
-            ? 'ci-row' : ''}">
-      <td>${idx++}</td>
-      <td>${pair.orig.original}</td>
-      <td>${pair.new.original}</td>
-      <td>${pair.reason}</td>
-    </tr>`;
-
+  finalResults.push({
+    orig: pair.orig,
+    new: pair.new,
+    label: pair.reason,
+    critical: isCriticalOrder(pair.new) && pair.reason !== 'Unchanged',
+    ci: ciSet.has(coreDrugName(pair.orig.parsed.drug)) ||
+        ciSet.has(coreDrugName(pair.new.parsed.drug)),
+    changes: pair.reason === 'Unchanged' ? [] : [pair.reason]
+  });
 });
     
 removed.forEach(r => {
@@ -4358,18 +4340,15 @@ if (!match) {
      if (ind1 !== ind2) {
        reasons.push('Indication changed');
      }
-            html += `
-            <tr class="
-                  ${crit ? 'critical' : ''}
-                  ${ciSet.has(coreDrugName(r.parsed.drug)) ||
-                     (match && ciSet.has(coreDrugName(match.parsed.drug)))
-                    ? 'ci-row' : ''}">
-         <td>${idx++}</td>
-         <td>${r.original}</td>
-         <td>${match.original}</td>
-         <td>${reasons.join(', ')}</td>
-       </tr>
-     `;
+            finalResults.push({
+              orig: r,
+              new: match,
+              label: reasons.join(', '),
+              critical: false,
+              ci: ciSet.has(coreDrugName(r.parsed.drug)) ||
+                  (match && ciSet.has(coreDrugName(match.parsed.drug))),
+              changes: reasons
+            });
      added = added.filter(a => a !== match);
      console.groupEnd();
      return;
@@ -4379,14 +4358,14 @@ if (!match) {
         if (match) {
             // Use getChangeReason to determine the specific change
             const reason = getChangeReason(r.parsed, match.parsed);
-            html += `
-                <tr class="${crit ? 'critical' : ''}">
-                    <td>${idx++}</td>
-                    <td>${r.original}</td>
-                    <td>${match.original}</td>
-                    <td>${reason}</td>
-                </tr>
-            `;
+            finalResults.push({
+                orig: r,
+                new: match,
+                label: reason,
+                critical: crit,
+                ci: false,
+                changes: reason === 'Unchanged' ? [] : [reason]
+            });
             added = added.filter(a => a !== match);
             console.groupEnd();
             return;
@@ -4398,28 +4377,28 @@ if (!match) {
         );
         if (sameDrug) {
             const reason = getChangeReason(r.parsed, sameDrug.parsed);
-            html += `
-                <tr class="${crit ? 'critical' : ''}">
-                    <td>${idx++}</td>
-                    <td>${r.original}</td>
-                    <td>${sameDrug.original}</td>
-                    <td>${reason}</td>
-                </tr>
-            `;
+            finalResults.push({
+                orig: r,
+                new: sameDrug,
+                label: reason,
+                critical: crit,
+                ci: false,
+                changes: reason === 'Unchanged' ? [] : [reason]
+            });
             added = added.filter(a => a !== sameDrug);
             console.groupEnd();
             return;
         }
 
         // 7) Pure removal
-        html += `
-            <tr class="${crit ? 'critical' : ''}">
-                <td>${idx++}</td>
-                <td>${r.original}</td>
-                <td></td>
-                <td>Removed</td>
-            </tr>
-        `;
+        finalResults.push({
+            orig: r,
+            new: null,
+            label: 'Removed',
+            critical: crit,
+            ci: false,
+            changes: ['Removed']
+        });
         console.groupEnd();
     });
 
@@ -4428,32 +4407,58 @@ if (!match) {
        const reason = getChangeReason(u.orig.parsed, u.new.parsed);
        const label  = (reason === 'Misc. Change') ? 'Unchanged' : reason;
 
-            html += `
-    <tr class="
-          ${(label !== 'Unchanged' && (isCriticalOrder(u.orig)||isCriticalOrder(u.new))) ? 'critical' : ''}
-          ${ciSet.has(coreDrugName(u.orig.parsed.drug)) ||
-              ciSet.has(coreDrugName(u.new.parsed.drug))
-            ? 'ci-row' : ''}">
-                <td>${idx++}</td>
-                 <td>${u.orig.original}</td>
-                 <td>${u.new.original}</td>
-                 <td>${label}</td>
-             </tr>
-        `;
+       finalResults.push({
+         orig: u.orig,
+         new: u.new,
+         label,
+         critical: label !== 'Unchanged' && (isCriticalOrder(u.orig) || isCriticalOrder(u.new)),
+         ci: ciSet.has(coreDrugName(u.orig.parsed.drug)) ||
+             ciSet.has(coreDrugName(u.new.parsed.drug)),
+         changes: label === 'Unchanged' ? [] : [label]
+       });
       });
 
 
         // Added orders
     added.forEach(a => {
       const crit = isCriticalOrder(a);
+      finalResults.push({
+        orig: null,
+        new: a,
+        label: 'Added',
+        critical: crit,
+        ci: ciSet.has(coreDrugName(a.parsed.drug)),
+        changes: ['Added']
+      });
+    });
+
+    finalResults.sort((a, b) => {
+      const aUnchanged = (a.changes?.length === 0);
+      const bUnchanged = (b.changes?.length === 0);
+      if (aUnchanged === bUnchanged) return 0;
+      return aUnchanged ? 1 : -1;
+    });
+
+    let html = `
+        <table class="changes-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Original Order (Facility)</th>
+                    <th>New Order (Hospital)</th>
+                    <th>Suspected Change</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+    finalResults.forEach((row, i) => {
       html += `
-        <tr class="${crit ? 'critical' : ''} ${ciSet.has(coreDrugName(a.parsed.drug)) ? 'ci-row' : ''}">
-          <td>${idx++}</td>
-          <td></td>
-          <td>${a.original}</td>
-          <td>Added</td>
-        </tr>
-      `;
+        <tr class="${row.critical ? 'critical' : ''} ${row.ci ? 'ci-row' : ''}">
+          <td>${i + 1}</td>
+          <td>${row.orig ? row.orig.original : ''}</td>
+          <td>${row.new ? row.new.original : ''}</td>
+          <td>${row.label}</td>
+        </tr>`;
     });
 
     html += `
