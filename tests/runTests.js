@@ -150,3 +150,9 @@ addTest('Alprazolam PRN condition only', () => {
   expect(diff(before, after))
     .toBe('Route changed, Form changed, Indication changed');
 });
+
+addTest('Diclofenac sodium vs potassium flags formulation', () => {
+  const before = 'Diclofenac sodium 50 mg tablet PO BID';
+  const after  = 'Diclofenac potassium 50 mg tablet PO BID';
+  expect(diff(before, after)).toBe('Formulation changed');
+});
