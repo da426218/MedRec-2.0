@@ -69,7 +69,8 @@ function diff(before, after) {
   vm.runInContext(script, context);
   const p1 = context.parseOrder(before);
   const p2 = context.parseOrder(after);
-  return context.getChangeReason(p1, p2);
+  const result = context.getChangeReason(p1, p2);
+  return result === 'Unchanged' ? '' : result;
 }
 
 function diffRowsList(beforeList, afterList) {
@@ -124,13 +125,13 @@ addTest('Fluticasone formulation flagged', () => {
 addTest('Warfarin sodium formulation difference', () => {
   const before = 'Warfarin sodium 5 mg tablet - take one daily';
   const after = 'Warfarin 5 mg tablet - take one daily';
-  expect(diff(before, after)).toBe('Unchanged');
+  expect(diff(before, after)).toBe('');
 });
 
 addTest('Warfarin qPM vs evening flagged', () => {
   const before = 'Warfarin 5 mg tablet - take one tablet qPM';
   const after = 'Warfarin 5 mg tablet - take one tablet in the evening';
-  expect(diff(before, after)).toBe('Unchanged');
+  expect(diff(before, after)).toBe('');
 });
 
 addTest('Insulin Aspart vs Novolog brand generic detection', () => {
@@ -142,7 +143,7 @@ addTest('Insulin Aspart vs Novolog brand generic detection', () => {
 addTest('PRN condition wording change detected', () => {
   const before = 'Alprazolam 0.5mg tablet - take 1 tab q8h prn anxiety';
   const after = 'Alprazolam 0.5mg tablet - take 1 tab q8h if anxious';
-  expect(diff(before, after)).toBe('Unchanged');
+  expect(diff(before, after)).toBe('');
 });
 
 addTest('Alprazolam PRN change detected', () => {
@@ -168,7 +169,7 @@ addTest('Clonidine enumerate changes', () => {
 addTest('AF abbreviation normalized', () => {
   const before = 'Metoprolol 50 mg tablet - take 1 tab daily for af';
   const after = 'Metoprolol 50 mg tablet - take 1 tab daily for atrial fibrillation';
-  expect(diff(before, after)).toBe('Unchanged');
+  expect(diff(before, after)).toBe('');
 });
 
 addTest('Spiriva brand/generic flag', () => {
@@ -206,7 +207,7 @@ addTest('Diclofenac sodium vs potassium flags formulation', () => {
 addTest('Warfarin sodium vs warfarin unchanged', () => {
   const before = 'Warfarin sodium 5 mg tablet po evening';
   const after  = 'Warfarin 5 mg tablet po qpm';
-  expect(diff(before, after)).toBe('Unchanged');
+  expect(diff(before, after)).toBe('');
 });
 
 addTest('Metformin HCl ER vs Metformin ER unchanged', () => {
@@ -314,7 +315,7 @@ addTest('Tabs vs no form equal', () => {
 addTest('Metoprolol XL vs ER unchanged', () => {
   const before = 'Metoprolol XL 50 mg tab daily';
   const after  = 'Metoprolol Succinate ER 50 mg tab daily';
-  expect(diff(before, after)).toBe('Unchanged');
+  expect(diff(before, after)).toBe('');
 });
 
 addTest('Once weekly frequency detected', () => {
@@ -409,7 +410,7 @@ addTest('Fosamax brand only', () => {
 addTest('Coumadin brand + dose change, INR same', () => {
   expect(diff('Warfarin 3 mg MWF 3 mg, TTSu 1.5 mg INR 2-3',
               'Coumadin 3 mg M/W/F 3 mg; Tu/Th/Sa/Su 1.5 mg INR 2.0-3.0'))
-    .toBe('Unchanged');
+    .toBe('');
 });
 
 addTest('Iron vs Ferrous frequency change only', () => {
@@ -432,4 +433,16 @@ addTest('Pred taper wording ignored', () => {
   const b = 'Prednisone 20 mg tablet take 5 tabs daily taper';
   const a = 'Prednisone 40 mg tablet take 6 tabs daily taper';
   expect(diff(b, a)).toBe('Dose changed, Quantity changed');
+});
+
+addTest('Vancomycin generic vs hydrochloride unchanged', () => {
+  const before = 'Vancomycin 1 g q12h';
+  const after  = 'Vancomycin hydrochloride 1 gram q12h';
+  expect(diff(before, after)).toBe('');
+});
+
+addTest('Coumadin brand vs warfarin regimen only', () => {
+  const before = 'Warfarin 3 mg regimen INR 2-3';
+  const after  = 'Coumadin 3 mg regimen INR 2.0-3.0';
+  expect(diff(before, after)).toBe('Brand/Generic changed');
 });
