@@ -1,3 +1,7 @@
+try { require('firebase'); } catch (_) {
+  global.firebase = {};           // bare stub so require() later won’t fail
+}
+
 // Minimal test harness to run Jest-style tests without dependencies
 global.describe = (name, fn) => { console.log(name); fn(); };
 global.test = (name, fn) => {
