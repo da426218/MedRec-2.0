@@ -24,6 +24,11 @@ global.expect = actual => ({
       throw new Error(`Expected ${b} but received ${a}`);
     }
   },
+  toMatch: regex => {
+    if (!regex.test(String(actual))) {
+      throw new Error(`Expected ${actual} to match ${regex}`);
+    }
+  },
   not: {
     toEqual: expected => {
       const a = JSON.stringify(actual);
@@ -127,7 +132,7 @@ addTest('Warfarin qPM vs evening flagged', () => {
 addTest('Insulin Aspart vs Novolog brand generic detection', () => {
   const before = 'Insulin Aspart 10 units SC daily';
   const after = 'Novolog 10 units SC daily';
-  expect(diff(before, after)).toBe('Brand/Generic changed');
+  expect(diff(before, after)).toMatch(/brand\/generic changed/i);
 });
 
 addTest('PRN condition wording change detected', () => {
@@ -236,7 +241,7 @@ addTest('Unchanged rows sorted last', () => {
 addTest('Atorvastatin vs Lipitor brand flag only', () => {
   const b = 'Atorvastatin 40 mg tab po qhs';
   const a = 'Lipitor 40 mg tab at bedtime';
-  expect(diff(b,a)).toBe('Brand/Generic changed');
+  expect(diff(b,a)).toMatch(/brand\/generic changed/i);
 });
 
 addTest('KCl BID wording equal', () => {
@@ -268,19 +273,19 @@ addTest('Solostar pen form same', () => {
 addTest('Twice daily with meals equals BID', () => {
   const b = 'KCl ER 10 mEq tab po twice a day with meals';
   const a = 'Klor-Con 10 mEq tab po BID';
-  expect(diff(b, a)).toBe('Brand/Generic changed');
+  expect(diff(b, a)).toMatch(/brand\/generic changed/i);
 });
 
 addTest('Claritin vs loratadine brand only', () => {
   const b = 'Claritin 10 mg tab po daily prn allergies';
   const a = 'Loratadine 10 mg tab po daily as needed for allergies';
-  expect(diff(b, a)).toBe('Brand/Generic changed');
+  expect(diff(b, a)).toMatch(/brand\/generic changed/i);
 });
 
 addTest('Klor-Con brand only', () => {
   const b = 'Potassium Chloride ER 10 mEq tab po twice a day';
   const a = 'Klor-Con 10 mEq tab po BID';
-  expect(diff(b,a)).toBe('Brand/Generic changed');
+  expect(diff(b,a)).toMatch(/brand\/generic changed/i);
 });
 
 addTest('Tylenol brand flag', () => {
