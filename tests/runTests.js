@@ -244,3 +244,17 @@ addTest('KCl BID wording equal', () => {
   const a = 'Klor-Con 10 mEq tab po BID';
   expect(diff(b,a).includes('Frequency changed')).toBe(false);
 });
+
+addTest('Normalize twice daily with meals', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const ctx = {
+    console: { log: () => {}, warn: () => {}, error: () => {} },
+    window: {},
+    document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} },
+    firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
+  };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  expect(ctx.normalizeFrequency('twice daily with meals')).toBe('bid');
+});

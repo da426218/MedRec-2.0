@@ -2202,6 +2202,8 @@ function normalizeFrequency(str) {
   str = str.toLowerCase().trim();
   const tidPattern = /\b(tidac|tid\b|three\s+times\s+daily|3\s+times\s+daily|before\s+meals?)\b/;
   if (tidPattern.test(str)) return 'tid';   // canonical label
+  const bidPattern = /\b(twice\s+(a|per)?\s*day|twice\s+daily)(\s+with.*)?\b/;
+  if (bidPattern.test(str)) return 'bid';
   return str;
 }
 
