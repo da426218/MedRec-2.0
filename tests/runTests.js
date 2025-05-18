@@ -47,7 +47,7 @@ require('./medDiff.test');
 addTest('Metformin evening vs nightly time change', () => {
   const before = 'Metformin hydrochloride 1000mg ER - take one tablet by mouth every evening with supper';
   const after = 'Metformin ER 1000mg - take 1 tab PO nightly with food';
-  expect(diff(before, after)).toBe('Formulation changed');
+  expect(diff(before, after)).toBe('Unchanged');
 });
 
 addTest('Vitamin D brand/generic without formulation change', () => {
@@ -77,7 +77,7 @@ addTest('Fluticasone formulation flagged', () => {
 addTest('Warfarin sodium formulation difference', () => {
   const before = 'Warfarin sodium 5 mg tablet - take one daily';
   const after = 'Warfarin 5 mg tablet - take one daily';
-  expect(diff(before, after)).toBe('Formulation changed');
+  expect(diff(before, after)).toBe('Unchanged');
 });
 
 addTest('Warfarin qPM vs evening flagged', () => {
@@ -155,4 +155,16 @@ addTest('Diclofenac sodium vs potassium flags formulation', () => {
   const before = 'Diclofenac sodium 50 mg tablet PO BID';
   const after  = 'Diclofenac potassium 50 mg tablet PO BID';
   expect(diff(before, after)).toBe('Formulation changed');
+});
+
+addTest('Warfarin sodium vs warfarin unchanged', () => {
+  const before = 'Warfarin sodium 5 mg tablet po evening';
+  const after  = 'Warfarin 5 mg tablet po qpm';
+  expect(diff(before, after)).toBe('Unchanged');
+});
+
+addTest('Metformin HCl ER vs Metformin ER unchanged', () => {
+  const b = 'Metformin hydrochloride 1000 mg ER tablet nightly';
+  const a = 'Metformin ER 1000 mg tablet evening';
+  expect(diff(b, a)).toBe('Unchanged');
 });

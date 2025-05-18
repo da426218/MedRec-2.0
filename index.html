@@ -1659,6 +1659,7 @@ function hasContra(orderObj, wholeList = []) {
   };
 
   const ignoreSalts = /\b(hydrochloride|sulfate|phosphate|acetate|maleate|tartrate|mesylate|succinate|sodium|potassium|calcium|magnesium)\b/gi;
+  const trivialSalts = /\b(sodium|hydrochloride|sulfate|phosphate|acetate|succinate|maleate|tartrate|mesylate|potassium|calcium|magnesium)\b/gi;
 
   const importantSaltPairs = [
     ['diclofenac sodium',      'diclofenac potassium'],
@@ -2284,7 +2285,14 @@ function getChangeReason(orig, updated) {
     norm(updated.timeOfDayOriginal)
   );
   const formMatch = same(norm(orig.form), norm(updated.form));
-  const formulationMatch = same(norm(orig.formulation), norm(updated.formulation));
+  let formulationMatch = same(norm(orig.formulation), norm(updated.formulation));
+  // Re-evaluate formulationMatch minus trivial salts
+  const normForm = (f) => (f || '').replace(trivialSalts, '').replace(/\s{2,}/g,'').trim();
+  if ( !formulationMatch && normForm(orig.formulation) === normForm(updated.formulation) ) {
+    formulationMatch = true;
+    // remove the tag if it was added earlier
+    changes = changes.filter(c => c !== 'Formulation changed');
+  }
   const routeMatch = same(norm(orig.route), norm(updated.route));
   const prnMatch = same(orig.prn, updated.prn);
   const simpleNorm = s => (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -2374,9 +2382,11 @@ function getChangeReason(orig, updated) {
     if (brandSwitch && !changes.includes('Brand/Generic changed')) {
       changes.push('Brand/Generic changed');
     }
+    const leftFull  = `${origDrugNameRaw} ${orig.formulation || ''}`.trim();
+    const rightFull = `${updatedDrugNameRaw} ${updated.formulation || ''}`.trim();
     const saltSwap = importantSaltPairs.some(([a, b]) =>
-      (origDrugNameRaw.includes(a) && updatedDrugNameRaw.includes(b)) ||
-      (origDrugNameRaw.includes(b) && updatedDrugNameRaw.includes(a))
+      (leftFull.includes(a) && rightFull.includes(b)) ||
+      (leftFull.includes(b) && rightFull.includes(a))
     );
     if (saltSwap && !changes.includes('Formulation changed')) {
       changes.push('Formulation changed');
