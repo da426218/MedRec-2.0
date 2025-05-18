@@ -295,3 +295,10 @@ addTest('Implicit tablet form same', () => {
   expect(diff(before, after))
     .toBe('Dose changed, Quantity changed, Brand/Generic changed');
 });
+
+addTest('Tabs vs no form equal', () => {
+  const before = 'Tylenol 500 mg 2 tabs po q6h prn pain';
+  const after  = 'Acetaminophen 1000 mg po every 6 h as needed for pain';
+  expect(diff(before, after))
+    .toBe('Dose changed, Quantity changed, Brand/Generic changed');
+});

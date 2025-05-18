@@ -2309,15 +2309,23 @@ function getChangeReason(orig, updated) {
     norm(updated.timeOfDayOriginal)
   );
   let formMatch = same(norm(orig.form), norm(updated.form));
-  if (!formMatch &&
-      orig.form === 'pen' && updated.form === 'pen') {
+  function canonForm(f) {
+    return (f || '')
+      .toLowerCase()
+      .replace(/\b(tabs?|tablets?)\b/, 'tablet');
+  }
+  if (
+    !formMatch &&
+    (
+      (canonForm(orig.form) === 'tablet' && updated.form === '') ||
+      (canonForm(updated.form) === 'tablet' && orig.form === '')
+    )
+  ) {
     formMatch = true;
     changes = changes.filter(c => c !== 'Form changed');
   }
-  if (!formMatch && (
-        (orig.form === '' && updated.form === 'tablet') ||
-        (updated.form === '' && orig.form === 'tablet')
-      )) {
+  if (!formMatch &&
+      orig.form === 'pen' && updated.form === 'pen') {
     formMatch = true;
     changes = changes.filter(c => c !== 'Form changed');
   }
@@ -3299,7 +3307,7 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
         orderStr = orderStr.replace(qhrsMatch[0], '').trim();
         // console.log(`DEBUG parseOrder Step 8b (qXhrs): freq="<span class="math-inline">\{order\.frequency\}", orderStr\="</span>{orderStr}"`);
     } else { // This 'else' means qXhrs also failed
-        const everyHours = orderStr.match(/\bevery\s*(\d+)\s*hours?\b/i);
+        const everyHours = orderStr.match(/\bevery\s*(\d+)\s*(?:hours?|h|hr|hrs)\b/i);
         if (everyHours) {
           order.frequency = `q${everyHours[1]}h`;
           order.frequencyTokens.push(everyHours[0].toLowerCase());
