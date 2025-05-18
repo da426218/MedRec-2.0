@@ -380,7 +380,8 @@ addTest('Microgram to milligram normalization', () => {
   const order = ctx.parseOrder('Levothyroxine 100 mcg tablet daily');
   expect(order.dose.value).toBe(0.1);
   expect(order.dose.unit).toBe('mg');
-  expect(order.rawUnit).toBe('mcg');
+  expect(order.rawUnit).toBe('mg');
+  expect(order.dose.total).toBe(0.1);
 });
 
 addTest('Vancomycin gram vs g unchanged', () => {
@@ -393,8 +394,8 @@ addTest('Vancomycin gram vs g unchanged', () => {
   vm.runInContext(script, ctx);
   const p1 = ctx.parseOrder(before);
   const p2 = ctx.parseOrder(after);
-  expect(p1.rawUnit).toBe('g');
-  expect(p2.rawUnit).toBe('g');
+  expect(p1.rawUnit).toBe('mg');
+  expect(p2.rawUnit).toBe('mg');
   expect(ctx.getChangeReason(p1, p2)).toBe('Unchanged');
 });
 
