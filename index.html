@@ -2188,6 +2188,8 @@ function normalizeIndication(txt) {
     .replace(/\bhigh cholesterol\b/g, 'cholesterol')
     .replace(/\banxious\b/g,           'anxiety')
     .replace(/\bas needed\b/g, 'prn')
+    .replace(/\binr\s*2\.?0?\s*-\s*3\.?0?\b/i, 'inr 2-3')
+    .replace(/\bfor sleep\b/i, 'sleep')
     .trim();
 }
 
@@ -2233,7 +2235,7 @@ function normalizeFrequency(str) {
   if (tidPattern.test(str)) return 'tid';   // canonical label
   const bidPattern = /\b(twice\s+(a|per)?\s*day|twice\s+daily)(\s+with.*)?\b/;
   if (bidPattern.test(str)) return 'bid';
-  const weeklyRE = /\b(once\s+per\s+week|every\s*\w+\s*morning?)\b/i;
+  const weeklyRE = /once\s+(per\s+)?week(ly)?/i;
   if (weeklyRE.test(str)) return 'weekly';
   return str;
 }
