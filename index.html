@@ -432,7 +432,7 @@ footer a:hover {
       <div class="progress-step" id="step4">4</div>
     </div>
   </header>
-  <main>
+  <main class="main-scroll">
     <div id="error-message"></div>
     <!-- Disclaimer Screen -->
     <div id="disclaimer-screen" class="screen active">
@@ -3709,6 +3709,9 @@ for (let i = removed.length - 1; i >= 0; i--) {
       document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
       document.getElementById(screenId).classList.add('active');
       updateProgress(screenId);
+      const scroller = document.querySelector('.main-scroll');
+      if (scroller) scroller.scrollTop = 0;
+      window.scrollTo(0, 0);
     }
 
     function updateProgress(screenId) {
