@@ -1658,6 +1658,14 @@ function hasContra(orderObj, wholeList = []) {
     hctz: 'hydrochlorothiazide'
   };
 
+  const ignoreSalts = /\b(hydrochloride|sulfate|phosphate|acetate|maleate|tartrate|mesylate|succinate|sodium|potassium|calcium|magnesium)\b/gi;
+
+  const importantSaltPairs = [
+    ['diclofenac sodium',      'diclofenac potassium'],
+    ['cyclosporine',           'cyclosporine modified'],
+    ['ferrous sulfate',        'ferrous gluconate']
+  ];
+
 
   const genericSynonyms = {
     hctz: 'hydrochlorothiazide',
@@ -1707,6 +1715,7 @@ const commonIndicationsPatterns = [
   function normalizeMedicationName(name) {
           if (!name) return '';
     let n = name.toLowerCase().trim();
+    n = n.replace(ignoreSalts, '').replace(/\s{2,}/g, ' ').trim();
 
     // separate letters and numbers so "warfarin5mg" becomes "warfarin 5mg"
     n = n.replace(/([a-z])([0-9])/gi, '$1 $2')
@@ -2364,6 +2373,13 @@ function getChangeReason(orig, updated) {
     const brandSwitch = leftHasBrand !== rightHasBrand;
     if (brandSwitch && !changes.includes('Brand/Generic changed')) {
       changes.push('Brand/Generic changed');
+    }
+    const saltSwap = importantSaltPairs.some(([a, b]) =>
+      (origDrugNameRaw.includes(a) && updatedDrugNameRaw.includes(b)) ||
+      (origDrugNameRaw.includes(b) && updatedDrugNameRaw.includes(a))
+    );
+    if (saltSwap && !changes.includes('Formulation changed')) {
+      changes.push('Formulation changed');
     }
   }
 
