@@ -1725,24 +1725,34 @@ const commonIndicationsPatterns = [
 });
 
   function normalizeMedicationName(name) {
-    if (!name) return { cleanedName: '', brandToken: null };
+    if (!name) return { cleanedName: '', rawBrandTokens: [] };
     let n = name.toLowerCase().trim();
-    let brandToken = null;
+    const rawBrandTokens = [];
 
-    // detect brand token before replacements
-    for (const brand in brandToGenericMap) {
-      if (genericSynonyms[brand]) continue;
-      const re = new RegExp('\\b' + brand + '\\b', 'i');
-      if (re.test(n)) { brandToken = brand.toLowerCase(); break; }
-    }
-    if (!brandToken) {
-      for (const syn in brandSynonyms) {
-        if (genericSynonyms[syn]) continue;
-        const reSyn = new RegExp('\\b' + syn + '\\b', 'i');
-        if (reSyn.test(n)) { brandToken = syn.toLowerCase(); break; }
-      }
-    }
     n = n.replace(ignoreSalts, '').replace(/\s{2,}/g, ' ').trim();
+
+    /* 1 .  Convert any brand name that appears anywhere in the text
+       (e.g. "symbicort 160/4.5") to its generic. */
+    for (const brand in brandToGenericMap) {
+      const re = new RegExp('\\b' + brand + '\\b', 'gi');
+      n = n.replace(re, match => {
+        rawBrandTokens.push(match.toLowerCase());
+        return brandToGenericMap[brand];
+      });
+    }
+
+    for (const syn in brandSynonyms) {
+      const reSyn = new RegExp('\\b' + syn + '\\b', 'gi');
+      n = n.replace(reSyn, match => {
+        rawBrandTokens.push(match.toLowerCase());
+        return brandSynonyms[syn];
+      });
+    }
+    // Apply generic synonyms after brand replacements
+    for (const syn in genericSynonyms) {
+      const reSyn = new RegExp('\\b' + syn + '\\b', 'gi');
+      n = n.replace(reSyn, genericSynonyms[syn]);
+    }
 
     // normalize common formulation abbreviations early
     n = n.replace(/\b(xl|xr)\b/, 'er');
@@ -1750,22 +1760,6 @@ const commonIndicationsPatterns = [
     // separate letters and numbers so "warfarin5mg" becomes "warfarin 5mg"
     n = n.replace(/([a-z])([0-9])/gi, '$1 $2')
          .replace(/([0-9])([a-z])/gi, '$1 $2');
-
-    /* 1 .  Convert any brand name that appears anywhere in the text
-       (e.g. "symbicort 160/4.5") to its generic. */
-    for (const brand in brandToGenericMap) {
-      const re = new RegExp('\\b' + brand + '\\b', 'gi');
-      n = n.replace(re, brandToGenericMap[brand]);
-    }
-
-    for (const syn in brandSynonyms) {
-      const reSyn = new RegExp('\\b' + syn + '\\b', 'gi');
-      n = n.replace(reSyn, brandSynonyms[syn]);
-    }
-    for (const syn in genericSynonyms) {
-      const reSyn = new RegExp('\\b' + syn + '\\b', 'gi');
-      n = n.replace(reSyn, genericSynonyms[syn]);
-    }
 
     /* 2 .  Strip common salt words */
     const commonSalts = [
@@ -1806,7 +1800,7 @@ const commonIndicationsPatterns = [
 
     n = n.trim();
 
-  return { cleanedName: n, brandToken };
+  return { cleanedName: n, rawBrandTokens };
 }
 
     const unitVariants = {
@@ -2451,8 +2445,9 @@ function getChangeReason(orig, updated) {
   };
   const rawNamesDiffer =
     cleanForBG(origDrugNameRaw) !== cleanForBG(updatedDrugNameRaw);
-  const leftHasBrand = Boolean(orig.rawBrandToken);
-  const rightHasBrand = Boolean(updated.rawBrandToken);
+  const hasTrueBrand = tokens => (tokens || []).some(t => !genericSynonyms[t]);
+  const leftHasBrand = hasTrueBrand(orig.brandTokens);
+  const rightHasBrand = hasTrueBrand(updated.brandTokens);
   if (drugNameMatchStrict) {
     const brandSwitch = leftHasBrand !== rightHasBrand;
     if (brandSwitch && !changes.includes('Brand/Generic changed')) {
@@ -3603,8 +3598,8 @@ if (!order.route && oralFormsForPo.includes(order.form)) {
 
   order.formulation = canonFormulation(order.formulation);
 
-  const { brandToken } = normalizeMedicationName(order.drug);
-  order.rawBrandToken = brandToken;
+  const { rawBrandTokens } = normalizeMedicationName(order.drug);
+  order.brandTokens = rawBrandTokens;
 
   // console.log('FINAL DEBUG Parsed order:', { /* input: originalInputToParseOrder, */ parsed: order });
   return order;
