@@ -1653,6 +1653,8 @@ function hasContra(orderObj, wholeList = []) {
   const brandSynonyms = {
     spiriva: 'tiotropium',
     'tiotropium bromide': 'tiotropium',
+    novolog: 'insulin aspart',
+    humalog: 'insulin lispro',
     hctz: 'hydrochlorothiazide'
   };
 
@@ -1661,6 +1663,7 @@ function hasContra(orderObj, wholeList = []) {
     hctz: 'hydrochlorothiazide',
     hydrochlorothiazide: 'hydrochlorothiazide'
   };
+  genericSynonyms['tiotropium bromide'] = 'tiotropium';
 
 const commonIndicationsPatterns = [
     { pattern: /(hypertension)$/i, indication: "hypertension" },
@@ -2338,13 +2341,19 @@ function getChangeReason(orig, updated) {
   };
   const rawNamesDiffer =
     cleanForBG(origDrugNameRaw) !== cleanForBG(updatedDrugNameRaw);
-  const hasBrandToken = name =>
-    Object.keys(brandSynonyms).some(
-      tok => tok.length > 4 && brandToGenericMap[tok] && name.includes(tok)
-    );
+  const normRaw = str => {
+    let s = str.toLowerCase();
+    Object.entries(genericSynonyms).forEach(([abbr, full]) => {
+      s = s.replace(new RegExp('\\b' + abbr + '\\b', 'g'), full);
+    });
+    return s;
+  };
+  const leftRaw = normRaw(origDrugNameRaw);
+  const rightRaw = normRaw(updatedDrugNameRaw);
+  const leftHasBrand = Object.keys(brandSynonyms).some(t => leftRaw.includes(t));
+  const rightHasBrand = Object.keys(brandSynonyms).some(t => rightRaw.includes(t));
   if (drugNameMatchStrict) {
-    const brandSwitch =
-      hasBrandToken(origDrugNameRaw) !== hasBrandToken(updatedDrugNameRaw);
+    const brandSwitch = leftHasBrand !== rightHasBrand;
     if (brandSwitch && !changes.includes('Brand/Generic changed')) {
       changes.push('Brand/Generic changed');
     }
