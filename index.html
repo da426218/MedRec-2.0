@@ -2808,13 +2808,21 @@ for (const mapping of timeOfDayMappings) {
   }
 }
 
-// If a time of day was found (e.g. "morning") but frequency wasn't set by a specific shorthand (like qam, every morning)
-// then assume it's a daily frequency.
-if (order.timeOfDay && !order.frequency) {
-    order.frequency = 'daily';
-    // console.log(`DEBUG parseOrder Step 1 (Implied Daily Freq): tod="<span class="math-inline">\{order\.timeOfDay\}", freq\="</span>{order.frequency}"`);
-}
 
+// If a time of day was found (e.g. "morning") but frequency wasn't set by a specific shorthand (like qam, every morning)
+// then check for weekly-style phrases before assuming it's a daily frequency.
+if (order.timeOfDay && !order.frequency) {
+    const weeklyPattern = /\b(?:once\s+weekly|once\s+a\s+week|weekly|every\s+(?:mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?))\b/i;
+    const weeklyMatch = orderStr.match(weeklyPattern);
+    if (weeklyMatch) {
+        order.frequency = 'weekly';
+        order.frequencyTokens.push(weeklyMatch[0].toLowerCase());
+        orderStr = orderStr.replace(weeklyMatch[0], '').trim();
+    } else {
+        order.frequency = 'daily';
+    }
+    // console.log(`DEBUG parseOrder Step 1 (Implied Freq): tod="${order.timeOfDay}", freq="${order.frequency}"`);
+}
 /* ——— NEW: capture “before / after breakfast|lunch|dinner”
           with an optional numeric offset ——— */
 if (!order.timeOfDay) {

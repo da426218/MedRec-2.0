@@ -313,3 +313,25 @@ addTest('Metoprolol XL vs ER unchanged', () => {
   const after  = 'Metoprolol Succinate ER 50 mg tab daily';
   expect(diff(before, after)).toBe('Unchanged');
 });
+
+addTest('Once weekly frequency detected', () => {
+  const ctxHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = ctxHtml.split('<script>')[2].split('</script>')[0];
+  const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  const order = ctx.parseOrder('Vitamin D2 50000 units - take once weekly at bedtime');
+  expect(order.frequency).toBe('weekly');
+  expect(order.timeOfDay).toBe('bedtime');
+});
+
+addTest('Every Sunday morning parsed as weekly', () => {
+  const ctxHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = ctxHtml.split('<script>')[2].split('</script>')[0];
+  const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  const order = ctx.parseOrder('Alendronate 70 mg tablet - take every Sunday morning');
+  expect(order.frequency).toBe('weekly');
+  expect(order.timeOfDay).toBe('morning');
+});
