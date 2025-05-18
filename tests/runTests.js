@@ -44,12 +44,6 @@ function diff(before, after) {
 
 require('./medDiff.test');
 
-addTest('Insulin before-meals equals TIDAC dose & freq change', () => {
-  const before = 'Insulin Aspart (Novolog) FlexPen - Inject 10 units subcutaneously TIDAC';
-  const after = 'Novolog FlexPen - Inject 12 units SC before meals (breakfast lunch dinner)';
-  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Brand/Generic changed');
-});
-
 addTest('Metformin evening vs nightly time change', () => {
   const before = 'Metformin hydrochloride 1000mg ER - take one tablet by mouth every evening with supper';
   const after = 'Metformin ER 1000mg - take 1 tab PO nightly with food';
@@ -110,12 +104,6 @@ addTest('Alprazolam PRN change detected', () => {
   expect(diff(before, after)).toBe('Route changed, Form changed, PRN changed');
 });
 
-addTest('Novolog brand name flagged', () => {
-  const before = 'Insulin Aspart (Novolog) FlexPen - Inject 10 units subcutaneously TIDAC';
-  const after = 'Novolog FlexPen - Inject 12 units SC before meals (breakfast lunch dinner)';
-  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Brand/Generic changed');
-});
-
 addTest('Vitamin D change list enumerated', () => {
   const before = 'Cholecalciferol 5000 IU softgel – One weekly';
   const after = 'Vitamin D3 2000 units capsule – One daily';
@@ -149,4 +137,10 @@ addTest('HCTZ abbreviation no brand flag', () => {
   const before = 'Lisinopril/HCTZ 20-12.5mg PO daily';
   const after  = 'Lisinopril 20mg / Hydrochlorothiazide 12.5mg PO daily';
   expect(diff(before, after)).toBe('Unchanged');
+});
+
+addTest('Insulin TIDAC equals before meals (no freq flag)', () => {
+  const before = 'Insulin Aspart (Novolog) FlexPen - Inject 10 units subcutaneously TIDAC';
+  const after  = 'Novolog FlexPen - Inject 12 units SC before meals (breakfast lunch dinner)';
+  expect(diff(before, after)).toBe('Dose changed, Brand/Generic changed');
 });

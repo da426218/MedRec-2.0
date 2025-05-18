@@ -2173,6 +2173,14 @@ function normalizeTimeOfDay(t) {
   return t;
 }
 
+function normalizeFrequency(str) {
+  if (!str) return '';
+  str = str.toLowerCase().trim();
+  const tidPattern = /\b(tidac|tid\b|three\s+times\s+daily|3\s+times\s+daily|before\s+meals?)\b/;
+  if (tidPattern.test(str)) return 'tid';   // canonical label
+  return str;
+}
+
 // <<< START OF WHERE YOU PASTE THE NEW FUNCTION >>>
 function inhaled(parsedOrder) {
     if (!parsedOrder) return false;
@@ -2396,7 +2404,9 @@ if (!frequencyMatch) {
     }
 } else if (!tokensEqual(orig.frequencyTokens, updated.frequencyTokens) &&
            (containsMeals(orig.frequencyTokens) || containsMeals(updated.frequencyTokens))) {
-    add('Frequency changed');
+    if (!(canon(orig.frequency) === 'tid' && canon(updated.frequency) === 'tid')) {
+      add('Frequency changed');
+    }
 }
 
 // --- Time of Day Change ---
@@ -3246,10 +3256,11 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
 }
 }
 // ... (end of Step 8 for frequency parsing)
-  if (!order.frequency && order.timeOfDay) {
-    order.frequency = 'daily';
-  }
-  // console.log(`DEBUG parseOrder Step 8 (Frequency): order.frequency="${order.frequency}", orderStr="${orderStr}"`);
+  if (!order.frequency && order.timeOfDay) {
+    order.frequency = 'daily';
+  }
+  order.frequency = normalizeFrequency(order.frequency);
+  // console.log(`DEBUG parseOrder Step 8 (Frequency): order.frequency="${order.frequency}", orderStr="${orderStr}"`);
 
 // --- // --- START OF REVISED AND ENHANCED STEP 9 ---
 // 9. Final Drug Name and Indication Assignment from remaining orderStr
