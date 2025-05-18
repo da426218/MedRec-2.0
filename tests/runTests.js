@@ -268,11 +268,17 @@ addTest('Solostar pen form same', () => {
 addTest('Twice daily with meals equals BID', () => {
   const b = 'KCl ER 10 mEq tab po twice a day with meals';
   const a = 'Klor-Con 10 mEq tab po BID';
-  expect(diff(b, a)).toBe('Formulation changed');
+  expect(diff(b, a)).toBe('Brand/Generic changed');
 });
 
 addTest('Claritin vs loratadine brand only', () => {
   const b = 'Claritin 10 mg tab po daily prn allergies';
   const a = 'Loratadine 10 mg tab po daily as needed for allergies';
   expect(diff(b, a)).toBe('Brand/Generic changed');
+});
+
+addTest('Klor-Con brand only', () => {
+  const b = 'Potassium Chloride ER 10 mEq tab po twice a day';
+  const a = 'Klor-Con 10 mEq tab po BID';
+  expect(diff(b,a)).toBe('Brand/Generic changed');
 });
