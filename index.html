@@ -1655,11 +1655,12 @@ function hasContra(orderObj, wholeList = []) {
     'tiotropium bromide': 'tiotropium',
     novolog: 'insulin aspart',
     humalog: 'insulin lispro',
-    hctz: 'hydrochlorothiazide'
+    hctz: 'hydrochlorothiazide',
+    'fluticasone propionate': 'fluticasone'
   };
 
-  const ignoreSalts = /\b(hydrochloride|sulfate|phosphate|acetate|maleate|tartrate|mesylate|succinate|sodium|potassium|calcium|magnesium)\b/gi;
-  const trivialSalts = /\b(sodium|hydrochloride|sulfate|phosphate|acetate|succinate|maleate|tartrate|mesylate|potassium|calcium|magnesium)\b/gi;
+  const ignoreSalts = /\b(hydrochloride|sulfate|phosphate|acetate|maleate|tartrate|mesylate|succinate|propionate|sodium|potassium|calcium|magnesium)\b/gi;
+  const trivialSalts = /\b(sodium|hydrochloride|sulfate|phosphate|acetate|succinate|maleate|tartrate|mesylate|propionate|potassium|calcium|magnesium)\b/gi;
 
   const importantSaltPairs = [
     ['diclofenac sodium',      'diclofenac potassium'],
