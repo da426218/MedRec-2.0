@@ -1656,7 +1656,10 @@ function hasContra(orderObj, wholeList = []) {
     novolog: 'insulin aspart',
     humalog: 'insulin lispro',
     hctz: 'hydrochlorothiazide',
-    'fluticasone propionate': 'fluticasone'
+    'fluticasone propionate': 'fluticasone',
+    lipitor:        'atorvastatin',
+    lantus:         'insulin glargine',
+    claritin:       'loratadine'
   };
 
   const ignoreSalts = /\b(hydrochloride|sulfate|phosphate|acetate|maleate|tartrate|mesylate|succinate|propionate|sodium|potassium|calcium|magnesium)\b/gi;
@@ -2156,9 +2159,11 @@ function normalizeIndicationText(txt = '') {
 
 function normalizeIndication(txt) {
   if (!txt) return '';
-  return txt
-    .toLowerCase()
-    .replace(/\banxious\b/g, 'anxiety')
+  return txt.toLowerCase()
+    .replace(/\b(type\s*2\s*)?diabetes\b/g, 'diabetes')
+    .replace(/\b(htn|hypertension|high blood pressure)\b/g, 'hypertension')
+    .replace(/\bhigh cholesterol\b/g, 'cholesterol')
+    .replace(/\banxious\b/g,           'anxiety')
     .trim();
 }
 
@@ -2294,6 +2299,11 @@ function getChangeReason(orig, updated) {
     norm(updated.timeOfDayOriginal)
   );
   const formMatch = same(norm(orig.form), norm(updated.form));
+  if (!formMatch &&
+      orig.form === 'pen' && updated.form === 'pen') {
+    formMatch = true;
+    changes = changes.filter(c => c !== 'Form changed');
+  }
   let formulationMatch = same(norm(orig.formulation), norm(updated.formulation));
   // Re-evaluate formulationMatch minus trivial salts
   const normForm = (f) => (f || '').replace(trivialSalts, '').replace(/\s{2,}/g,'').trim();
@@ -3283,6 +3293,12 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
               "weekly": "weekly", "once a week": "weekly",
               "monthly": "monthly", "once a month": "monthly"
           };
+          const freqMapExtra = {
+            'twice a day': 'bid',
+            'twice daily': 'bid'
+          };
+          Object.assign(freqMapping, freqMapExtra);
+          freqMapping['bid'] = 'bid';
           const sortedFreqKeys = Object.keys(freqMapping).sort((a, b) => b.length - a.length);
           for (const key of sortedFreqKeys) {
             const pattern = new RegExp(`\\b${key.replace(/\s+/g, '\\s+')}\\b`, 'i');
@@ -3470,6 +3486,15 @@ if (!order.drug && initialCleanedDrugString &&
     order.drug = initialCleanedDrugString.trim().toLowerCase();
 }
 
+// If no form detected but original text mentions tablets or capsules
+if (!order.form) {
+    const raw = originalRaw.toLowerCase();
+    if (/\btab(lets?)?\b/.test(raw)) {
+        order.form = 'tablet';
+    } else if (/\bcap(sules?|lets?)?\b/.test(raw)) {
+        order.form = 'capsule';
+    }
+}
 // Default route to 'po' if form implies oral administration and route not set
 const oralFormsForPo = ['tablet','capsule','caplet','softgel','lozenge','syrup','solution','suspension','elixir','liquid','oral disintegrating tablet'];
 if (!order.route && oralFormsForPo.includes(order.form)) {

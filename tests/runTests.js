@@ -232,3 +232,15 @@ addTest('Unchanged rows sorted last', () => {
   expect(rows[0].changes).not.toEqual([]);
   expect(rows[rows.length - 1].changes).toEqual([]);
 });
+
+addTest('Atorvastatin vs Lipitor brand flag only', () => {
+  const b = 'Atorvastatin 40 mg tab po qhs';
+  const a = 'Lipitor 40 mg tab at bedtime';
+  expect(diff(b,a)).toBe('Brand/Generic changed');
+});
+
+addTest('KCl BID wording equal', () => {
+  const b = 'Potassium Chloride ER 10 mEq tab po twice a day';
+  const a = 'Klor-Con 10 mEq tab po BID';
+  expect(diff(b,a).includes('Frequency changed')).toBe(false);
+});
