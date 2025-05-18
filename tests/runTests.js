@@ -144,3 +144,9 @@ addTest('Insulin TIDAC equals before meals (no freq flag)', () => {
   const after  = 'Novolog FlexPen - Inject 12 units SC before meals (breakfast lunch dinner)';
   expect(diff(before, after)).toBe('Dose changed, Brand/Generic changed');
 });
+addTest('Alprazolam PRN condition only', () => {
+  const before = 'Alprazolam 0.25 mg ODT SL q6h prn anxiety';
+  const after  = 'Alprazolam 0.25 mg tab PO every 6 hours if anxious';
+  expect(diff(before, after))
+    .toBe('Route changed, Form changed, Indication changed');
+});
