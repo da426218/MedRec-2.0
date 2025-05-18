@@ -59,19 +59,19 @@ addTest('Vitamin D brand/generic without formulation change', () => {
 addTest('Fluticasone spray dose total', () => {
   const before = 'Fluticasone Propionate Nasal Spray 50 mcg/spray - 2 sprays in each nostril once daily';
   const after = 'Fluticasone Nasal Spray 50mcg - Use 1 spray per nostril qd';
-  expect(diff(before, after)).toBe('Formulation changed, Quantity changed');
+  expect(diff(before, after)).toBe('Quantity changed');
 });
 
 addTest('Fluticasone quantity change', () => {
   const before = 'Fluticasone Propionate Nasal Spray 50 mcg/spray – 2 sprays in each nostril daily';
   const after = 'Fluticasone Nasal Spray 50 mcg – 1 spray per nostril qd';
-  expect(diff(before, after)).toBe('Formulation changed, Quantity changed');
+  expect(diff(before, after)).toBe('Quantity changed');
 });
 
 addTest('Fluticasone formulation flagged', () => {
   const before = 'Fluticasone Propionate Nasal Spray 50 mcg/spray – 2 sprays each nostril daily';
   const after = 'Fluticasone Nasal Spray 50 mcg – 1 spray per nostril qd';
-  expect(diff(before, after)).toBe('Formulation changed, Quantity changed');
+  expect(diff(before, after)).toBe('Quantity changed');
 });
 
 addTest('Warfarin sodium formulation difference', () => {
@@ -167,4 +167,10 @@ addTest('Metformin HCl ER vs Metformin ER unchanged', () => {
   const b = 'Metformin hydrochloride 1000 mg ER tablet nightly';
   const a = 'Metformin ER 1000 mg tablet evening';
   expect(diff(b, a)).toBe('Unchanged');
+});
+
+addTest('Fluticasone propionate omission not formulation', () => {
+  const before = 'Fluticasone Propionate nasal spray 50 mcg – 2 sprays each nostril daily';
+  const after  = 'Fluticasone nasal spray 50 mcg – 1 spray each nostril qd';
+  expect(diff(before, after)).toBe('Quantity changed');
 });
