@@ -2332,8 +2332,11 @@ function getChangeReason(orig, updated) {
   };
   const mealsTokens = ['tidac','before meals','with meals','before breakfast lunch dinner'];
   const containsMeals = tokens => (tokens||[]).map(norm).some(t => mealsTokens.includes(t));
-  const timeOfDayMatch =
+  let timeOfDayMatch =
     normalizeTimeOfDay(orig.timeOfDay) === normalizeTimeOfDay(updated.timeOfDay);
+  if (canon(orig.frequency) === 'weekly' && canon(updated.frequency) === 'weekly') {
+    timeOfDayMatch = true;
+  }
   const timeOfDayRawMatch = same(
     norm(orig.timeOfDayOriginal),
     norm(updated.timeOfDayOriginal)
