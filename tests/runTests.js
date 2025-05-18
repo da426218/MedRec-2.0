@@ -350,6 +350,26 @@ addTest('Brand token captured in array', () => {
   expect(order.brandTokens).toEqual(['lipitor']);
 });
 
+addTest('Duplicate brand names deduped', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({ }), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  const order = ctx.parseOrder('Lipitor Lipitor 40 mg tablet daily');
+  expect(order.brandTokens).toEqual(['lipitor']);
+});
+
+addTest('Duplicate brand synonyms deduped', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({ }), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  const order = ctx.parseOrder('Coumadin Coumadin 5 mg daily');
+  expect(order.brandTokens).toEqual(['coumadin']);
+});
+
 addTest('Generic name has no brand tokens', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const script = html.split('<script>')[2].split('</script>')[0];

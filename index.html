@@ -1734,21 +1734,23 @@ const commonIndicationsPatterns = [
 
     /* 1 .  Convert any brand name that appears anywhere in the text
        (e.g. "symbicort 160/4.5") to its generic. */
-    for (const brand in brandToGenericMap) {
-      const re = new RegExp('\\b' + brand + '\\b', 'gi');
-      n = n.replace(re, match => {
-        brandTok.push(match.toLowerCase());
-        return brandToGenericMap[brand];
-      });
-    }
+      for (const brand in brandToGenericMap) {
+        const re = new RegExp('\\b' + brand + '\\b', 'gi');
+        n = n.replace(re, match => {
+          const token = match.toLowerCase();
+          if (!brandTok.includes(token)) brandTok.push(token);
+          return brandToGenericMap[brand];
+        });
+      }
 
-    for (const syn in brandSynonyms) {
-      const reSyn = new RegExp('\\b' + syn + '\\b', 'gi');
-      n = n.replace(reSyn, match => {
-        brandTok.push(match.toLowerCase());
-        return brandSynonyms[syn];
-      });
-    }
+      for (const syn in brandSynonyms) {
+        const reSyn = new RegExp('\\b' + syn + '\\b', 'gi');
+        n = n.replace(reSyn, match => {
+          const token = match.toLowerCase();
+          if (!brandTok.includes(token)) brandTok.push(token);
+          return brandSynonyms[syn];
+        });
+      }
     // Apply generic synonyms after brand replacements
     for (const syn in genericSynonyms) {
       const reSyn = new RegExp('\\b' + syn + '\\b', 'gi');
