@@ -1662,10 +1662,10 @@ function hasContra(orderObj, wholeList = []) {
     claritin:       'loratadine',
     synthroid:      'levothyroxine',
     fosamax:        'alendronate',
-    coumadin:       'warfarin'
+    coumadin:       'warfarin',
+    'klor-con':     'potassium chloride',
+    tylenol:        'acetaminophen'
   };
-  brandSynonyms['klor-con'] = 'potassium chloride';
-  brandSynonyms['tylenol'] = 'acetaminophen';
 
   const ignoreSalts = /\b(hydrochloride|sulfate|phosphate|acetate|maleate|tartrate|mesylate|succinate|propionate|sodium|potassium|calcium|magnesium)\b/gi;
   const trivialSalts = /\b(sodium|hydrochloride|sulfate|phosphate|acetate|succinate|maleate|tartrate|mesylate|propionate|potassium|calcium|magnesium)\b/gi;
