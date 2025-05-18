@@ -2291,8 +2291,8 @@ function getChangeReason(orig, updated) {
   };
 
   // --- Initial properties from parsed objects ---
-  const origDrugNameRaw = orig.drug; // Keep as parsed, before normalizeMedicationName
-  const updatedDrugNameRaw = updated.drug; // Keep as parsed
+  const origDrugNameRaw = orig.rawDrug || orig.drug; // Preserve pre-normalization if available
+  const updatedDrugNameRaw = updated.rawDrug || updated.drug;
 
   const { cleanedName: origDrugNorm } = normalizeMedicationName(orig.drug); // Fully normalized name for substance matching
   const { cleanedName: updatedDrugNorm } = normalizeMedicationName(updated.drug);
@@ -2699,7 +2699,9 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
     endDate: "",
     form: "",
     formulation: "",
-    indication: ""
+    indication: "",
+    brandTokens: [],
+    rawDrug: ""
   };
 // Store the initially cleaned drug string for later Brand/Generic comparison
   const initialCleanedDrugString = orderStr;
@@ -3520,10 +3522,15 @@ orderStr = orderStr.replace(deviceWords, '').replace(/\/\s*$/, '').trim();
 finalDrugName = finalDrugName.replace(deviceWords, '').replace(/\/\s*$/, '').trim();
 
 // Assign to order object
-order.drug = finalDrugName.replace(/[^a-zA-Z0-9\/\s\-\.#]+/g, ' ') // Allow # for Tylenol #3
-                         .replace(/\s\s+/g, ' ')
-                         .trim()
-                         .toLowerCase();
+const drugStr = finalDrugName
+  .replace(/[^a-zA-Z0-9\/\s\-\.#]+/g, ' ') // Allow # for Tylenol #3
+  .replace(/\s\s+/g, ' ')
+  .trim()
+  .toLowerCase();
+order.rawDrug = drugStr;
+const { cleanedName, rawBrandTokens } = normalizeMedicationName(drugStr);
+order.drug = cleanedName;
+order.brandTokens = rawBrandTokens;
 
 // --- Indication catcher (only if the token 'for' is present) ---
   const indMatch = orderStr.match(/\bfor\s+(.+?)$/i);
@@ -3597,9 +3604,6 @@ if (!order.route && oralFormsForPo.includes(order.form)) {
 }
 
   order.formulation = canonFormulation(order.formulation);
-
-  const { rawBrandTokens } = normalizeMedicationName(order.drug);
-  order.brandTokens = rawBrandTokens;
 
   // console.log('FINAL DEBUG Parsed order:', { /* input: originalInputToParseOrder, */ parsed: order });
   return order;
