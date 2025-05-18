@@ -2308,9 +2308,16 @@ function getChangeReason(orig, updated) {
     norm(orig.timeOfDayOriginal),
     norm(updated.timeOfDayOriginal)
   );
-  const formMatch = same(norm(orig.form), norm(updated.form));
+  let formMatch = same(norm(orig.form), norm(updated.form));
   if (!formMatch &&
       orig.form === 'pen' && updated.form === 'pen') {
+    formMatch = true;
+    changes = changes.filter(c => c !== 'Form changed');
+  }
+  if (!formMatch && (
+        (orig.form === '' && updated.form === 'tablet') ||
+        (updated.form === '' && orig.form === 'tablet')
+      )) {
     formMatch = true;
     changes = changes.filter(c => c !== 'Form changed');
   }

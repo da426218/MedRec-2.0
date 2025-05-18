@@ -288,3 +288,10 @@ addTest('Tylenol brand flag', () => {
   const a = 'Acetaminophen 1000 mg tab PO every 6 hours as needed for pain';
   expect(diff(b, a)).toBe('Dose changed, Quantity changed, Brand/Generic changed');
 });
+
+addTest('Implicit tablet form same', () => {
+  const before = 'Tylenol 500 mg 2 tabs PO q6h prn pain';
+  const after  = 'Acetaminophen 1000 mg PO every 6 hours as needed for pain';
+  expect(diff(before, after))
+    .toBe('Dose changed, Quantity changed, Brand/Generic changed');
+});
