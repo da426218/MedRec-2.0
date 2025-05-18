@@ -47,7 +47,7 @@ require('./medDiff.test');
 addTest('Insulin before-meals equals TIDAC dose & freq change', () => {
   const before = 'Insulin Aspart (Novolog) FlexPen - Inject 10 units subcutaneously TIDAC';
   const after = 'Novolog FlexPen - Inject 12 units SC before meals (breakfast lunch dinner)';
-  expect(diff(before, after)).toBe('Dose changed, Frequency changed');
+  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Brand/Generic changed');
 });
 
 addTest('Metformin evening vs nightly time change', () => {
@@ -95,7 +95,7 @@ addTest('Warfarin qPM vs evening flagged', () => {
 addTest('Insulin Aspart vs Novolog brand generic detection', () => {
   const before = 'Insulin Aspart 10 units SC daily';
   const after = 'Novolog 10 units SC daily';
-  expect(diff(before, after)).toBe('Unchanged');
+  expect(diff(before, after)).toBe('Brand/Generic changed');
 });
 
 addTest('PRN condition wording change detected', () => {
@@ -113,7 +113,7 @@ addTest('Alprazolam PRN change detected', () => {
 addTest('Novolog brand name flagged', () => {
   const before = 'Insulin Aspart (Novolog) FlexPen - Inject 10 units subcutaneously TIDAC';
   const after = 'Novolog FlexPen - Inject 12 units SC before meals (breakfast lunch dinner)';
-  expect(diff(before, after)).toBe('Dose changed, Frequency changed');
+  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Brand/Generic changed');
 });
 
 addTest('Vitamin D change list enumerated', () => {
