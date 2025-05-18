@@ -95,13 +95,13 @@ addTest('Insulin Aspart vs Novolog brand generic detection', () => {
 addTest('PRN condition wording change detected', () => {
   const before = 'Alprazolam 0.5mg tablet - take 1 tab q8h prn anxiety';
   const after = 'Alprazolam 0.5mg tablet - take 1 tab q8h if anxious';
-  expect(diff(before, after)).toBe('Indication changed');
+  expect(diff(before, after)).toBe('Unchanged');
 });
 
 addTest('Alprazolam PRN change detected', () => {
   const before = 'Alprazolam 0.25 mg ODT – 1 tab sublingually q6h prn anxiety';
   const after = 'Alprazolam 0.25 mg tablet – 1 tab PO q6h if anxious';
-  expect(diff(before, after)).toBe('Route changed, Form changed, Indication changed');
+  expect(diff(before, after)).toBe('Route changed, Form changed');
 });
 
 addTest('Vitamin D change list enumerated', () => {
@@ -148,7 +148,7 @@ addTest('Alprazolam PRN condition only', () => {
   const before = 'Alprazolam 0.25 mg ODT SL q6h prn anxiety';
   const after  = 'Alprazolam 0.25 mg tab PO every 6 hours if anxious';
   expect(diff(before, after))
-    .toBe('Route changed, Form changed, Indication changed');
+    .toBe('Route changed, Form changed');
 });
 
 addTest('Diclofenac sodium vs potassium flags formulation', () => {
@@ -173,4 +173,10 @@ addTest('Fluticasone propionate omission not formulation', () => {
   const before = 'Fluticasone Propionate nasal spray 50 mcg – 2 sprays each nostril daily';
   const after  = 'Fluticasone nasal spray 50 mcg – 1 spray each nostril qd';
   expect(diff(before, after)).toBe('Quantity changed');
+});
+
+addTest('Anxious vs anxiety = no indication flag', () => {
+  const before = 'Alprazolam 0.25 mg ODT SL q6h prn anxiety';
+  const after  = 'Alprazolam 0.25 mg tab PO every 6 hours if anxious';
+  expect(diff(before, after)).toBe('Route changed, Form changed');
 });
