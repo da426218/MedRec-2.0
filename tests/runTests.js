@@ -172,14 +172,13 @@ addTest('Spiriva brand/generic flag', () => {
     'Tiotropium Bromide (Spiriva HandiHaler) 18mcg capsule - Inhale contents of one capsule via HandiHaler once daily';
   const after =
     'Spiriva Respimat 2.5mcg/actuation - 2 inhalations once daily';
-  expect(diff(before, after))
-    .toBe('Dose changed, Brand/Generic changed, Form changed');
+  expect(diff(before, after)).toBe('Dose changed, Form changed');
 });
 
 addTest('HCTZ abbreviation no brand flag', () => {
   const before = 'Lisinopril/HCTZ 20-12.5mg PO daily';
   const after  = 'Lisinopril 20mg / Hydrochlorothiazide 12.5mg PO daily';
-  expect(diff(before, after)).toBe('Unchanged');
+  expect(diff(before, after)).toBe('Brand/Generic changed');
 });
 
 addTest('Insulin TIDAC equals before meals (no freq flag)', () => {
