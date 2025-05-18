@@ -1725,8 +1725,23 @@ const commonIndicationsPatterns = [
 });
 
   function normalizeMedicationName(name) {
-          if (!name) return '';
+    if (!name) return { cleanedName: '', brandToken: null };
     let n = name.toLowerCase().trim();
+    let brandToken = null;
+
+    // detect brand token before replacements
+    for (const brand in brandToGenericMap) {
+      if (genericSynonyms[brand]) continue;
+      const re = new RegExp('\\b' + brand + '\\b', 'i');
+      if (re.test(n)) { brandToken = brand.toLowerCase(); break; }
+    }
+    if (!brandToken) {
+      for (const syn in brandSynonyms) {
+        if (genericSynonyms[syn]) continue;
+        const reSyn = new RegExp('\\b' + syn + '\\b', 'i');
+        if (reSyn.test(n)) { brandToken = syn.toLowerCase(); break; }
+      }
+    }
     n = n.replace(ignoreSalts, '').replace(/\s{2,}/g, ' ').trim();
 
     // normalize common formulation abbreviations early
@@ -1791,7 +1806,7 @@ const commonIndicationsPatterns = [
 
     n = n.trim();
 
-  return n;
+  return { cleanedName: n, brandToken };
 }
 
     const unitVariants = {
@@ -2285,8 +2300,8 @@ function getChangeReason(orig, updated) {
   const origDrugNameRaw = orig.drug; // Keep as parsed, before normalizeMedicationName
   const updatedDrugNameRaw = updated.drug; // Keep as parsed
 
-  const origDrugNorm = normalizeMedicationName(orig.drug); // Fully normalized name for substance matching
-  const updatedDrugNorm = normalizeMedicationName(updated.drug);
+  const { cleanedName: origDrugNorm } = normalizeMedicationName(orig.drug); // Fully normalized name for substance matching
+  const { cleanedName: updatedDrugNorm } = normalizeMedicationName(updated.drug);
 
 
   // --- Comparisons ---
@@ -2436,17 +2451,8 @@ function getChangeReason(orig, updated) {
   };
   const rawNamesDiffer =
     cleanForBG(origDrugNameRaw) !== cleanForBG(updatedDrugNameRaw);
-  const normRaw = str => {
-    let s = str.toLowerCase();
-    Object.entries(genericSynonyms).forEach(([abbr, full]) => {
-      s = s.replace(new RegExp('\\b' + abbr + '\\b', 'g'), full);
-    });
-    return s;
-  };
-  const leftRaw = normRaw(origDrugNameRaw);
-  const rightRaw = normRaw(updatedDrugNameRaw);
-  const leftHasBrand = Object.keys(brandSynonyms).some(t => leftRaw.includes(t));
-  const rightHasBrand = Object.keys(brandSynonyms).some(t => rightRaw.includes(t));
+  const leftHasBrand = Boolean(orig.rawBrandToken);
+  const rightHasBrand = Boolean(updated.rawBrandToken);
   if (drugNameMatchStrict) {
     const brandSwitch = leftHasBrand !== rightHasBrand;
     if (brandSwitch && !changes.includes('Brand/Generic changed')) {
@@ -3585,6 +3591,9 @@ if (!order.route && oralFormsForPo.includes(order.form)) {
 
   order.formulation = canonFormulation(order.formulation);
 
+  const { brandToken } = normalizeMedicationName(order.drug);
+  order.rawBrandToken = brandToken;
+
   // console.log('FINAL DEBUG Parsed order:', { /* input: originalInputToParseOrder, */ parsed: order });
   return order;
 }
@@ -3659,8 +3668,8 @@ function findContraIndications(allOrders) {
   }
 
   // 1) drug name and formulation
-  const normDrugA = normalizeMedicationName(a.drug); // Substance name
-  const normDrugB = normalizeMedicationName(b.drug); // Substance name
+  const { cleanedName: normDrugA } = normalizeMedicationName(a.drug); // Substance name
+  const { cleanedName: normDrugB } = normalizeMedicationName(b.drug); // Substance name
   const formulationA = norm(a.formulation);
   const formulationB = norm(b.formulation);
 
@@ -4270,7 +4279,7 @@ added.forEach(a => {
   const originalDrugString = a.original; // For logging
   const parsedDrugField = a.parsed.drug;
   // Use the first word of the normalized generic name as the primary key
-  const primaryKey = normalizeMedicationName(parsedDrugField).split(' ')[0].trim();
+  const primaryKey = normalizeMedicationName(parsedDrugField).cleanedName.split(' ')[0].trim();
   if (primaryKey) { // Ensure the key is not empty
       console.log(`  [addedMap]: Adding: Original Str: "<span class="math-inline">\{originalDrugString\}" \-\-\> Parsed Drug\: "</span>{parsedDrugField}" --> Primary Key: "${primaryKey}"`);
       addedMap[primaryKey] = a;
@@ -4290,7 +4299,7 @@ removed = removed.filter(r => {
   const parsedRemovedDrugField    = r.parsed.drug;
 
   // Use the first word of the normalized generic name for lookup
-  const primaryLookupKey = normalizeMedicationName(parsedRemovedDrugField).split(' ')[0].trim();
+  const primaryLookupKey = normalizeMedicationName(parsedRemovedDrugField).cleanedName.split(' ')[0].trim();
   let match = undefined;
   let usedKey = "";
 
@@ -4409,12 +4418,12 @@ removed.forEach(r => {
         if (brandKey) {
             changeType = 'Generic Medication';
             const gen = brandToGenericMap[brandKey];
-            match = added.find(a => normalizeMedicationName(a.parsed.drug) === gen);
+            match = added.find(a => normalizeMedicationName(a.parsed.drug).cleanedName === gen);
         }
 
         // 2) Generic → brand?
         if (!match) {
-            const genKey = normalizeMedicationName(r.parsed.drug);
+            const genKey = normalizeMedicationName(r.parsed.drug).cleanedName;
             const brandList = genericToBrandMap[genKey] || [];
             for (let brand of brandList) {
                 const regex = new RegExp(`\\b${brand}\\b`, 'i');
@@ -4440,7 +4449,7 @@ if (!match) {
         const normOrig = normalizeIndicationText(origInd);
         const normNew  = normalizeIndicationText(newInd);
         if (
-            normalizeMedicationName(r.parsed.drug) === normalizeMedicationName(match.parsed.drug)
+            normalizeMedicationName(r.parsed.drug).cleanedName === normalizeMedicationName(match.parsed.drug).cleanedName
             && r.parsed.dose.value === match.parsed.dose.value
             && r.parsed.dose.unit  === match.parsed.dose.unit
             && normOrig !== normNew
@@ -4496,7 +4505,7 @@ if (!match) {
 
         // 6) Same-drug match
         const sameDrug = added.find(a =>
-            normalizeMedicationName(a.parsed.drug) === normalizeMedicationName(r.parsed.drug)
+            normalizeMedicationName(a.parsed.drug).cleanedName === normalizeMedicationName(r.parsed.drug).cleanedName
         );
         if (sameDrug) {
             const reason = getChangeReason(r.parsed, sameDrug.parsed);
