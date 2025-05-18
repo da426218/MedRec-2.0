@@ -16,6 +16,27 @@ global.expect = actual => ({
     if (actual !== expected) {
       throw new Error(`Expected ${expected} but received ${actual}`);
     }
+  },
+  toEqual: expected => {
+    const a = JSON.stringify(actual);
+    const b = JSON.stringify(expected);
+    if (a !== b) {
+      throw new Error(`Expected ${b} but received ${a}`);
+    }
+  },
+  not: {
+    toEqual: expected => {
+      const a = JSON.stringify(actual);
+      const b = JSON.stringify(expected);
+      if (a === b) {
+        throw new Error(`Expected value not equal to ${b}`);
+      }
+    },
+    toBe: expected => {
+      if (actual === expected) {
+        throw new Error(`Expected value not to be ${expected}`);
+      }
+    }
   }
 });
 
@@ -57,6 +78,7 @@ function diffRowsList(beforeList, afterList) {
 }
 
 global.diffRowsList = diffRowsList;
+global.diffRows = diffRowsList;
 
 require('./medDiff.test');
 
@@ -195,4 +217,18 @@ addTest('Anxious vs anxiety = no indication flag', () => {
   const before = 'Alprazolam 0.25 mg ODT SL q6h prn anxiety';
   const after  = 'Alprazolam 0.25 mg tab PO every 6 hours if anxious';
   expect(diff(before, after)).toBe('Route changed, Form changed');
+});
+
+addTest('Unchanged rows sorted last', () => {
+  const listA = [
+    'Metformin 500 mg tab po bid',
+    'Amlodipine 5 mg tab po daily'
+  ].join('\n');
+  const listB = [
+    'Metformin 500 mg tab po bid',
+    'Amlodipine 10 mg tab po daily'
+  ].join('\n');
+  const rows = diffRows(listA, listB);
+  expect(rows[0].changes).not.toEqual([]);
+  expect(rows[rows.length - 1].changes).toEqual([]);
 });
