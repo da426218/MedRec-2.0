@@ -2322,7 +2322,10 @@ function getChangeReason(orig, updated) {
 
   const doseValueMatch = valuesEqual(orig.dose?.value, updated.dose?.value);
   const doseTotalMatch = valuesEqual((orig.dose?.total ?? orig.dose?.value), (updated.dose?.total ?? updated.dose?.value)); // Use total, fallback to value
-  const doseUnitMatch = same(orig.dose?.unit, updated.dose?.unit);
+  const doseUnitMatch = same(
+    orig.rawUnit || orig.dose?.unit,
+    updated.rawUnit || updated.dose?.unit
+  );
   const frequencyMatch = canon(orig.frequency) === canon(updated.frequency);
   const tokensEqual = (a,b) => {
     a = (a || []).map(norm).sort();
@@ -2697,7 +2700,8 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
     formulation: "",
     indication: "",
     brandTokens: [],
-    rawDrug: ""
+    rawDrug: "",
+    rawUnit: ""
   };
 // Store the initially cleaned drug string for later Brand/Generic comparison
   const initialCleanedDrugString = orderStr;
@@ -3085,6 +3089,7 @@ if (unitMatchesFound.length > 0) {
   const sprayHit = hits.find(h => h.stdUnit === 'spray');
   let unitLower = bestMatch.stdUnit.toLowerCase();
   if (unitLower === "gram") unitLower = "g";
+  order.rawUnit = unitLower; // store pre-normalization unit
   order.dose = { value: bestMatch.qty,
                  unit:  unitLower,
                  total: bestMatch.qty };

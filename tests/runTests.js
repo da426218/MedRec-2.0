@@ -379,10 +379,22 @@ addTest('Microgram to milligram normalization', () => {
   const order = ctx.parseOrder('Levothyroxine 100 mcg tablet daily');
   expect(order.dose.value).toBe(0.1);
   expect(order.dose.unit).toBe('mg');
+  expect(order.rawUnit).toBe('mcg');
 });
 
 addTest('Vancomycin gram vs g unchanged', () => {
-  expect(diff('Vancomycin 1 gram q12h', 'Vancomycin 1 g q12h')).toBe('Unchanged');
+  const before = 'Vancomycin 1 gram q12h';
+  const after  = 'Vancomycin 1 g q12h';
+  const ctxHtml = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = ctxHtml.split('<script>')[2].split('</script>')[0];
+  const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  const p1 = ctx.parseOrder(before);
+  const p2 = ctx.parseOrder(after);
+  expect(p1.rawUnit).toBe('g');
+  expect(p2.rawUnit).toBe('g');
+  expect(ctx.getChangeReason(p1, p2)).toBe('Unchanged');
 });
 
 addTest('Synthroid brand detected', () => {
