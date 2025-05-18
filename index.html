@@ -1656,6 +1656,12 @@ function hasContra(orderObj, wholeList = []) {
     hctz: 'hydrochlorothiazide'
   };
 
+
+  const genericSynonyms = {
+    hctz: 'hydrochlorothiazide',
+    hydrochlorothiazide: 'hydrochlorothiazide'
+  };
+
 const commonIndicationsPatterns = [
     { pattern: /(hypertension)$/i, indication: "hypertension" },
     { pattern: /(diabetes\s+mellitus)$/i, indication: "diabetes mellitus" }, // More specific first
@@ -2319,12 +2325,17 @@ function getChangeReason(orig, updated) {
   }
 
   // --- Brand/Generic Change ---
-  const cleanForBG = n =>
-    coreDrugName(n)
+  const cleanForBG = n => {
+    let str = coreDrugName(n)
       .replace(/\b(?:apply|take|use|give|topically|by mouth|po|every|day|days)\b/gi, '')
       .replace(/[\/-]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
+    for (const [abbr, full] of Object.entries(genericSynonyms)) {
+      str = str.replace(new RegExp('\\b' + abbr + '\\b', 'gi'), full);
+    }
+    return str;
+  };
   const rawNamesDiffer =
     cleanForBG(origDrugNameRaw) !== cleanForBG(updatedDrugNameRaw);
   const hasBrandToken = name =>
