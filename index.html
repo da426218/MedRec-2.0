@@ -3656,6 +3656,38 @@ for (let i = removed.length - 1; i >= 0; i--) {
       return { unchanged, removed, added };
     }
 
+    function diffRows(listA, listB) {
+      const parseList = str =>
+        (str || '')
+          .split(/\r?\n/)
+          .map(s => s.trim())
+          .filter(Boolean)
+          .map(line => ({ original: line, parsed: parseOrder(line) }));
+
+      const arrA = parseList(listA);
+      const arrB = parseList(listB);
+
+      const { unchanged, removed, added } = compareOrders(arrA, arrB);
+
+      const rows = [];
+      unchanged.forEach(pair => {
+        const reason = getChangeReason(pair.orig.parsed, pair.new.parsed);
+        const label = reason === 'Misc. Change' ? 'Unchanged' : reason;
+        rows.push({ orig: pair.orig.original, new: pair.new.original, changes: label });
+      });
+      removed.forEach(r => {
+        rows.push({ orig: r.original, new: '', changes: 'Removed' });
+      });
+      added.forEach(a => {
+        rows.push({ orig: '', new: a.original, changes: 'Added' });
+      });
+
+      return rows;
+    }
+
+    if (typeof module !== 'undefined') module.exports.diffRows = diffRows;
+    if (typeof window !== 'undefined') window.diffRows = diffRows;
+
     function isCriticalOrder(orderObj) {
       const text = orderObj.original.toLowerCase();
       return criticalMeds.some(med => text.includes(med));
