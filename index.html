@@ -2425,8 +2425,18 @@ if (!routeMatch && (norm(orig.route) || norm(updated.route))) { // Only if route
 }
 
 
-// --- PRN Change ---
-if (!prnMatch || !prnConditionMatch) add('PRN changed');
+// --- PRN logic ---
+if (orig.prn !== updated.prn) {
+  changes.push('PRN changed');
+} else if (
+  orig.prn &&
+  updated.prn &&
+  orig.prnCondition !== updated.prnCondition &&
+  !changes.includes('Indication changed')
+) {
+  changes.push('Indication changed');
+}
+// --- end PRN logic ---
 
 // --- Indication Change (general catch-all if different) ---
 if (indicationDiff) {
