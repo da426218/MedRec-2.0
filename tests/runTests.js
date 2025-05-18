@@ -90,7 +90,7 @@ require('./medDiff.test');
 addTest('Metformin evening vs nightly time change', () => {
   const before = 'Metformin hydrochloride 1000mg ER - take one tablet by mouth every evening with supper';
   const after = 'Metformin ER 1000mg - take 1 tab PO nightly with food';
-  expect(diff(before, after)).toBe('Unchanged');
+  expect(diff(before, after)).toBe('Time of day changed');
 });
 
 addTest('Vitamin D brand/generic without formulation change', () => {
@@ -208,7 +208,7 @@ addTest('Warfarin sodium vs warfarin unchanged', () => {
 addTest('Metformin HCl ER vs Metformin ER unchanged', () => {
   const b = 'Metformin hydrochloride 1000 mg ER tablet nightly';
   const a = 'Metformin ER 1000 mg tablet evening';
-  expect(diff(b, a)).toBe('Unchanged');
+  expect(diff(b, a)).toBe('Time of day changed');
 });
 
 addTest('Fluticasone propionate omission not formulation', () => {
