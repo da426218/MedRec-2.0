@@ -334,3 +334,45 @@ addTest('Every Sunday morning parsed as weekly', () => {
   expect(order.frequency).toBe('weekly');
   expect(order.timeOfDay).toBe('morning');
 });
+
+addTest('Brand token captured in array', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  const order = ctx.parseOrder('Lipitor 40 mg tablet daily');
+  expect(order.brandTokens).toEqual(['lipitor']);
+});
+
+addTest('Generic name has no brand tokens', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  const order = ctx.parseOrder('atorvastatin 40 mg tablet daily');
+  expect(order.brandTokens).toEqual([]);
+});
+
+addTest('Weekly time of day ignored in diff', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  const before = 'Vitamin D2 50000 units - take once weekly at bedtime';
+  const after  = 'Vitamin D2 50000 units - take once weekly in the morning';
+  expect(ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after))).toBe('Unchanged');
+});
+
+addTest('Microgram to milligram normalization', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  const order = ctx.parseOrder('Levothyroxine 100 mcg tablet daily');
+  expect(order.dose.value).toBe(0.1);
+  expect(order.dose.unit).toBe('mg');
+});
