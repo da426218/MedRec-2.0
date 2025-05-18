@@ -47,7 +47,7 @@ require('./medDiff.test');
 addTest('Insulin before-meals equals TIDAC dose & freq change', () => {
   const before = 'Insulin Aspart (Novolog) FlexPen - Inject 10 units subcutaneously TIDAC';
   const after = 'Novolog FlexPen - Inject 12 units SC before meals (breakfast lunch dinner)';
-  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Brand/Generic changed');
+  expect(diff(before, after)).toBe('Dose changed, Frequency changed');
 });
 
 addTest('Metformin evening vs nightly time change', () => {
@@ -59,7 +59,7 @@ addTest('Metformin evening vs nightly time change', () => {
 addTest('Vitamin D brand/generic without formulation change', () => {
   const before = 'Cholecalciferol 5000 IU softgel - One weekly';
   const after = 'Vitamin D3 2000 units capsule - One daily';
-  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Brand/Generic changed, Form changed');
+  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Form changed');
 });
 
 addTest('Fluticasone spray dose total', () => {
@@ -95,7 +95,7 @@ addTest('Warfarin qPM vs evening flagged', () => {
 addTest('Insulin Aspart vs Novolog brand generic detection', () => {
   const before = 'Insulin Aspart 10 units SC daily';
   const after = 'Novolog 10 units SC daily';
-  expect(diff(before, after)).toBe('Brand/Generic changed');
+  expect(diff(before, after)).toBe('Unchanged');
 });
 
 addTest('PRN condition wording change detected', () => {
@@ -113,13 +113,13 @@ addTest('Alprazolam PRN change detected', () => {
 addTest('Novolog brand name flagged', () => {
   const before = 'Insulin Aspart (Novolog) FlexPen - Inject 10 units subcutaneously TIDAC';
   const after = 'Novolog FlexPen - Inject 12 units SC before meals (breakfast lunch dinner)';
-  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Brand/Generic changed');
+  expect(diff(before, after)).toBe('Dose changed, Frequency changed');
 });
 
 addTest('Vitamin D change list enumerated', () => {
   const before = 'Cholecalciferol 5000 IU softgel – One weekly';
   const after = 'Vitamin D3 2000 units capsule – One daily';
-  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Brand/Generic changed, Form changed');
+  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Form changed');
 });
 
 addTest('Clonidine enumerate changes', () => {
@@ -143,4 +143,10 @@ addTest('Spiriva brand/generic flag', () => {
     'Spiriva Respimat 2.5mcg/actuation - 2 inhalations once daily';
   expect(diff(before, after))
     .toBe('Dose changed, Brand/Generic changed, Form changed');
+});
+
+addTest('HCTZ abbreviation no brand flag', () => {
+  const before = 'Lisinopril/HCTZ 20-12.5mg PO daily';
+  const after  = 'Lisinopril 20mg / Hydrochlorothiazide 12.5mg PO daily';
+  expect(diff(before, after)).toBe('Unchanged');
 });

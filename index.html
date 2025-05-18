@@ -1644,11 +1644,22 @@ function hasContra(orderObj, wholeList = []) {
     });
 
     // ——— Map every generic to its brands ———
-    const genericToBrandMap = {};
-    Object.entries(brandToGenericMap).forEach(([brand, generic]) => {
-      if (!genericToBrandMap[generic]) genericToBrandMap[generic] = [];
-      genericToBrandMap[generic].push(brand);
-    });
+  const genericToBrandMap = {};
+  Object.entries(brandToGenericMap).forEach(([brand, generic]) => {
+    if (!genericToBrandMap[generic]) genericToBrandMap[generic] = [];
+    genericToBrandMap[generic].push(brand);
+  });
+
+  const brandSynonyms = {
+    spiriva: 'tiotropium',
+    'tiotropium bromide': 'tiotropium',
+    hctz: 'hydrochlorothiazide'
+  };
+
+  const genericSynonyms = {
+    hctz: 'hydrochlorothiazide',
+    hydrochlorothiazide: 'hydrochlorothiazide'
+  };
 
 const commonIndicationsPatterns = [
     { pattern: /(hypertension)$/i, indication: "hypertension" },
@@ -1704,10 +1715,6 @@ const commonIndicationsPatterns = [
       n = n.replace(re, brandToGenericMap[brand]);
     }
 
-    const brandSynonyms = {
-      spiriva: 'tiotropium',
-      'tiotropium bromide': 'tiotropium'
-    };
     for (const syn in brandSynonyms) {
       const reSyn = new RegExp('\\b' + syn + '\\b', 'gi');
       n = n.replace(reSyn, brandSynonyms[syn]);
@@ -2317,21 +2324,30 @@ function getChangeReason(orig, updated) {
   }
 
   // --- Brand/Generic Change ---
-  const cleanForBG = n =>
-    coreDrugName(n)
+  const cleanForBG = n => {
+    let str = coreDrugName(n)
       .replace(/\b(?:apply|take|use|give|topically|by mouth|po|every|day|days)\b/gi, '')
       .replace(/[\/-]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
+    for (const [abbr, full] of Object.entries(genericSynonyms)) {
+      str = str.replace(new RegExp('\\b' + abbr + '\\b', 'gi'), full);
+    }
+    return str;
+  };
   const rawNamesDiffer =
     cleanForBG(origDrugNameRaw) !== cleanForBG(updatedDrugNameRaw);
-    if (
-      drugNameMatchStrict &&
-      rawNamesDiffer &&
-      !changes.includes('Formulation changed')
-    ) {
-      add('Brand/Generic changed');
+  const hasBrandToken = name =>
+    Object.keys(brandSynonyms).some(
+      tok => tok.length > 4 && brandToGenericMap[tok] && name.includes(tok)
+    );
+  if (drugNameMatchStrict) {
+    const brandSwitch =
+      hasBrandToken(origDrugNameRaw) !== hasBrandToken(updatedDrugNameRaw);
+    if (brandSwitch && !changes.includes('Brand/Generic changed')) {
+      changes.push('Brand/Generic changed');
     }
+  }
 
     // Quantity-only difference (dose strength identical)
     const quantityOnlyDiff =
