@@ -42,6 +42,22 @@ function diff(before, after) {
   return context.getChangeReason(p1, p2);
 }
 
+function diffRowsList(beforeList, afterList) {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const context = {
+    console: { log: () => {}, warn: () => {}, error: () => {} },
+    window: {},
+    document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} },
+    firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
+  };
+  vm.createContext(context);
+  vm.runInContext(script, context);
+  return context.diffRows(beforeList, afterList);
+}
+
+global.diffRowsList = diffRowsList;
+
 require('./medDiff.test');
 
 addTest('Metformin evening vs nightly time change', () => {
