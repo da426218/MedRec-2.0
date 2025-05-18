@@ -258,3 +258,21 @@ addTest('Normalize twice daily with meals', () => {
   vm.runInContext(script, ctx);
   expect(ctx.normalizeFrequency('twice daily with meals')).toBe('bid');
 });
+
+addTest('Solostar pen form same', () => {
+  const b = 'Lantus Solostar 100 u/mL pen inject 20 u qhs';
+  const a = 'Insulin glargine 100 u/mL pen inject 25 u at bedtime';
+  expect(diff(b, a)).toBe('Dose changed, Brand/Generic changed');
+});
+
+addTest('Twice daily with meals equals BID', () => {
+  const b = 'KCl ER 10 mEq tab po twice a day with meals';
+  const a = 'Klor-Con 10 mEq tab po BID';
+  expect(diff(b, a)).toBe('Formulation changed');
+});
+
+addTest('Claritin vs loratadine brand only', () => {
+  const b = 'Claritin 10 mg tab po daily prn allergies';
+  const a = 'Loratadine 10 mg tab po daily as needed for allergies';
+  expect(diff(b, a)).toBe('Brand/Generic changed');
+});

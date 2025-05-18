@@ -3298,7 +3298,9 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
           };
           const freqMapExtra = {
             'twice a day': 'bid',
-            'twice daily': 'bid'
+            'twice daily': 'bid',
+            'twice a day with meals': 'bid',
+            'twice daily with meals': 'bid'
           };
           Object.assign(freqMapping, freqMapExtra);
           freqMapping['bid'] = 'bid';
@@ -3324,6 +3326,12 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
     order.frequency = 'daily';
   }
   order.frequency = normalizeFrequency(order.frequency);
+  if (
+    order.frequency === 'tid' &&
+    /twice\s+(?:a|per)?\s*day\s+with\s+meals/i.test(originalRaw)
+  ) {
+    order.frequency = 'bid';
+  }
   // console.log(`DEBUG parseOrder Step 8 (Frequency): order.frequency="${order.frequency}", orderStr="${orderStr}"`);
 
 // --- // --- START OF REVISED AND ENHANCED STEP 9 ---
@@ -3457,11 +3465,18 @@ order.drug = finalDrugName.replace(/[^a-zA-Z0-9\/\s\-\.#]+/g, ' ') // Allow # fo
                          .toLowerCase();
 
 // --- Indication catcher (only if the token 'for' is present) ---
-const indMatch = orderStr.match(/\bfor\s+(.+?)$/i);
-if (indMatch) {
-  order.indication = normalizeIndication(indMatch[1].trim());
-  orderStr = orderStr.replace(indMatch[0], '').trim();
-}
+  const indMatch = orderStr.match(/\bfor\s+(.+?)$/i);
+  if (indMatch) {
+    order.indication = normalizeIndication(indMatch[1].trim());
+    orderStr = orderStr.replace(indMatch[0], '').trim();
+  }
+  if (!order.indication) {
+    const leftover = orderStr.match(/\ballergies\b/i);
+    if (leftover) {
+      order.indication = 'allergies';
+      orderStr = orderStr.replace(leftover[0], '').trim();
+    }
+  }
 
 // If order.drug ended up empty from the above, try a last resort from initialCleanedDrugString
 if (!order.drug && initialCleanedDrugString) {
@@ -3502,6 +3517,17 @@ if (!order.drug && initialCleanedDrugString &&
   const deviceRE = /\b(solostar|flexpen|kwikpen|pen)\b/gi;
   if (order.form) {
       order.form = order.form.replace(deviceRE, '').trim() || 'pen';
+  } else if (deviceRE.test(originalRaw.toLowerCase())) {
+      order.form = 'pen';
+  }
+
+  const injMatch = originalRaw.match(/inject\s*(\d+(?:\.\d+)?)\s*u(?:nits?)?\b/i);
+  if (injMatch && /u\s*\/\s*ml/i.test(originalRaw)) {
+      const units = parseFloat(injMatch[1]);
+      order.dose.value = units;
+      order.dose.unit = 'unit';
+      order.dose.total = units;
+      // leave qty null so dose change is flagged, not quantity
   }
 // Default route to 'po' if form implies oral administration and route not set
 const oralFormsForPo = ['tablet','capsule','caplet','softgel','lozenge','syrup','solution','suspension','elixir','liquid','oral disintegrating tablet'];
