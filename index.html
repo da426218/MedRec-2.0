@@ -2776,6 +2776,7 @@ const timeOfDayMappings = [
 
   { regex: /\bdaily\s+in\s+(the\s+)?morning\b/i, timeOfDay: 'morning', frequency: 'daily', originalTermRegexPos: 0 },
   { regex: /\bqam\b/i, timeOfDay: 'morning', frequency: 'daily', originalTerm: 'qam' },
+  { regex: /\bevery\s+am\b/i, timeOfDay: 'morning', frequency: 'daily', originalTermRegexPos: 0 },
   { regex: /\bevery\s+morning\b/i, timeOfDay: 'morning', frequency: 'daily', originalTermRegexPos: 0 },
   // General "morning" - its frequency will be defaulted to 'daily' later if not set by a more specific rule above
   { regex: /\b(in\s+the\s+)?morning\b/i, timeOfDay: 'morning', originalTermRegexPos: 0 },
