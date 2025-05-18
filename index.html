@@ -2154,6 +2154,14 @@ function normalizeIndicationText(txt = '') {
     return s;
 }
 
+function normalizeIndication(txt) {
+  if (!txt) return '';
+  return txt
+    .toLowerCase()
+    .replace(/\banxious\b/g, 'anxiety')
+    .trim();
+}
+
 function normalizeTimeOfDay(t) {
   if (!t) return '';
   t = t.toLowerCase().trim();
@@ -2877,7 +2885,7 @@ orderStr = orderStr.replace(/\bmay\s+increase\s+to.*$/i, '').trim();
   if (!prnMatch) prnMatch = orderStr.match(/\b(?:prn|as\s+needed|if\s+needed)\b/i);
   if (prnMatch) {
     order.prn = true;
-    if (prnMatch[1]) order.prnCondition = prnMatch[1].toLowerCase().trim();
+    if (prnMatch[1]) order.prnCondition = normalizeIndication(prnMatch[1]);
     orderStr = orderStr.replace(prnMatch[0], '').trim();
 
     // console.log(`DEBUG parseOrder Step 3 (PRN): order.prn=${order.prn}, prnCondition="${order.prnCondition}", orderStr="${orderStr}"`);
@@ -2890,7 +2898,7 @@ orderStr = orderStr.replace(/\bmay\s+increase\s+to.*$/i, '').trim();
   let forIndicationMatchResult = orderStr.match(forIndicationRegex);
   if (forIndicationMatchResult && forIndicationMatchResult[1]) {
     const potentialIndication = forIndicationMatchResult[1].trim().toLowerCase();
-    order.indication = potentialIndication;
+    order.indication = normalizeIndication(potentialIndication);
     orderStr = orderStr.replace(forIndicationMatchResult[0], '').trim(); // Remove "for [indication]"
     // console.log(`DEBUG parseOrder Step 4a (For Indication): order.indication="${order.indication}", orderStr="${orderStr}"`);
   }
@@ -2906,7 +2914,7 @@ orderStr = orderStr.replace(/\bmay\s+increase\s+to.*$/i, '').trim();
       // Further check: make sure we are not grabbing "drugname pain" if "pain" is part of a common suffix for the drug.
       // This is complex. For now, a simple match:
       let matchedPainStr = painIndicMatch[0].trim().toLowerCase();
-      order.indication = matchedPainStr;
+      order.indication = normalizeIndication(matchedPainStr);
       orderStr = orderStr.replace(painIndicMatch[0], '').trim();
       // console.log(`DEBUG parseOrder Step 4b (Pain Indication): order.indication="${order.indication}", orderStr="${orderStr}"`);
     }
@@ -2915,7 +2923,7 @@ orderStr = orderStr.replace(/\bmay\s+increase\s+to.*$/i, '').trim();
   if (!order.indication) {
     const sobMatch = orderStr.match(/\bshortness of breath\b/i); // "SOB" is already expanded by normalizeText
     if (sobMatch) {
-      order.indication = 'shortness of breath';
+      order.indication = normalizeIndication('shortness of breath');
       orderStr = orderStr.replace(sobMatch[0], '').trim();
       // console.log(`DEBUG parseOrder Step 4c (SOB Indication): order.indication="${order.indication}", orderStr="${orderStr}"`);
     }
@@ -3432,7 +3440,7 @@ order.drug = finalDrugName.replace(/[^a-zA-Z0-9\/\s\-\.#]+/g, ' ') // Allow # fo
 // --- Indication catcher (only if the token 'for' is present) ---
 const indMatch = orderStr.match(/\bfor\s+(.+?)$/i);
 if (indMatch) {
-  order.indication = indMatch[1].trim();
+  order.indication = normalizeIndication(indMatch[1].trim());
   orderStr = orderStr.replace(indMatch[0], '').trim();
 }
 
