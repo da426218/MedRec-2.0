@@ -3673,13 +3673,24 @@ for (let i = removed.length - 1; i >= 0; i--) {
       unchanged.forEach(pair => {
         const reason = getChangeReason(pair.orig.parsed, pair.new.parsed);
         const label = reason === 'Misc. Change' ? 'Unchanged' : reason;
-        rows.push({ orig: pair.orig.original, new: pair.new.original, changes: label });
+        rows.push({
+          orig: pair.orig.original,
+          new: pair.new.original,
+          changes: label === 'Unchanged' ? [] : [label]
+        });
       });
       removed.forEach(r => {
-        rows.push({ orig: r.original, new: '', changes: 'Removed' });
+        rows.push({ orig: r.original, new: '', changes: ['Removed'] });
       });
       added.forEach(a => {
-        rows.push({ orig: '', new: a.original, changes: 'Added' });
+        rows.push({ orig: '', new: a.original, changes: ['Added'] });
+      });
+
+      rows.sort((a, b) => {
+        const aUnchanged = a.changes.length === 0;
+        const bUnchanged = b.changes.length === 0;
+        if (aUnchanged === bUnchanged) return 0;
+        return aUnchanged ? 1 : -1;
       });
 
       return rows;
