@@ -2183,16 +2183,18 @@ function normalizeIndicationText(txt = '') {
 
 function normalizeIndication(txt) {
   if (!txt) return '';
-  return txt.toLowerCase()
+  txt = txt
+    .toLowerCase()
     .replace(/\b(type\s*2\s*)?diabetes\b/g, 'diabetes')
     .replace(/\b(htn|hypertension|high blood pressure)\b/g, 'hypertension')
     .replace(/\bhigh cholesterol\b/g, 'cholesterol')
-    .replace(/\banxious\b/g,           'anxiety')
+    .replace(/\banxious\b/g, 'anxiety')
     .replace(/\bas needed\b/g, 'prn')
-    .replace(/\binr\s*2\.?0?\s*-\s*3\.?0?\b/gi, 'inr 2-3')
-    .replace(/\bfor sleep\b/i, 'sleep')
-    .replace(/\b(no\s+)?taper\b/gi, '')
-    .trim();
+    .replace(/\bfor sleep\b/i, 'sleep');
+
+  txt = txt.replace(/\binr\s*2\.?0?\s*-\s*3\.?0?\b/gi, '').trim();
+  txt = txt.replace(/\b(no\s+)?taper\b/gi, '').trim();
+  return txt;
 }
 
 function normalizeTimeOfDay(t) {

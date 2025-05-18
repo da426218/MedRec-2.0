@@ -447,3 +447,15 @@ addTest('Coumadin brand vs warfarin regimen only', () => {
   const after  = 'Coumadin 3 mg regimen INR 2.0-3.0';
   expect(diff(before, after)).toBe('Brand/Generic changed');
 });
+
+addTest('INR range presence vs absence unchanged', () => {
+  const before = 'Warfarin 2 mg tablet nightly';
+  const after  = 'Warfarin 2 mg tablet nightly INR 2.0-3.0';
+  expect(diff(before, after)).toBe('');
+});
+
+addTest('Taper word presence vs absence unchanged', () => {
+  const before = 'Prednisone 10 mg tablet daily';
+  const after  = 'Prednisone 10 mg tablet daily taper';
+  expect(diff(before, after)).toBe('');
+});
