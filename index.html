@@ -3487,14 +3487,19 @@ if (!order.drug && initialCleanedDrugString &&
 }
 
 // If no form detected but original text mentions tablets or capsules
-if (!order.form) {
-    const raw = originalRaw.toLowerCase();
-    if (/\btab(lets?)?\b/.test(raw)) {
-        order.form = 'tablet';
-    } else if (/\bcap(sules?|lets?)?\b/.test(raw)) {
-        order.form = 'capsule';
-    }
-}
+  if (!order.form) {
+      const raw = originalRaw.toLowerCase();
+      if (/\btab(lets?)?\b/.test(raw)) {
+          order.form = 'tablet';
+      } else if (/\bcap(sules?|lets?)?\b/.test(raw)) {
+          order.form = 'capsule';
+      }
+  }
+
+  const deviceRE = /\b(solostar|flexpen|kwikpen|pen)\b/gi;
+  if (order.form) {
+      order.form = order.form.replace(deviceRE, '').trim() || 'pen';
+  }
 // Default route to 'po' if form implies oral administration and route not set
 const oralFormsForPo = ['tablet','capsule','caplet','softgel','lozenge','syrup','solution','suspension','elixir','liquid','oral disintegrating tablet'];
 if (!order.route && oralFormsForPo.includes(order.form)) {
