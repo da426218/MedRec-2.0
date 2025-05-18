@@ -2625,7 +2625,7 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
   if (changes.length === 1) return changes[0];
   if (changes.length <= 4) { // List up to 4 specific changes
       // Prioritize more significant changes if too many minor ones
-      const priorityOrder = ["Dose changed", "Frequency changed", "Formulation changed", "Brand/Generic changed", "Route changed", "Form changed", "PRN changed", "Indication changed", "Date changed", "End Date changed", "Quantity changed", "Time of day changed"];
+      const priorityOrder = ["Dose changed", "Frequency changed", "Formulation changed", "Quantity changed", "Brand/Generic changed", "Route changed", "Form changed", "PRN changed", "Indication changed", "Date changed", "End Date changed", "Time of day changed"];
       changes.sort((a, b) => {
           let idxA = priorityOrder.indexOf(a);
           let idxB = priorityOrder.indexOf(b);
@@ -2977,7 +2977,7 @@ if (qtyMatchEarly) {
     const matchedQtyWord = qtyMatchEarly[2].toLowerCase(); // Group 2 is the unit word
 
     // If the matched word is a form, set order.form if not already set by a more specific term
-    if ((['tablet', 'tab', 'tablets'].includes(matchedQtyWord)) && !order.form) order.form = 'tablet';
+    if ((['tablet', 'tab', 'tablets', 'tabs'].includes(matchedQtyWord)) && !order.form) order.form = 'tablet';
     else if ((['capsule', 'caps', 'caplet', 'capsules'].includes(matchedQtyWord)) && !order.form) order.form = 'capsule';
     else if ((['puff', 'puffs'].includes(matchedQtyWord)) && !order.form) order.form = 'puff';
     // ... add other form types if needed
