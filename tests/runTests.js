@@ -423,6 +423,12 @@ addTest('Synthroid brand detected', () => {
   expect(diff('Levothyroxine 112 mcg qam', 'Synthroid 0.112 mg qAM')).toMatch(/brand\/generic/i);
 });
 
+addTest('Synthroid microgram symbol diff only brand', () => {
+  const before = 'Levothyroxine 112 \u00b5g every AM';
+  const after  = 'Synthroid 0.112 mg qAM';
+  expect(diff(before, after)).toBe('Brand/Generic changed');
+});
+
 addTest('Fosamax brand only', () => {
   expect(diff('Alendronate 70 mg once per week Sunday',
               'Fosamax 70 mg once weekly (Sunday)')).toBe('Brand/Generic changed');
@@ -465,6 +471,12 @@ addTest('Vancomycin generic vs hydrochloride unchanged', () => {
 addTest('Coumadin brand vs warfarin regimen only', () => {
   const before = 'Warfarin 3 mg regimen INR 2-3';
   const after  = 'Coumadin 3 mg regimen INR 2.0-3.0';
+  expect(diff(before, after)).toBe('Brand/Generic changed');
+});
+
+addTest('Coumadin vs warfarin range formatting ignored', () => {
+  const before = 'Coumadin 3 mg regimen INR 2-3';
+  const after  = 'Warfarin 3 mg regimen INR 2.0-3.0';
   expect(diff(before, after)).toBe('Brand/Generic changed');
 });
 
