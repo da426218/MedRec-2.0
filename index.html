@@ -1661,6 +1661,7 @@ function hasContra(orderObj, wholeList = []) {
     lantus:         'insulin glargine',
     claritin:       'loratadine'
   };
+  brandSynonyms['klor-con'] = 'potassium chloride';
 
   const ignoreSalts = /\b(hydrochloride|sulfate|phosphate|acetate|maleate|tartrate|mesylate|succinate|propionate|sodium|potassium|calcium|magnesium)\b/gi;
   const trivialSalts = /\b(sodium|hydrochloride|sulfate|phosphate|acetate|succinate|maleate|tartrate|mesylate|propionate|potassium|calcium|magnesium)\b/gi;
@@ -1677,6 +1678,7 @@ function hasContra(orderObj, wholeList = []) {
     hydrochlorothiazide: 'hydrochlorothiazide'
   };
   genericSynonyms['tiotropium bromide'] = 'tiotropium';
+  genericSynonyms['kcl'] = 'potassium chloride';
 
 const commonIndicationsPatterns = [
     { pattern: /(hypertension)$/i, indication: "hypertension" },
@@ -1736,6 +1738,10 @@ const commonIndicationsPatterns = [
     for (const syn in brandSynonyms) {
       const reSyn = new RegExp('\\b' + syn + '\\b', 'gi');
       n = n.replace(reSyn, brandSynonyms[syn]);
+    }
+    for (const syn in genericSynonyms) {
+      const reSyn = new RegExp('\\b' + syn + '\\b', 'gi');
+      n = n.replace(reSyn, genericSynonyms[syn]);
     }
 
     /* 2 .  Strip common salt words */
@@ -2313,6 +2319,11 @@ function getChangeReason(orig, updated) {
   if ( !formulationMatch && normForm(orig.formulation) === normForm(updated.formulation) ) {
     formulationMatch = true;
     // remove the tag if it was added earlier
+    changes = changes.filter(c => c !== 'Formulation changed');
+  }
+  const stripER = f => (f || '').replace(/\ber\b/gi, '').trim();
+  if (!formulationMatch && stripER(orig.formulation) === stripER(updated.formulation)) {
+    formulationMatch = true;
     changes = changes.filter(c => c !== 'Formulation changed');
   }
   const routeMatch = same(norm(orig.route), norm(updated.route));
