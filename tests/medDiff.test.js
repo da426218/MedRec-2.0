@@ -59,6 +59,17 @@ describe('Medication comparison', () => {
     expect(result).toBe('Unchanged');
   });
 
+  test('taper wording ignored in indications', () => {
+    const ctx = loadAppContext();
+    const before = 'Prednisone 20 mg tablet - take 1 tablet daily for asthma';
+    const after = 'Prednisone 20 mg tablet - take 1 tablet daily for asthma taper';
+    const p1 = ctx.parseOrder(before);
+    const p2 = ctx.parseOrder(after);
+    expect(p2.indication).toBe('asthma');
+    const result = ctx.getChangeReason(p1, p2);
+    expect(result).toBe('Unchanged');
+  });
+
   test('Clonidine patch to tablet not brand/generic', () => {
     const ctx = loadAppContext();
     const before = 'Clonidine 0.1 mg patch – Apply 1 patch topically every 7 days';

@@ -2191,6 +2191,7 @@ function normalizeIndication(txt) {
     .replace(/\bas needed\b/g, 'prn')
     .replace(/\binr\s*2\.?0?\s*-\s*3\.?0?\b/gi, 'inr 2-3')
     .replace(/\bfor sleep\b/i, 'sleep')
+    .replace(/\b(no\s+)?taper\b/gi, '')
     .trim();
 }
 
