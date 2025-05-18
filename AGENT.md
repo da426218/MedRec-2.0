@@ -78,7 +78,7 @@ Smoke test: npm run lint && open index.html, paste fixture med lists, expect zer
 
 7 · Open Tasks – AI, please suggest PRs for these
 
-
+* Refactor `parseOrder` into helpers – **Postponed**
 
 8 · How AI Agents Should Help
 
