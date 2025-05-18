@@ -2164,6 +2164,7 @@ function normalizeIndication(txt) {
     .replace(/\b(htn|hypertension|high blood pressure)\b/g, 'hypertension')
     .replace(/\bhigh cholesterol\b/g, 'cholesterol')
     .replace(/\banxious\b/g,           'anxiety')
+    .replace(/\bas needed\b/g, 'prn')
     .trim();
 }
 
