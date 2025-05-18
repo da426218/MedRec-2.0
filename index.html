@@ -2224,6 +2224,11 @@ function normalizeFrequency(str) {
   return str;
 }
 
+function canonFormulation(f) {
+  if (!f) return '';
+  return f.toLowerCase().replace(/\b(xl|xr|sr|cr)\b/g, 'er').trim();
+}
+
 // <<< START OF WHERE YOU PASTE THE NEW FUNCTION >>>
 function inhaled(parsedOrder) {
     if (!parsedOrder) return false;
@@ -2348,6 +2353,13 @@ function getChangeReason(orig, updated) {
   }
   const stripER = f => (f || '').replace(/\ber\b/gi, '').trim();
   if (!formulationMatch && stripER(orig.formulation) === stripER(updated.formulation)) {
+    formulationMatch = true;
+    changes = changes.filter(c => c !== 'Formulation changed');
+  }
+  if (
+    !formulationMatch &&
+    canonFormulation(orig.formulation) === canonFormulation(updated.formulation)
+  ) {
     formulationMatch = true;
     changes = changes.filter(c => c !== 'Formulation changed');
   }
@@ -3570,6 +3582,8 @@ const oralFormsForPo = ['tablet','capsule','caplet','softgel','lozenge','syrup',
 if (!order.route && oralFormsForPo.includes(order.form)) {
     order.route = 'po';
 }
+
+  order.formulation = canonFormulation(order.formulation);
 
   // console.log('FINAL DEBUG Parsed order:', { /* input: originalInputToParseOrder, */ parsed: order });
   return order;

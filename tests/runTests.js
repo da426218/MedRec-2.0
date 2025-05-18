@@ -302,3 +302,9 @@ addTest('Tabs vs no form equal', () => {
   expect(diff(before, after))
     .toBe('Dose changed, Quantity changed, Brand/Generic changed');
 });
+
+addTest('Metoprolol XL vs ER unchanged', () => {
+  const before = 'Metoprolol XL 50 mg tab daily';
+  const after  = 'Metoprolol Succinate ER 50 mg tab daily';
+  expect(diff(before, after)).toBe('Unchanged');
+});
