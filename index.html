@@ -1728,6 +1728,9 @@ const commonIndicationsPatterns = [
     let n = name.toLowerCase().trim();
     n = n.replace(ignoreSalts, '').replace(/\s{2,}/g, ' ').trim();
 
+    // normalize common formulation abbreviations early
+    n = n.replace(/\b(xl|xr)\b/, 'er');
+
     // separate letters and numbers so "warfarin5mg" becomes "warfarin 5mg"
     n = n.replace(/([a-z])([0-9])/gi, '$1 $2')
          .replace(/([0-9])([a-z])/gi, '$1 $2');
