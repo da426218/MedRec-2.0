@@ -1738,7 +1738,9 @@ const commonIndicationsPatterns = [
         const re = new RegExp('\\b' + brand + '\\b', 'gi');
         n = n.replace(re, match => {
           const token = match.toLowerCase();
-          if (!brandTok.includes(token)) brandTok.push(token);
+          if (brandTok.length === 0 && !brandTok.includes(token)) {
+            brandTok.push(token);
+          }
           return brandToGenericMap[brand];
         });
       }
@@ -1747,7 +1749,9 @@ const commonIndicationsPatterns = [
         const reSyn = new RegExp('\\b' + syn + '\\b', 'gi');
         n = n.replace(reSyn, match => {
           const token = match.toLowerCase();
-          if (!brandTok.includes(token)) brandTok.push(token);
+          if (brandTok.length === 0 && !brandTok.includes(token)) {
+            brandTok.push(token);
+          }
           return brandSynonyms[syn];
         });
       }
