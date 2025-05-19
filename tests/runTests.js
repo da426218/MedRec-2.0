@@ -295,21 +295,21 @@ addTest('Klor-Con brand only', () => {
 addTest('Tylenol brand flag', () => {
   const b = 'Tylenol 500 mg 2 tabs PO q6h prn pain';
   const a = 'Acetaminophen 1000 mg tab PO every 6 hours as needed for pain';
-  expect(diff(b, a)).toBe('Quantity changed, Brand/Generic changed');
+  expect(diff(b, a)).toBe('Dose changed, Quantity changed, Brand/Generic changed');
 });
 
 addTest('Implicit tablet form same', () => {
   const before = 'Tylenol 500 mg 2 tabs PO q6h prn pain';
   const after  = 'Acetaminophen 1000 mg PO every 6 hours as needed for pain';
   expect(diff(before, after))
-    .toBe('Quantity changed, Brand/Generic changed');
+    .toBe('Dose changed, Quantity changed, Brand/Generic changed');
 });
 
 addTest('Tabs vs no form equal', () => {
   const before = 'Tylenol 500 mg 2 tabs po q6h prn pain';
   const after  = 'Acetaminophen 1000 mg po every 6 h as needed for pain';
   expect(diff(before, after))
-    .toBe('Quantity changed, Brand/Generic changed');
+    .toBe('Dose changed, Quantity changed, Brand/Generic changed');
 });
 
 addTest('Metoprolol XL vs ER unchanged', () => {
@@ -592,4 +592,22 @@ addTest('Iron same strength diff frequency', () => {
   const a = 'Ferrous Sulfate 325 mg PO tid';
   const b = 'Iron Sulfate 325 mg PO bid';
   expect(diff(a, b)).toBe('Frequency changed');
+});
+
+addTest('Coumadin brand flag appears', () => {
+  expect(
+    diff('Warfarin 3 mg po daily', 'Coumadin 3 mg po daily')
+  ).toBe('Brand/Generic changed');
+});
+
+addTest('Prednisone strength jump keeps dose flag', () => {
+  expect(
+    diff('Prednisone 5 mg 4 tabs daily', 'Prednisone 20 mg 1 tab daily')
+  ).toBe('Dose changed, Quantity changed');
+});
+
+addTest('Iron same strength only freq flag', () => {
+  expect(
+    diff('Ferrous Sulfate 325 mg po tid', 'Iron Sulfate 325 mg po bid')
+  ).toBe('Frequency changed');
 });
