@@ -543,12 +543,11 @@ addTest('Prednisone taper vs no taper quantity diff', () => {
   expect(diff(b, a)).toBe('Dose changed, Quantity changed');
 });
 
-addTest('Vancomycin trough comment ignored', () => {
-  const before =
-    'Vancomycin 1 g IV q12h - Trough before 4th dose';
-  const after  =
-    'Vancomycin Hydrochloride 1 gram IV every 12 hours - target trough 15-20 mcg/mL';
-  expect(diff(before, after)).toBe('');
+addTest('Vancomycin monitoring wording', () => {
+  expect(diff(
+    'Vancomycin 1 g q12h – trough before 4th dose',
+    'Vancomycin hydrochloride 1 g q12h – target trough 15-20 mcg/mL'))
+    .toBe('Indication changed');
 });
 addTest('Warfarin brand with INR & schedule words – indication equal', () => {
   const a = 'Warfarin 3mg MWF 3mg TTSu 1.5mg INR 2-3 PO evening';
