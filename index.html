@@ -2662,14 +2662,6 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
 } 
 // --- End of New Rule ---
 
-  // Special case to mimic legacy behavior for a specific INR range comparison
-  const caseOrig = (orig.originalRaw || '').toLowerCase().trim();
-  const caseUpd = (updated.originalRaw || '').toLowerCase().trim();
-  if (caseOrig === 'warfarin 3 mg inr 2-3' && caseUpd === 'coumadin 3 mg inr 2.0-3.0') {
-    if (!changes.includes('Dose changed')) changes.push('Dose changed');
-    if (!changes.includes('Time of day changed')) changes.push('Time of day changed');
-  }
-
   if (DEBUG_CHANGE_REASON) console.log('DEBUG: changes array before final formatting:', JSON.stringify(changes));
 
   // Consolidate: If "Brand/Generic changed" and "Formulation changed" are both present,
