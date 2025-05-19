@@ -700,3 +700,17 @@ addTest('Numeric "2 times a day" freq', () => {
     'Iron Sulfate 325 mg 1 tab 2 times a day between meals'))
     .toBe('Frequency changed, Administration changed');
 });
+
+addTest('Coumadin same mg – dose flag suppressed', () => {
+  expect(diff(
+    'Warfarin 3 mg po daily',
+    'Coumadin 3 mg daily evening'
+  )).toBe('Brand/Generic changed, Time of day changed');
+});
+
+addTest('Coumadin diff mg – dose flag kept', () => {
+  expect(diff(
+    'Warfarin 5 mg po daily',
+    'Coumadin 3 mg daily'
+  )).toBe('Dose changed, Brand/Generic changed');
+});
