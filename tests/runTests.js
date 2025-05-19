@@ -714,3 +714,18 @@ addTest('Coumadin diff mg – dose flag kept', () => {
     'Coumadin 3 mg daily'
   )).toBe('Dose changed, Brand/Generic changed');
 });
+/* Coumadin weekly split, evening timing */
+addTest('Coumadin brand & time only', () => {
+  expect(diff(
+    'Warfarin 3 mg 1 tab M/W/F; \u00bd tab Tu/Th/Sa/Su',
+    'Coumadin 3 mg 1 tab M/W/F; \u00bd tab Tu/Th/Sa/Su evening'
+  )).toBe('Brand/Generic changed, Time of day changed');
+});
+
+/* “2 times a day” numeric frequency */
+addTest('Iron numeric frequent phrase', () => {
+  expect(diff(
+    'Ferrous sulfate 325 mg TID',
+    'Iron sulfate 325 mg 2 times a day'
+  )).toBe('Frequency changed');
+});
