@@ -2343,6 +2343,10 @@ function getChangeReason(orig, updated) {
   const tot1 = (orig.dose?.value ?? 0) * qty1;
   const tot2 = (updated.dose?.value ?? 0) * qty2;
   const doseTotalMatch = tot1 === tot2;
+  // If only freq differs and dose totals identical, suppress "Dose changed"
+  if (changes.includes('Dose changed') && doseTotalMatch) {
+    changes = changes.filter(c => c !== 'Dose changed');
+  }
   const doseUnitMatch =
     canonUnit(orig.rawUnit || orig.dose?.unit) ===
     canonUnit(updated.rawUnit || updated.dose?.unit);
