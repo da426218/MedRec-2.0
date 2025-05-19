@@ -1798,7 +1798,7 @@ const commonIndicationsPatterns = [
          .trim();
 
     // 6. Drop trailing noise words like dosing instructions or route leftovers
-    n = n.replace(/\b(?:daily|weekly|bid|tid|qid|q\d+h|every|once|monday|tuesday|wednesday|thursday|friday|saturday|sunday|in|po|sc|im|iv|combination|combo)\b.*$/i, '');
+    n = n.replace(/\b(?:daily|weekly|bid|tid|qid|q\d+h|every|once|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun|m\/?w\/?f|m\s*w\s*f|tu\/?th\/?sa\/?su|ttsu|in|po|sc|im|iv|combination|combo)\b.*$/i, '');
     // 7. Drop leading verbs that accidentally made it into the drug name
     n = n.replace(/^(?:take|give|inject|inhale|apply|use)\b\s*/i, '');
 
@@ -2358,6 +2358,7 @@ function getChangeReason(orig, updated) {
     for (let i=0; i<a.length; i++) if (a[i] !== b[i]) return false;
     return true;
   };
+  const scheduleMatch = tokensEqual(orig.scheduleTokens, updated.scheduleTokens);
   const mealsTokens = ['tidac','before meals','with meals','before breakfast lunch dinner'];
   const containsMeals = tokens => (tokens||[]).map(norm).some(t => mealsTokens.includes(t));
   let timeOfDayMatch =
@@ -2534,6 +2535,9 @@ if (!frequencyMatch) {
 
 // --- Time of Day Change ---
 if (!timeOfDayMatch && (norm(orig.timeOfDay) || norm(updated.timeOfDay))) {
+  add('Time of day changed');
+}
+if (!scheduleMatch && orig.scheduleTokens.length && updated.scheduleTokens.length) {
   add('Time of day changed');
 }
 
@@ -3304,7 +3308,7 @@ if (order.qty === null && (order.dose.unit === 'tablet' || order.dose.unit === '
 
   // 7. Extract Route
   const routes = [
-    { standard: "po", variations: ["po", "oral", "by mouth"] }, { standard: "sl", variations: ["sl", "sublingual", "sublingually"] },
+    { standard: "po", variations: ["po", "oral", "orally", "by mouth"] }, { standard: "sl", variations: ["sl", "sublingual", "sublingually"] },
     { standard: "buccal", variations: ["buccal"] }, { standard: "pr", variations: ["pr", "rectal", "rectally"] },
     { standard: "ng", variations: ["ng", "nasogastric", "ng tube"] }, { standard: "og", variations: ["og", "orogastric"] },
     { standard: "gastrostomy", variations: ["gastrostomy", "g-tube", "peg tube"] }, { standard: "jejunostomy", variations: ["jejunostomy", "j-tube"] },
@@ -3627,6 +3631,10 @@ if (!order.route && oralFormsForPo.includes(order.form)) {
   order.timeOfDay  = normalizeTimeOfDay(order.timeOfDay);
   order.indication = normalizeIndication(order.indication);
   order.formulation = canonFormulation(order.formulation);
+
+  // Capture day-of-week schedule tokens like "MWF" or "Tu/Th/Sa/Su" for later diff checks
+  const schedRe = /\b(?:m\/?w\/?f|m\s*w\s*f|mwf|tu\/?th\/?sa\/?su|ttsu)\b/gi;
+  order.scheduleTokens = (originalRaw.match(schedRe) || []).map(t => t.toLowerCase());
 
   // console.log('FINAL DEBUG Parsed order:', { /* input: originalInputToParseOrder, */ parsed: order });
   return order;
