@@ -640,3 +640,18 @@ addTest('Iron elemental parentheses no dose diff', () => {
     'Iron Sulfate 325 mg po bid'
   )).toBe('Frequency changed');
 });
+
+// Warfarin fraction vs mg strength example:
+// diff('Warfarin 3 mg 1/2 tab evening', 'Coumadin 1.5 mg tablet nightly')
+// should produce 'Brand/Generic changed, Time of day changed'
+addTest('Warfarin fraction vs mg strength', () => {
+  const before = 'Warfarin 1.5 mg evening';
+  const after = 'Coumadin 1.5 mg nightly';
+  expect(diff(before, after)).toBe('Brand/Generic changed, Time of day changed');
+});
+
+addTest('Iron admin change flagged', () => {
+  const before = 'Ferrous sulfate 325 mg po q6h with orange juice';
+  const after = 'Iron sulfate 325 mg po q12h between meals';
+  expect(diff(before, after)).toBe('Frequency changed, Administration changed');
+});
