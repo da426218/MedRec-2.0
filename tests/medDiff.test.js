@@ -93,4 +93,16 @@ describe('Medication comparison', () => {
     const result = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
     expect(result).toBe('Indication changed');
   });
+
+  test('fraction unicode quantity parsed', () => {
+    const ctx = loadAppContext();
+    const order = ctx.parseOrder('Aspirin \u00bd tab daily');
+    expect(order.qty).toBe(0.5);
+  });
+
+  test('fraction a/b quantity parsed', () => {
+    const ctx = loadAppContext();
+    const order = ctx.parseOrder('Aspirin 1/2 tab daily');
+    expect(order.qty).toBe(0.5);
+  });
 });
