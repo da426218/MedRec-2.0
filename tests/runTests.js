@@ -682,3 +682,21 @@ addTest('2 times a day normalized to bid', () => {
   const order = ctx.parseOrder('Metformin 500 mg tablet - take 1 tab 2 times a day');
   expect(order.frequency).toBe('bid');
 });
+addTest('Warfarin same dose – no dose flag', () => {
+  expect(diff('Warfarin 3 mg daily',
+              'Coumadin 3 mg daily evening'))
+    .toBe('Brand/Generic changed, Time of day changed');
+});
+
+addTest('Warfarin different dose – dose flag kept', () => {
+  expect(diff('Warfarin 5 mg daily',
+              'Coumadin 3 mg daily'))
+    .toBe('Dose changed, Brand/Generic changed');
+});
+
+addTest('Numeric "2 times a day" freq', () => {
+  expect(diff(
+    'Ferrous Sulfate 325 mg 1 tab TID with orange juice',
+    'Iron Sulfate 325 mg 1 tab 2 times a day between meals'))
+    .toBe('Frequency changed, Administration changed');
+});
