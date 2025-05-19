@@ -2267,7 +2267,6 @@ function normalizeAdministration(str) {
   return str.trim();
 }
 
-// <<< START OF WHERE YOU PASTE THE NEW FUNCTION >>>
 function inhaled(parsedOrder) {
     if (!parsedOrder) return false;
     const route = (parsedOrder.route || '').toLowerCase();
@@ -2286,7 +2285,6 @@ function inhaled(parsedOrder) {
 
     return false;
 }
-// <<< END OF WHERE YOU PASTE THE NEW FUNCTION >>>
 
 // ——— What changed? ———
 function getChangeReason(orig, updated) {
@@ -2306,9 +2304,8 @@ function getChangeReason(orig, updated) {
 // const updTail  = tail(updated.drug); // REMOVE OR COMMENT OUT
 // const tailDiff = ...; // REMOVE OR COMMENT OUT
 
-  if (!orig || !updated) return 'Misc. Change'; // <-- THIS LINE STAYS OR IS RE-ADDED
+  if (!orig || !updated) return 'Misc. Change';
 
-// START OF REPLACEMENT/ADDITION
   let changes = [];
   const add = lbl => { if (!changes.includes(lbl)) changes.push(lbl); };
 
@@ -2455,7 +2452,6 @@ function getChangeReason(orig, updated) {
     /\bx\d+\s*days?\b/i.test(orig.originalRaw || '') !==
     /\bx\d+\s*days?\b/i.test(updated.originalRaw || '');
 
-// END OF REPLACEMENT/ADDITION (The original `if (!orig || !updated)` should still be there or re-added right before this block)
 
   // --- Logging for debug ---
   if (DEBUG_CHANGE_REASON) {
@@ -2480,7 +2476,7 @@ function getChangeReason(orig, updated) {
 
  // --- End Debugging Conditions ---
 
-// --- Start/End Date Changes --- // <-- START ADDING NEW LOGIC HERE
+// --- Start/End Date Changes ---
   if (!startDateMatch) add('Date changed');
   if (!endDateMatch) add('End Date changed');
 
@@ -2688,13 +2684,10 @@ if (
   }
 //  return 'Time of day changed'; // Old return
 }
-// ADD THIS ELSE BLOCK TO YOUR EXISTING IF
 else {
   if (DEBUG_CHANGE_REASON) console.log("--- BLOCK #3 CONDITION FAILED for explicit Time of Day return ---");
 }
 
-// REMOVE ANY DUPLICATE IF BLOCK FOR THIS LOGIC.
-// The code should now flow directly to the 'let changes = [];' part
 // if Block #3's condition was false.
 
   if (changes.includes('Dose changed') && coumBrand && doseValueMatch && doseUnitMatch) {
@@ -2843,7 +2836,6 @@ if (endDateMatchResult) {
     order.endDate = endDateMatchResult[1];
     orderStr = orderStr.replace(endDateMatchResult[0], "").trim(); // Remove "End: MM/DD/YYYY"
 }
-// END OF REPLACEMENT FOR DATE PARSING (Fix 3.1.2)
 
   // 1. Extract Time-of-Day and common morning/evening/night shorthands
 //    Also sets frequency if implied by the shorthand (e.g., qam is daily)
@@ -3096,7 +3088,7 @@ orderStr = orderStr.replace(/\bmay\s+increase\s+to.*$/i, '').trim();
 
   // console.log(`DEBUG parseOrder: After indication attempts: orderStr="${orderStr}", indication="${order.indication}"`);
 
-// Extract Quantity (e.g., "2 tabs") before dose, as it might be part of the dose string // <-- START ADDING THIS BLOCK
+// Extract Quantity (e.g., "2 tabs") before dose, as it might be part of the dose string
 const qtyWords = [
   'tabs', 'tab', 'tablets',
   'caps', 'capsules', 'caplets',
@@ -3219,7 +3211,7 @@ if (unitMatchesFound.length > 0) {
   }
   // …and drop any leftover verb that preceded the dose phrase
   orderStr = orderStr.replace(/\b(?:give|take|administer)\b\s*/i, '').trim();
-// If the best dose unit implies a form, set it if not already set // <-- START ADDING THIS BLOCK
+// If the best dose unit implies a form, set it if not already set
   if (bestMatch.stdUnit === 'tablet' && !order.form) order.form = 'tablet';
   else if (bestMatch.stdUnit === 'capsule' && !order.form) order.form = 'capsule';
   else if (bestMatch.stdUnit === 'puff' && !order.form) order.form = 'puff';
@@ -3288,7 +3280,7 @@ if (unitMatchesFound.length > 0) {
   }
   // console.log(`DEBUG parseOrder: After dose normalization: dose=${JSON.stringify(order.dose)}, orderStr="${orderStr}"`);
 
-  // Calculate total dose if qty is present // <-- START REPLACEMENT BLOCK
+  // Calculate total dose if qty is present
 if (order.qty === null) { // If qty not parsed by qtyRegexEarly
     // Try to find qty from originalRaw if it wasn't stripped with dose/form, e.g. "Drug 50mg 2 tablets"
     const qtyLatePattern = new RegExp(`(?:^|\\s)((?:\\d+\\/\\d+|[\\u00bc-\\u00be]|\\d+(?:\\.\\d+)?))\\s*(${qtyWords.join('|')})(?:s)?\\b`, 'i');
@@ -3434,7 +3426,7 @@ if (!order.frequency && immediatelyPattern.test(orderStr)) {
     // console.log(`DEBUG parseOrder Step 8a (Immediately): order.frequency="<span class="math-inline">\{order\.frequency\}", orderStr\="</span>{orderStr}"`);
 }
 // Now proceed with other frequency checks if not "immediately"
-if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
+if (!order.frequency) {
   
   const qhMatch = orderStr.match(/\bq(\d+)h\b/i);
   if (qhMatch) {
@@ -3505,7 +3497,6 @@ if (!order.frequency) { // <<<< ADD THIS OPENING 'if' and its brace
   }
   // console.log(`DEBUG parseOrder Step 8 (Frequency): order.frequency="${order.frequency}", orderStr="${orderStr}"`);
 
-// --- // --- START OF REVISED AND ENHANCED STEP 9 ---
 // 9. Final Drug Name and Indication Assignment from remaining orderStr
 
 orderStr = orderStr.trim();
@@ -3676,7 +3667,7 @@ if (!order.drug && initialCleanedDrugString) {
 }
 // console.log(`DEBUG parseOrder Step 9 - Final drug: "${order.drug}", Final indication: "${order.indication}"`);
 
-// Ensure drug field isn't empty if orderStr had content originally and nothing else was parsed // <-- START ADDING THIS
+// Ensure drug field isn't empty if orderStr had content originally and nothing else was parsed
 if (!order.drug && initialCleanedDrugString &&
     !order.startDate && !order.endDate &&
     !order.timeOfDay && !order.frequency &&
@@ -4464,13 +4455,11 @@ removed = removed.filter(r => {
     `    MATCH FOUND for key "${usedKey}" (merged with added original="${match.original}")`
   );
  
-// START OF REPLACEMENT CODE (Fix 2.2)
 // Determine the reason using the comprehensive getChangeReason function,
 // which now correctly accumulates multiple changes.
 const reason = getChangeReason(r.parsed, match.parsed);
 
 merged.push({ orig: r, new: match, reason });
-// END OF REPLACEMENT CODE (Fix 2.2)
 
     // purge every key in addedMap that still points to this matched entry:
   Object.keys(addedMap).forEach(k => {
