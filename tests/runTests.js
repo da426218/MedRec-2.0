@@ -491,3 +491,15 @@ addTest('Taper word presence vs absence unchanged', () => {
   const after  = 'Prednisone 10 mg tablet daily taper';
   expect(diff(before, after)).toBe('');
 });
+
+addTest('Anticoag clinic phrase ignored', () => {
+  const before = 'Warfarin 2 mg tablet nightly';
+  const after  = 'Warfarin 2 mg tablet nightly anticoag clinic';
+  expect(diff(before, after)).toBe('');
+});
+
+addTest('INR range 2.5-3.5 ignored in diff', () => {
+  const before = 'Warfarin 2 mg tablet nightly';
+  const after  = 'Warfarin 2 mg tablet nightly INR 2.5-3.5';
+  expect(diff(before, after)).toBe('');
+});

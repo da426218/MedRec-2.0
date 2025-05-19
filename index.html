@@ -2194,8 +2194,11 @@ function normalizeIndication(txt) {
     .replace(/\bas needed\b/g, 'prn')
     .replace(/\bfor sleep\b/i, 'sleep');
 
-  txt = txt.replace(/\binr\s*2\.?0?\s*-\s*3\.?0?\b/gi, '').trim();
-  txt = txt.replace(/\b(no\s+)?taper\b/gi, '').trim();
+  txt = txt
+    .replace(/\banticoag(ulation)? clinic\b/gi, '')
+    .replace(/\binr\s*\d(\.\d)?\s*-\s*\d(\.\d)?\b/gi, '')
+    .replace(/\b(no\s+)?taper\b/gi, '')
+    .trim();
   return txt;
 }
 
