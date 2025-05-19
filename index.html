@@ -2255,6 +2255,18 @@ function canonFormulation(f) {
   return f.toLowerCase().replace(/\b(xl|xr|sr|cr)\b/g, 'er').trim();
 }
 
+function normalizeAdministration(str) {
+  if (!str) return '';
+  str = str.toLowerCase().replace(/\s+/g, ' ').trim();
+  if (/\bwith\s+(orange\s*juice|food|meal)s?\b/.test(str)) {
+    return 'with food';
+  }
+  if (/\b(between\s+meals|without\s+(food|meal)s?|empty\s*stomach)\b/.test(str)) {
+    return 'between meals';
+  }
+  return str.trim();
+}
+
 // <<< START OF WHERE YOU PASTE THE NEW FUNCTION >>>
 function inhaled(parsedOrder) {
     if (!parsedOrder) return false;
@@ -2924,19 +2936,23 @@ orderStr = orderStr
 
   // 2. Extract Administration (with/without food/water)
   const adminMatch = orderStr.match(
-  new RegExp(
-    String.raw`\b(?:with|w\/)\s*(?:meals?|food|water|juice|liquid|supper|breakfast|lunch|dinner)\b|` +
-    String.raw`\b(?:without|w\/o)\s*(?:meals?|food|water|juice|liquid|supper|breakfast|lunch|dinner)\b|` +
-    String.raw`\b(?:before|after)\s*(?:meals?|food|supper|breakfast|lunch|dinner)\b`,
-    'i'
-  )
-);
+    /\b(?:(with(?:out)?|w\/o?|before|after|between)\s*(orange\s*juice|meals?|meal|food|water|juice|liquid|supper|breakfast|lunch|dinner)|empty\s*stomach)\b/i
+  );
 
   if (adminMatch) {
-    const prefix = adminMatch[0].toLowerCase().startsWith('with') ? 'with ' : 'without ';
-    const noun = (adminMatch[1] || adminMatch[2] || '').toLowerCase();
-    order.administration = prefix + noun;
-    if (!order.frequency && /(?:before|with)\s+meals?/i.test(adminMatch[0])) {
+    let phrase = '';
+    if (/empty\s*stomach/i.test(adminMatch[0])) {
+      phrase = 'between meals';
+    } else {
+      const prefixRaw = adminMatch[1] || '';
+      const noun = (adminMatch[2] || '').toLowerCase();
+      let prefix = prefixRaw.toLowerCase();
+      if (prefix === 'w/') prefix = 'with';
+      if (prefix === 'w/o') prefix = 'without';
+      phrase = `${prefix} ${noun}`.trim();
+    }
+    order.administration = normalizeAdministration(phrase);
+    if (!order.frequency && /(?:before|with|between)\s+meals?/i.test(order.administration)) {
       order.frequency = 'tid';
     }
     orderStr = orderStr.replace(adminMatch[0], '').trim();
