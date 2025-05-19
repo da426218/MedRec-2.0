@@ -3543,7 +3543,7 @@ if (orderStr.length > 0) {
 }
 
 // Strip common inhaler device terms that can trail the drug name
-const deviceWords = /\b(respimat|handihaler|actuation|flexpen|pen|diskus)\b/i;
+const deviceWords = /\b(respimat|handihaler|actuation|flexpen|kwikpen|solostar|pen|diskus)\b/i;
 orderStr = orderStr.replace(deviceWords, '').replace(/\/\s*$/, '').trim();
 finalDrugName = finalDrugName.replace(deviceWords, '').replace(/\/\s*$/, '').trim();
 
