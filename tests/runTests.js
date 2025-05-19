@@ -183,7 +183,7 @@ addTest('Spiriva brand/generic flag', () => {
 addTest('HCTZ abbreviation no brand flag', () => {
   const before = 'Lisinopril/HCTZ 20-12.5mg PO daily';
   const after  = 'Lisinopril 20mg / Hydrochlorothiazide 12.5mg PO daily';
-  expect(diff(before, after)).toBe('Brand/Generic changed');
+  expect(diff(before, after)).toBe('Dose changed, Brand/Generic changed');
 });
 
 addTest('Insulin TIDAC equals before meals (no freq flag)', () => {
@@ -435,9 +435,12 @@ addTest('Fosamax brand only', () => {
 });
 
 addTest('Coumadin brand + dose change, INR same', () => {
-  expect(diff('Warfarin 3 mg MWF 3 mg, TTSu 1.5 mg INR 2-3',
-              'Coumadin 3 mg M/W/F 3 mg; Tu/Th/Sa/Su 1.5 mg INR 2.0-3.0'))
-    .toBe('');
+  expect(
+    diff(
+      'Warfarin 3 mg MWF 3 mg, TTSu 1.5 mg INR 2-3',
+      'Coumadin 3 mg M/W/F 3 mg; Tu/Th/Sa/Su 1.5 mg INR 2.0-3.0'
+    )
+  ).toBe('Dose changed');
 });
 
 addTest('Iron vs Ferrous frequency change only', () => {
