@@ -2320,6 +2320,15 @@ function getChangeReason(orig, updated) {
   const drugNameMatchStrict = origDrugNorm === updatedDrugNorm; // Based on fully normalized names (substance match)
   // New: direct raw-name comparison for certain brand/generic swaps
   const rawNamesDiffer = norm(origDrugNameRaw) !== norm(updatedDrugNameRaw);
+
+  const coumPair =
+    /\b(coumadin|warfarin)\b/i.test(origDrugNameRaw) &&
+    /\b(coumadin|warfarin)\b/i.test(updatedDrugNameRaw);
+
+  if (coumPair && drugNameMatchStrict && rawNamesDiffer) {
+    add('Brand/Generic changed');
+  }
+
   if (
     rawNamesDiffer &&
     drugNameMatchStrict &&
@@ -2522,8 +2531,17 @@ if (!doseUnitMatch || !doseValueMatch || (!doseTotalMatch && qtyMatch)) {
 }
 // If totals are equal (quantity defaults to 1) and we added the dose flag, it
 // likely came from a frequency-only change, so remove it.
-if (doseTotalMatch && changes.includes('Dose changed')) {
+const sameStrength =
+  doseValueMatch &&
+  doseUnitMatch &&
+  !Array.isArray(orig.dose?.value) &&
+  !Array.isArray(updated.dose?.value);
+const sameQty = qtyMatch || (orig.qty == null && updated.qty == null);
+if (sameStrength && sameQty && changes.includes('Dose changed')) {
   changes = changes.filter(c => c !== 'Dose changed');
+}
+if (!doseValueMatch && !changes.includes('Dose changed')) {
+  add('Dose changed');
 }
 // Quantity differences are reflected in the dose when totals differ, but still
 // list them separately to highlight dispensing changes.
