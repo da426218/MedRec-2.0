@@ -542,3 +542,11 @@ addTest('Prednisone taper vs no taper quantity diff', () => {
   const a = 'Prednisone 20 mg no taper';
   expect(diff(b, a)).toBe('Dose changed, Quantity changed');
 });
+
+addTest('Vancomycin trough comment ignored', () => {
+  const before =
+    'Vancomycin 1 g IV q12h - Trough before 4th dose';
+  const after  =
+    'Vancomycin Hydrochloride 1 gram IV every 12 hours - target trough 15-20 mcg/mL';
+  expect(diff(before, after)).toBe('');
+});

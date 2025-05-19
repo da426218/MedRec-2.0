@@ -2179,6 +2179,10 @@ function normalizeIndicationText(txt = '') {
 
 function normalizeIndication(txt) {
   if (!txt) return '';
+  // Strip trailing trough comments like "- target trough 15-20 mcg/mL" early
+  // so dose numbers inside the note don't get parsed as part of the order.
+  txt = txt.replace(/-\s*(target\s+)?trough.*$/i, '');
+
   txt = txt
     .toLowerCase()
     .replace(/\b(type\s*2\s*)?diabetes\b/g, 'diabetes')
@@ -2685,6 +2689,8 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
   const originalRaw = orderStr;   // keep untouched copy
   orderStr = orderStr.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
   orderStr = normalizeText(orderStr); // Normalizes "qhs" to "at bedtime", etc.
+  // Strip trailing trough comments so numeric targets don't get parsed as doses
+  orderStr = orderStr.replace(/-\s*(target\s+)?trough.*$/i, '').trim();
 
   let order = {
     drug: "",
