@@ -511,6 +511,10 @@ addTest('Vancomycin gram vs g no change', () => {
   expect(diff('Vancomycin 1 gram q12h', 'Vancomycin 1 g q12h')).toBe('');
 });
 
+addTest('Vancomycin totals equal when qty null', () => {
+  expect(diff('Vancomycin 1 g iv q12h', 'Vancomycin 1 gram iv q12h')).toBe('');
+});
+
 addTest('Warfarin vs Coumadin INR range diff', () => {
   const b = 'Warfarin 3 mg INR 2-3';
   const a = 'Coumadin 3 mg INR 2.0-3.0';
