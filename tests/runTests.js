@@ -611,3 +611,17 @@ addTest('Iron same strength only freq flag', () => {
     diff('Ferrous Sulfate 325 mg po tid', 'Iron Sulfate 325 mg po bid')
   ).toBe('Frequency changed');
 });
+
+addTest('Coumadin brand flag survives token strip', () => {
+  expect(diff(
+    'Warfarin 3 mg po daily',
+    'Coumadin 3 mg po evening'
+  )).toBe('Brand/Generic changed, Time of day changed');
+});
+
+addTest('Iron elemental parentheses no dose diff', () => {
+  expect(diff(
+    'Ferrous Sulfate 325 mg (65 mg elemental iron) po tid',
+    'Iron Sulfate 325 mg po bid'
+  )).toBe('Frequency changed');
+});

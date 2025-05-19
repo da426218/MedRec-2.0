@@ -2315,19 +2315,19 @@ function getChangeReason(orig, updated) {
 
   const { name: origDrugNorm } = normalizeMedicationName(orig.drug); // Fully normalized name for substance matching
   const { name: updatedDrugNorm } = normalizeMedicationName(updated.drug);
+  const drug = origDrugNorm;
 
   // --- Comparisons ---
   const drugNameMatchStrict = origDrugNorm === updatedDrugNorm; // Based on fully normalized names (substance match)
   // New: direct raw-name comparison for certain brand/generic swaps
   const rawNamesDiffer = norm(origDrugNameRaw) !== norm(updatedDrugNameRaw);
 
-  const coumPair =
-    /\b(coumadin|warfarin)\b/i.test(origDrugNameRaw) &&
-    /\b(coumadin|warfarin)\b/i.test(updatedDrugNameRaw);
+  const coumBrand =
+    /\bwarfarin\b/i.test(`${origDrugNameRaw} ${updatedDrugNameRaw}`) &&
+    /\bcoumadin\b/i.test(`${origDrugNameRaw} ${updatedDrugNameRaw}`);
 
-  if (coumPair && drugNameMatchStrict && rawNamesDiffer) {
+  if (coumBrand && !changes.includes('Brand/Generic changed'))
     add('Brand/Generic changed');
-  }
 
   if (
     rawNamesDiffer &&
@@ -2549,6 +2549,11 @@ if (!qtyMatch || taperDiff || courseDiff) {
   add('Quantity changed');
 }
 
+  if ((drug === 'ferrous sulfate' || drug === 'iron sulfate') &&
+      doseValueMatch && changes.includes('Dose changed')) {
+    changes = changes.filter(c => c !== 'Dose changed');
+  }
+
 // --- Frequency Change ---
 if (!frequencyMatch) {
     if (!( (canon(orig.frequency)==='daily' && updated.frequency === '') ||
@@ -2658,7 +2663,11 @@ if (
   normalizeIndication(orig.indication) === normalizeIndication(updated.indication)
 ) {
   if (DEBUG_CHANGE_REASON) console.log("--- BLOCK #3 CONDITION MET --- Returning 'Time of day changed'");
-  changes = ['Time of day changed']; // Override other changes if this specific condition is met
+  if (changes.length === 0) {
+    changes = ['Time of day changed'];
+  } else if (!changes.includes('Time of day changed')) {
+    changes.push('Time of day changed');
+  }
 //  return 'Time of day changed'; // Old return
 }
 // ADD THIS ELSE BLOCK TO YOUR EXISTING IF
@@ -3088,6 +3097,11 @@ if (qtyMatchEarly) {
 }
 
   // 5. Extract Dose (mg/kg, combo-dose, then general unit parsing)
+  // Strip parenthetical elemental-iron note
+  orderStr = orderStr.replace(
+    /\((?:\s*\d+\s*mg\s*elemental[^)]*)\)/i,
+    ''
+  ).trim();
   const weightMatch = orderStr.match(/(\d+(?:\.\d+)?)\s*mg\/kg\b/i);
   if (weightMatch) {
     order.dose = { value: parseFloat(weightMatch[1]), unit: 'mg/kg', total: null }; // total might need patient weight
