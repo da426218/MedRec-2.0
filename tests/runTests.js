@@ -370,6 +370,16 @@ addTest('Duplicate brand synonyms deduped', () => {
   expect(order.brandTokens).toEqual(['coumadin']);
 });
 
+addTest('Mixed brand/generic only first captured', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({ }), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  const order = ctx.parseOrder('Coumadin (generic) Coumadin 5 mg');
+  expect(order.brandTokens).toEqual(['coumadin']);
+});
+
 addTest('Generic name has no brand tokens', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const script = html.split('<script>')[2].split('</script>')[0];
