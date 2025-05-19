@@ -450,7 +450,7 @@ addTest('Coumadin brand + dose change, INR same', () => {
       'Warfarin 3 mg MWF 3 mg, TTSu 1.5 mg INR 2-3',
       'Coumadin 3 mg M/W/F 3 mg; Tu/Th/Sa/Su 1.5 mg INR 2.0-3.0'
     )
-  ).toBe('Dose changed');
+  ).toBe('Dose changed, Brand/Generic changed, Time of day changed');
 });
 
 addTest('Iron vs Ferrous frequency change only', () => {
@@ -549,4 +549,10 @@ addTest('Vancomycin trough comment ignored', () => {
   const after  =
     'Vancomycin Hydrochloride 1 gram IV every 12 hours - target trough 15-20 mcg/mL';
   expect(diff(before, after)).toBe('');
+});
+addTest('Warfarin brand with INR & schedule words – indication equal', () => {
+  const a = 'Warfarin 3mg MWF 3mg TTSu 1.5mg INR 2-3 PO evening';
+  const b = 'Coumadin 3mg M/W/F 3mg Tu/Th/Sa/Su 1.5mg INR 2.0-3.0 orally in evening';
+  expect(diff(a, b))
+    .toBe('Dose changed, Brand/Generic changed, Time of day changed');
 });
