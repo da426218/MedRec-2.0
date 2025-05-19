@@ -570,3 +570,15 @@ addTest('Prednisone taper vs 5-day course indication equal', () => {
     'Prednisone 20 mg daily x5 days for COPD'))
     .toBe('Dose changed, Quantity changed');
 });
+
+addTest('Humalog vs insulin lispro brand flag', () => {
+  expect(diff('Humalog KwikPen 10 u ac',
+              'Insulin Lispro KwikPen 10 u ac'))
+    .toBe('Brand/Generic changed');
+});
+
+addTest('Warfarin vs Coumadin brand flag only', () => {
+  expect(diff('Warfarin 3 mg daily evening',
+              'Coumadin 3 mg daily evening'))
+    .toBe('Brand/Generic changed');
+});
