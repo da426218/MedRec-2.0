@@ -2597,6 +2597,12 @@ if (!routeMatch && (norm(orig.route) || norm(updated.route))) { // Only if route
      add('Route changed');
 }
 
+// --- Administration Change ---
+if (orig.administration && updated.administration &&
+    orig.administration !== updated.administration) {
+    add('Administration changed');
+}
+
 // --- PRN logic ---
 if (orig.prn !== updated.prn) {
   changes.push('PRN changed');
@@ -2726,7 +2732,7 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
   if (changes.length === 1) return changes[0];
   if (changes.length <= 4) { // List up to 4 specific changes
       // Prioritize more significant changes if too many minor ones
-      const priorityOrder = ["Dose changed", "Frequency changed", "Formulation changed", "Quantity changed", "Brand/Generic changed", "Route changed", "Form changed", "PRN changed", "Indication changed", "Date changed", "End Date changed", "Time of day changed"];
+      const priorityOrder = ["Dose changed", "Frequency changed", "Formulation changed", "Quantity changed", "Brand/Generic changed", "Route changed", "Administration changed", "Form changed", "PRN changed", "Indication changed", "Date changed", "End Date changed", "Time of day changed"];
       changes.sort((a, b) => {
           let idxA = priorityOrder.indexOf(a);
           let idxB = priorityOrder.indexOf(b);
