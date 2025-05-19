@@ -2196,7 +2196,17 @@ function normalizeIndication(txt) {
     .replace(/\banticoag(ulation)? clinic\b/gi, '')
     .replace(/\binr\s*\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?\b/gi, '')
     .replace(/\b(no\s+)?taper\b/gi, '')
+    .replace(/\bpo\b/gi, '')
+    .replace(/\bby mouth\b/gi, '')
+    .replace(/\borally\b/gi, '')
+    .replace(/\bdaily\b/gi, '')
+    .replace(/\bin evening\b/gi, '')
+    .replace(/\bevening\b/gi, '')
+    .replace(/\bmorning\b/gi, '')
+    .replace(/\bat bedtime\b/gi, '')
+    .replace(/\bqhs\b/gi, '')
     .trim();
+  if (!txt) return '';
   return txt;
 }
 
