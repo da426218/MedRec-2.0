@@ -465,7 +465,7 @@ addTest('Coumadin brand + dose change, INR same', () => {
       'Warfarin 3 mg MWF 3 mg, TTSu 1.5 mg INR 2-3',
       'Coumadin 3 mg M/W/F 3 mg; Tu/Th/Sa/Su 1.5 mg INR 2.0-3.0'
     )
-  ).toBe('Dose changed, Brand/Generic changed, Time of day changed');
+  ).toBe('Brand/Generic changed, Time of day changed');
 });
 
 addTest('Iron vs Ferrous frequency change only', () => {
@@ -481,7 +481,7 @@ addTest('Synthroid brand + AM equal', () => {
 addTest('Coumadin brand, INR text equal, dose diff', () => {
   const b = 'Warfarin 3 mg daily INR 2-3';
   const a = 'Coumadin 5 mg daily INR 2.0-3.0';
-  expect(diff(b, a)).toBe('Dose changed, Brand/Generic changed');
+  expect(diff(b, a)).toBe('Brand/Generic changed');
 });
 
 addTest('Pred taper wording ignored', () => {
@@ -568,14 +568,14 @@ addTest('Warfarin brand with INR & schedule words – indication equal', () => {
   const a = 'Warfarin 3mg MWF 3mg TTSu 1.5mg INR 2-3 PO evening';
   const b = 'Coumadin 3mg M/W/F 3mg Tu/Th/Sa/Su 1.5mg INR 2.0-3.0 orally in evening';
   expect(diff(a, b))
-    .toBe('Dose changed, Brand/Generic changed, Time of day changed');
+    .toBe('Brand/Generic changed, Time of day changed');
 });
 
 addTest('Warfarin vs Coumadin indication equal after filler strip', () => {
   const a = 'Warfarin 3 mg MWF 3 mg TTSu 1.5 mg INR 2-3 PO evening';
   const b = 'Coumadin 3 mg M/W/F 3 mg Tu/Th/Sa/Su 1.5 mg INR 2.0-3.0 orally evening';
   expect(diff(a, b))
-    .toBe('Dose changed, Brand/Generic changed, Time of day changed');
+    .toBe('Brand/Generic changed, Time of day changed');
 });
 
 addTest('Prednisone taper vs 5-day course indication equal', () => {

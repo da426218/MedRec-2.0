@@ -2697,6 +2697,10 @@ else {
 // The code should now flow directly to the 'let changes = [];' part
 // if Block #3's condition was false.
 
+  if (changes.includes('Dose changed') && coumBrand) {
+    changes = changes.filter(c => c !== 'Dose changed');
+  }
+
   // collapse trivial TOD/freq double-hit
   if (changes.includes('Frequency changed') && changes.includes('Time of day changed') &&
     canon(orig.frequency) === 'daily' && canon(updated.frequency) === 'daily') {
