@@ -268,6 +268,21 @@ addTest('Normalize twice daily with meals', () => {
   expect(ctx.normalizeFrequency('twice daily with meals')).toBe('bid');
 });
 
+addTest('normalizeAdministration canonical forms', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const ctx = {
+    console: { log: () => {}, warn: () => {}, error: () => {} },
+    window: {},
+    document: { querySelectorAll: () => [], getElementById: () => ({}) , addEventListener: () => {} },
+    firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
+  };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  expect(ctx.normalizeAdministration('with orange juice')).toBe('with food');
+  expect(ctx.normalizeAdministration('empty stomach')).toBe('between meals');
+});
+
 addTest('Solostar pen form same', () => {
   const b = 'Lantus Solostar 100 u/mL pen inject 20 u qhs';
   const a = 'Insulin glargine 100 u/mL pen inject 25 u at bedtime';
