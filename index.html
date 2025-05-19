@@ -2316,8 +2316,20 @@ function getChangeReason(orig, updated) {
   const { name: origDrugNorm } = normalizeMedicationName(orig.drug); // Fully normalized name for substance matching
   const { name: updatedDrugNorm } = normalizeMedicationName(updated.drug);
 
-  // --- Comparisons ---
-      const drugNameMatchStrict = origDrugNorm === updatedDrugNorm; // Based on fully normalized names (substance match)
+  // --- Comparisons ---
+  const drugNameMatchStrict = origDrugNorm === updatedDrugNorm; // Based on fully normalized names (substance match)
+  // New: direct raw-name comparison for certain brand/generic swaps
+  const rawNamesDiffer = norm(origDrugNameRaw) !== norm(updatedDrugNameRaw);
+  if (
+    rawNamesDiffer &&
+    drugNameMatchStrict &&
+    (/coumadin/i.test(origDrugNameRaw) ||
+      /coumadin/i.test(updatedDrugNameRaw) ||
+      /humalog/i.test(origDrugNameRaw) ||
+      /humalog/i.test(updatedDrugNameRaw))
+  ) {
+    add('Brand/Generic changed');
+  }
   const same = (a,b) => (!a && !b) || a===b;
   function valuesEqual(v1, v2) {
     if (Array.isArray(v1) && Array.isArray(v2)) {
