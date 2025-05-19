@@ -72,7 +72,7 @@ No framework: keep zero‑dependency DOM code unless we migrate to React later.
 
 6 · Testing Strategy
 
-Unit tests (Jest) live in tests/. Not wired yet – TODO.
+Unit tests (Jest) live in tests/. Run `npm test` to execute them.
 
 Smoke test: npm run lint && open index.html, paste fixture med lists, expect zero console errors.
 
