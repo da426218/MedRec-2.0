@@ -3080,11 +3080,22 @@ const qtyWords = [
   'lozenge', 'lozenges',
   'patch', 'patches'
 ];
+// Helper to convert "1/2" or "½" style strings to decimals
+function fractionToDecimal(str) {
+  const map = { '½': 0.5, '¼': 0.25, '¾': 0.75 };
+  if (map[str]) return map[str];
+  const frac = str.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (frac) return parseFloat(frac[1]) / parseFloat(frac[2]);
+  return parseFloat(str);
+}
 // Regex to match "take/give/administer X units" or just "X units"
-const qtyRegexEarly = new RegExp(`(?:\\b(?:take|give|administer|inhale|inject|apply|use)\\s+)?(\\d+(?:\\.\\d+)?)\\s*(${qtyWords.join('|')})(?:s)?\\b`, 'i');
+const qtyRegexEarly = new RegExp(
+  `(?:\\b(?:take|give|administer|inhale|inject|apply|use)\\s+)?((?:\\d+\\/\\d+|[\\u00bc-\\u00be]|\\d+(?:\\.\\d+)?))\\s*(${qtyWords.join('|')})(?:s)?\\b`,
+  'i'
+);
 const qtyMatchEarly = orderStr.match(qtyRegexEarly);
 if (qtyMatchEarly) {
-    order.qty = parseFloat(qtyMatchEarly[1]); // Group 1 is the number
+    order.qty = fractionToDecimal(qtyMatchEarly[1]); // Group 1 is the number
     const matchedQtyWord = qtyMatchEarly[2].toLowerCase(); // Group 2 is the unit word
 
     // If the matched word is a form, set order.form if not already set by a more specific term
@@ -3254,11 +3265,11 @@ if (unitMatchesFound.length > 0) {
   // Calculate total dose if qty is present // <-- START REPLACEMENT BLOCK
 if (order.qty === null) { // If qty not parsed by qtyRegexEarly
     // Try to find qty from originalRaw if it wasn't stripped with dose/form, e.g. "Drug 50mg 2 tablets"
-    const qtyLatePattern = new RegExp(`(?:^|\\s)(\\d+(?:\\.\\d+)?)\\s*(${qtyWords.join('|')})(?:s)?\\b`, 'i');
+    const qtyLatePattern = new RegExp(`(?:^|\\s)((?:\\d+\\/\\d+|[\\u00bc-\\u00be]|\\d+(?:\\.\\d+)?))\\s*(${qtyWords.join('|')})(?:s)?\\b`, 'i');
     const qtyMatchLate = originalRaw.match(qtyLatePattern);
     if (qtyMatchLate) {
         // Check if this qty is not the same as dose.value to avoid double capture if unit was like 'tablet'
-        const potentialQty = parseFloat(qtyMatchLate[1]);
+        const potentialQty = fractionToDecimal(qtyMatchLate[1]);
         if (!order.dose.value || Math.abs(order.dose.value - potentialQty) > 0.001 || order.dose.unit !== qtyMatchLate[2].toLowerCase().replace(/s$/,'') ) {
              if (orderStr.includes(qtyMatchLate[0])) { // If it's still in orderStr, remove it
                  orderStr = orderStr.replace(qtyMatchLate[0], '').trim();
