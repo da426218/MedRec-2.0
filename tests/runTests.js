@@ -295,21 +295,21 @@ addTest('Klor-Con brand only', () => {
 addTest('Tylenol brand flag', () => {
   const b = 'Tylenol 500 mg 2 tabs PO q6h prn pain';
   const a = 'Acetaminophen 1000 mg tab PO every 6 hours as needed for pain';
-  expect(diff(b, a)).toBe('Dose changed, Quantity changed, Brand/Generic changed');
+  expect(diff(b, a)).toBe('Quantity changed, Brand/Generic changed');
 });
 
 addTest('Implicit tablet form same', () => {
   const before = 'Tylenol 500 mg 2 tabs PO q6h prn pain';
   const after  = 'Acetaminophen 1000 mg PO every 6 hours as needed for pain';
   expect(diff(before, after))
-    .toBe('Dose changed, Quantity changed, Brand/Generic changed');
+    .toBe('Quantity changed, Brand/Generic changed');
 });
 
 addTest('Tabs vs no form equal', () => {
   const before = 'Tylenol 500 mg 2 tabs po q6h prn pain';
   const after  = 'Acetaminophen 1000 mg po every 6 h as needed for pain';
   expect(diff(before, after))
-    .toBe('Dose changed, Quantity changed, Brand/Generic changed');
+    .toBe('Quantity changed, Brand/Generic changed');
 });
 
 addTest('Metoprolol XL vs ER unchanged', () => {

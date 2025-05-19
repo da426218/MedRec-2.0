@@ -2347,15 +2347,12 @@ function getChangeReason(orig, updated) {
   }
 
   const doseValueMatch = valuesEqual(orig.dose?.value, updated.dose?.value);
+  // Compare total dose, defaulting quantity to 1 when missing
   const qty1 = orig.qty == null ? 1 : orig.qty;
   const qty2 = updated.qty == null ? 1 : updated.qty;
   const tot1 = (orig.dose?.value ?? 0) * qty1;
   const tot2 = (updated.dose?.value ?? 0) * qty2;
   const doseTotalMatch = tot1 === tot2;
-  // If only freq differs and dose totals identical, suppress "Dose changed"
-  if (changes.includes('Dose changed') && doseTotalMatch) {
-    changes = changes.filter(c => c !== 'Dose changed');
-  }
   const doseUnitMatch =
     canonUnit(orig.rawUnit || orig.dose?.unit) ===
     canonUnit(updated.rawUnit || updated.dose?.unit);
@@ -2522,6 +2519,11 @@ function getChangeReason(orig, updated) {
   // the strength per spray/tablet is identical but the quantity varies.
 if (!doseUnitMatch || !doseValueMatch || (!doseTotalMatch && qtyMatch)) {
   add('Dose changed');
+}
+// If totals are equal (quantity defaults to 1) and we added the dose flag, it
+// likely came from a frequency-only change, so remove it.
+if (doseTotalMatch && changes.includes('Dose changed')) {
+  changes = changes.filter(c => c !== 'Dose changed');
 }
 // Quantity differences are reflected in the dose when totals differ, but still
 // list them separately to highlight dispensing changes.
