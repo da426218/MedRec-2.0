@@ -503,3 +503,19 @@ addTest('INR range 2.5-3.5 ignored in diff', () => {
   const after  = 'Warfarin 2 mg tablet nightly INR 2.5-3.5';
   expect(diff(before, after)).toBe('');
 });
+
+addTest('Vancomycin gram vs g no change', () => {
+  expect(diff('Vancomycin 1 gram q12h', 'Vancomycin 1 g q12h')).toBe('');
+});
+
+addTest('Warfarin vs Coumadin INR range diff', () => {
+  const b = 'Warfarin 3 mg INR 2-3';
+  const a = 'Coumadin 3 mg INR 2.0-3.0';
+  expect(diff(b, a)).toBe('Dose changed, Brand/Generic changed, Time of day changed');
+});
+
+addTest('Prednisone taper vs no taper quantity diff', () => {
+  const b = 'Prednisone 5 mg taper';
+  const a = 'Prednisone 20 mg no taper';
+  expect(diff(b, a)).toBe('Dose changed, Quantity changed');
+});
