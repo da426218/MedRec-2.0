@@ -667,3 +667,18 @@ addTest('Numeric frequency two times a day flagged', () => {
   const after = 'Metformin 500 mg tablet - take 1 tab daily';
   expect(diff(before, after)).toBe('Frequency changed');
 });
+
+addTest('2 times a day normalized to bid', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const ctx = {
+    console: { log: () => {}, warn: () => {}, error: () => {} },
+    window: {},
+    document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} },
+    firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
+  };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  const order = ctx.parseOrder('Metformin 500 mg tablet - take 1 tab 2 times a day');
+  expect(order.frequency).toBe('bid');
+});
