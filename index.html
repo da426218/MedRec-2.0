@@ -2184,6 +2184,8 @@ function normalizeIndication(txt) {
   txt = txt.replace(/-\s*(target\s+)?trough.*$/i, '');
 
   txt = txt
+    .replace(/trough\s+before\s+\d+(st|nd|rd|th)\s+dose/gi, '')
+    .replace(/target\s+trough\s+\d+\s*-\s*\d+\s*mcg\/?ml/gi, '')
     .toLowerCase()
     .replace(/\b(type\s*2\s*)?diabetes\b/g, 'diabetes')
     .replace(/\b(htn|hypertension|high blood pressure)\b/g, 'hypertension')
