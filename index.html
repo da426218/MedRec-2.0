@@ -2409,13 +2409,10 @@ function getChangeReason(orig, updated) {
   }
   const routeMatch = same(norm(orig.route), norm(updated.route));
   const prnMatch = same(orig.prn, updated.prn);
-  const simpleNorm = s => (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
-  const normInd = s => normalizeIndicationText(s || '');
-  const prnConditionMatch =
-    simpleNorm(orig.prnCondition) === simpleNorm(updated.prnCondition);
-  const indA = normInd(orig.indication);
-  const indB = normInd(updated.indication);
-  const indicationDiff = indA && indB && indA !== indB;
+  const ind1 = normalizeIndication(orig.indication);
+  const ind2 = normalizeIndication(updated.indication);
+  const indicationDiff = ind1 && ind2 && ind1 !== ind2;
+  if (indicationDiff) add('Indication changed');
   const startDateMatch = same(orig.startDate, updated.startDate);
   const endDateMatch = same(orig.endDate, updated.endDate);
   const qtyMatch = same(orig.qty ?? 1, updated.qty ?? 1); // Default to 1 if null for comparison
@@ -2423,6 +2420,9 @@ function getChangeReason(orig, updated) {
     orig.taperFlag !== null &&
     updated.taperFlag !== null &&
     orig.taperFlag !== updated.taperFlag;
+  const courseDiff =
+    /\bx\d+\s*days?\b/i.test(orig.originalRaw || '') !==
+    /\bx\d+\s*days?\b/i.test(updated.originalRaw || '');
 
 // END OF REPLACEMENT/ADDITION (The original `if (!orig || !updated)` should still be there or re-added right before this block)
 
@@ -2442,7 +2442,7 @@ function getChangeReason(orig, updated) {
     console.log('  formMatch:', formMatch, `(orig: ${norm(orig.form)} vs upd: ${norm(updated.form)})`);
     console.log('  routeMatch:', routeMatch, `(orig: ${norm(orig.route)} vs upd: ${norm(updated.route)})`);
     console.log('  prnMatch:', prnMatch, `(orig: ${orig.prn} vs upd: ${updated.prn})`);
-    console.log('  indicationDiff:', indicationDiff, `(${normInd(orig.indication)} vs ${normInd(updated.indication)})`);
+    console.log('  indicationDiff:', indicationDiff, `(${normalizeIndication(orig.indication)} vs ${normalizeIndication(updated.indication)})`);
     console.log('  startDateMatch:', startDateMatch, `(orig: ${orig.startDate || ""} vs upd: ${updated.startDate || ""})`);
     console.log('  endDateMatch:', endDateMatch, `(orig: ${orig.endDate || ""} vs upd: ${updated.endDate || ""})`);
   }
@@ -2490,7 +2490,7 @@ function getChangeReason(orig, updated) {
 
     // Quantity-only difference (dose strength identical)
     const quantityOnlyDiff =
-      (qtyMatch === false || taperDiff) &&
+      (qtyMatch === false || taperDiff || courseDiff) &&
       doseValueMatch === true &&
       doseUnitMatch === true &&
       doseTotalMatch === false;
@@ -2512,7 +2512,7 @@ if (!doseUnitMatch || !doseValueMatch || (!doseTotalMatch && qtyMatch)) {
 }
 // Quantity differences are reflected in the dose when totals differ, but still
 // list them separately to highlight dispensing changes.
-if (!qtyMatch || taperDiff) {
+if (!qtyMatch || taperDiff || courseDiff) {
   add('Quantity changed');
 }
 
@@ -2622,7 +2622,7 @@ if (
   prnMatch &&
   startDateMatch &&     // <-- ADD
   endDateMatch &&       // <-- ADD
-  normInd(orig.indication) === normInd(updated.indication)
+  normalizeIndication(orig.indication) === normalizeIndication(updated.indication)
 ) {
   if (DEBUG_CHANGE_REASON) console.log("--- BLOCK #3 CONDITION MET --- Returning 'Time of day changed'");
   changes = ['Time of day changed']; // Override other changes if this specific condition is met
@@ -2656,7 +2656,7 @@ const updatedTODIsSet = norm(updated.timeOfDay) !== '';
 if (changes.includes('Frequency changed') && changes.includes('Time of day changed') &&
     origFreqIsImmediately && updatedFreqIsDaily && origTODIsEmpty && updatedTODIsSet) {
   changes = changes.filter(c => c !== 'Time of day changed');
-    if (normInd(orig.indication) === 'immediately' && normInd(updated.indication) === '') {
+    if (normalizeIndication(orig.indication) === 'immediately' && normalizeIndication(updated.indication) === '') {
     changes = changes.filter(c => c !== 'Indication changed');
   }
 } 
