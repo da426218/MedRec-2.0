@@ -581,3 +581,15 @@ addTest('Warfarin vs Coumadin brand flag only', () => {
               'Coumadin 3 mg daily evening'))
     .toBe('Brand/Generic changed');
 });
+
+addTest('Coumadin brand flag appears', () => {
+  const a = 'Warfarin 3 mg daily evening';
+  const b = 'Coumadin 3 mg daily evening';
+  expect(diff(a, b)).toBe('Brand/Generic changed');
+});
+
+addTest('Iron same strength diff frequency', () => {
+  const a = 'Ferrous Sulfate 325 mg PO tid';
+  const b = 'Iron Sulfate 325 mg PO bid';
+  expect(diff(a, b)).toBe('Frequency changed');
+});
