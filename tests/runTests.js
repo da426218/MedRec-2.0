@@ -517,6 +517,12 @@ addTest('INR range 2.5-3.5 ignored in diff', () => {
   expect(diff(before, after)).toBe('');
 });
 
+addTest('INR decimal zeros ignored in diff', () => {
+  const before = 'Warfarin 2 mg tablet nightly';
+  const after  = 'Warfarin 2 mg tablet nightly INR 2.0-3.00';
+  expect(diff(before, after)).toBe('');
+});
+
 addTest('Vancomycin gram vs g no change', () => {
   expect(diff('Vancomycin 1 gram q12h', 'Vancomycin 1 g q12h')).toBe('');
 });
