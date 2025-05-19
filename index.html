@@ -3532,6 +3532,15 @@ instructionWords.forEach(word => {
     orderStr = orderStr.replace(new RegExp(`\\s+${word}$`, 'i'), '').trim();
 });
 
+
+      if (!order.frequency) {
+          const abbr = orderStr.match(/\b(qd|bid|tid|qid)\b/i);
+          if (abbr) {
+              const map = { qd: 'daily', bid: 'bid', tid: 'tid', qid: 'qid' };
+              order.frequency = map[abbr[1].toLowerCase()];
+              orderStr = orderStr.replace(abbr[0], '').trim();
+          }
+      }
 // Remove common route/frequency/formulation remnants if they are at the very end or beginning
 const trailingRemnants = ['po', 'by mouth', 'oral', 'sublingual', 'sl', 'iv', 'im', 'sc', 'subq', 'topical', 'daily', 'bid', 'tid', 'qid', 'qhs', 'prn', 'er', 'xr', 'sr', 'dr', 'odt', 'solution', 'suspension', 'ointment', 'cream', 'gel', 'patch', 'inhaler', 'for', 'with', 'at', 'and', 'as needed', 'if needed', 'in morning', 'in evening', 'at bedtime', 'unit', 'units', 'mcg', 'mg', 'ml', 'meq', 'iu'];
 trailingRemnants.forEach(remnant => {
