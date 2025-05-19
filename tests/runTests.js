@@ -655,3 +655,15 @@ addTest('Iron admin change flagged', () => {
   const after = 'Iron sulfate 325 mg po q12h between meals';
   expect(diff(before, after)).toBe('Frequency changed, Administration changed');
 });
+
+addTest('Warfarin tabs regimen diff only brand/time', () => {
+  const before = 'Warfarin 3 mg tabs: 1 tab M/W/F 3 mg; Tu/Th/Sa/Su 1.5 mg evening';
+  const after = 'Coumadin 3 mg tabs: 1 tab M/W/F 3 mg; Tu/Th/Sa/Su 1.5 mg nightly';
+  expect(diff(before, after)).toBe('Brand/Generic changed, Time of day changed');
+});
+
+addTest('Numeric frequency two times a day flagged', () => {
+  const before = 'Metformin 500 mg tablet - take 1 tab 2 times a day';
+  const after = 'Metformin 500 mg tablet - take 1 tab daily';
+  expect(diff(before, after)).toBe('Frequency changed');
+});
