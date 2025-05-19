@@ -481,7 +481,7 @@ addTest('Synthroid brand + AM equal', () => {
 addTest('Coumadin brand, INR text equal, dose diff', () => {
   const b = 'Warfarin 3 mg daily INR 2-3';
   const a = 'Coumadin 5 mg daily INR 2.0-3.0';
-  expect(diff(b, a)).toBe('Brand/Generic changed');
+  expect(diff(b, a)).toBe('Dose changed, Brand/Generic changed');
 });
 
 addTest('Pred taper wording ignored', () => {

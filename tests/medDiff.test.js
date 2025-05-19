@@ -117,4 +117,20 @@ describe('Medication comparison', () => {
     const result = ctx.getChangeReason(p1, p2);
     expect(result).toBe('Frequency changed, Administration changed');
   });
+
+  test('coumadin vs warfarin same dose', () => {
+    const ctx = loadAppContext();
+    const before = 'Warfarin 5 mg tablet - take 1 tab daily';
+    const after = 'Coumadin 5 mg tablet - take 1 tab daily';
+    const result = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
+    expect(result).toBe('Brand/Generic changed');
+  });
+
+  test('coumadin vs warfarin different dose', () => {
+    const ctx = loadAppContext();
+    const before = 'Warfarin 5 mg tablet - take 1 tab daily';
+    const after = 'Coumadin 3 mg tablet - take 1 tab daily';
+    const result = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
+    expect(result).toBe('Dose changed, Brand/Generic changed');
+  });
 });
