@@ -2901,6 +2901,16 @@ if (order.timeOfDay && !order.frequency) {
     }
     // console.log(`DEBUG parseOrder Step 1 (Implied Freq): tod="${order.timeOfDay}", freq="${order.frequency}"`);
 }
+// After handling weekly vs daily, catch phrases like "2 times a day"
+if (!order.frequency) {
+  const m = orderStr.match(/(\d)\s*times\s+(?:a|per)\s+(?:day|daily)\b/i);
+  if (m) {
+    const map = { 1: 'daily', 2: 'bid', 3: 'tid', 4: 'qid' };
+    order.frequency = map[m[1]] || '';
+    order.frequencyTokens.push(m[0].toLowerCase());
+    orderStr = orderStr.replace(m[0], '').trim();
+  }
+}
 /* ——— NEW: capture “before / after breakfast|lunch|dinner”
           with an optional numeric offset ——— */
 if (!order.timeOfDay) {
