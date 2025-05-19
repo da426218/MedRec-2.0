@@ -2336,7 +2336,11 @@ function getChangeReason(orig, updated) {
   }
 
   const doseValueMatch = valuesEqual(orig.dose?.value, updated.dose?.value);
-  const doseTotalMatch = valuesEqual((orig.dose?.total ?? orig.dose?.value), (updated.dose?.total ?? updated.dose?.value)); // Use total, fallback to value
+  const qty1 = orig.qty == null ? 1 : orig.qty;
+  const qty2 = updated.qty == null ? 1 : updated.qty;
+  const tot1 = (orig.dose?.value ?? 0) * qty1;
+  const tot2 = (updated.dose?.value ?? 0) * qty2;
+  const doseTotalMatch = tot1 === tot2;
   const doseUnitMatch =
     canonUnit(orig.rawUnit || orig.dose?.unit) ===
     canonUnit(updated.rawUnit || updated.dose?.unit);
