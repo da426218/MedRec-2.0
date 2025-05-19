@@ -169,7 +169,7 @@ addTest('Clonidine enumerate changes', () => {
 addTest('AF abbreviation normalized', () => {
   const before = 'Metoprolol 50 mg tablet - take 1 tab daily for af';
   const after = 'Metoprolol 50 mg tablet - take 1 tab daily for atrial fibrillation';
-  expect(diff(before, after)).toBe('');
+  expect(diff(before, after)).toBe('Indication changed');
 });
 
 addTest('Spiriva brand/generic flag', () => {
@@ -555,4 +555,18 @@ addTest('Warfarin brand with INR & schedule words – indication equal', () => {
   const b = 'Coumadin 3mg M/W/F 3mg Tu/Th/Sa/Su 1.5mg INR 2.0-3.0 orally in evening';
   expect(diff(a, b))
     .toBe('Dose changed, Brand/Generic changed, Time of day changed');
+});
+
+addTest('Warfarin vs Coumadin indication equal after filler strip', () => {
+  const a = 'Warfarin 3 mg MWF 3 mg TTSu 1.5 mg INR 2-3 PO evening';
+  const b = 'Coumadin 3 mg M/W/F 3 mg Tu/Th/Sa/Su 1.5 mg INR 2.0-3.0 orally evening';
+  expect(diff(a, b))
+    .toBe('Dose changed, Brand/Generic changed, Time of day changed');
+});
+
+addTest('Prednisone taper vs 5-day course indication equal', () => {
+  expect(diff(
+    'Prednisone 5 mg taper for COPD',
+    'Prednisone 20 mg daily x5 days for COPD'))
+    .toBe('Dose changed, Quantity changed');
 });

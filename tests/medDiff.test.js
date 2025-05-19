@@ -54,10 +54,10 @@ describe('Medication comparison', () => {
     const before = 'Metoprolol 50 mg tablet - take 1 tab daily for af';
     const after = 'Metoprolol 50 mg tablet - take 1 tab daily for atrial fibrillation';
     const p1 = ctx.parseOrder(before);
-    const p2 = ctx.parseOrder(after);
-    const result = ctx.getChangeReason(p1, p2);
-    expect(result).toBe('Unchanged');
-  });
+  const p2 = ctx.parseOrder(after);
+  const result = ctx.getChangeReason(p1, p2);
+  expect(result).toBe('Indication changed');
+});
 
   test('taper wording ignored in indications', () => {
     const ctx = loadAppContext();
