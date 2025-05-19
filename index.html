@@ -2697,7 +2697,7 @@ else {
 // The code should now flow directly to the 'let changes = [];' part
 // if Block #3's condition was false.
 
-  if (changes.includes('Dose changed') && coumBrand) {
+  if (changes.includes('Dose changed') && coumBrand && doseValueMatch && doseUnitMatch) {
     changes = changes.filter(c => c !== 'Dose changed');
   }
 
