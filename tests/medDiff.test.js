@@ -105,4 +105,16 @@ describe('Medication comparison', () => {
     const order = ctx.parseOrder('Aspirin 1/2 tab daily');
     expect(order.qty).toBe(0.5);
   });
+
+  test('administration difference flagged', () => {
+    const ctx = loadAppContext();
+    const before = 'Metformin 500 mg tablet - take 1 tablet with food daily';
+    const after = 'Metformin 500 mg tablet - take 1 tablet between meals daily';
+    const p1 = ctx.parseOrder(before);
+    const p2 = ctx.parseOrder(after);
+    expect(p1.administration).toBe('with food');
+    expect(p2.administration).toBe('between meals');
+    const result = ctx.getChangeReason(p1, p2);
+    expect(result).toBe('Frequency changed, Administration changed');
+  });
 });

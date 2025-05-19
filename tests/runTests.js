@@ -95,7 +95,7 @@ require('./medDiff.test');
 addTest('Metformin evening vs nightly time change', () => {
   const before = 'Metformin hydrochloride 1000mg ER - take one tablet by mouth every evening with supper';
   const after = 'Metformin ER 1000mg - take 1 tab PO nightly with food';
-  expect(diff(before, after)).toBe('Time of day changed');
+  expect(diff(before, after)).toBe('Administration changed, Time of day changed');
 });
 
 addTest('Vitamin D brand/generic without formulation change', () => {
