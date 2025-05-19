@@ -2331,6 +2331,18 @@ function getChangeReason(orig, updated) {
   // New: direct raw-name comparison for certain brand/generic swaps
   const rawNamesDiffer = norm(origDrugNameRaw) !== norm(updatedDrugNameRaw);
 
+  const sameMgStrength = (a, b) => {
+    const grab = s => {
+      const m = (s || '').match(/(\d+(?:\.\d+)?)\s*mg\b/i);
+      return m ? Number(m[1]) : null;
+    };
+    let n1 = grab(a);
+    let n2 = grab(b);
+    if (n1 === null) n1 = grab(orig.originalRaw);
+    if (n2 === null) n2 = grab(updated.originalRaw);
+    return n1 !== null && n1 === n2;
+  };
+
   const coumBrand =
     /\bwarfarin\b/i.test(`${origDrugNameRaw} ${updatedDrugNameRaw}`) &&
     /\bcoumadin\b/i.test(`${origDrugNameRaw} ${updatedDrugNameRaw}`);
@@ -2435,7 +2447,14 @@ function getChangeReason(orig, updated) {
     formulationMatch = true;
     changes = changes.filter(c => c !== 'Formulation changed');
   }
-  const routeMatch = same(norm(orig.route), norm(updated.route));
+  let routeMatch = same(norm(orig.route), norm(updated.route));
+  if (!routeMatch) {
+    const r1 = norm(orig.route);
+    const r2 = norm(updated.route);
+    if ((r1 === 'po' && !r2) || (r2 === 'po' && !r1)) {
+      routeMatch = true;
+    }
+  }
   const prnMatch = same(orig.prn, updated.prn);
   const ind1 = normalizeIndication(orig.indication);
   const ind2 = normalizeIndication(updated.indication);
@@ -2690,8 +2709,10 @@ else {
 
 // if Block #3's condition was false.
 
-  if (changes.includes('Dose changed') && coumBrand && doseValueMatch && doseUnitMatch) {
-    changes = changes.filter(c => c !== 'Dose changed');
+  if (changes.includes('Dose changed') && coumBrand) {
+    if (doseTotalMatch || sameMgStrength(origDrugNameRaw, updatedDrugNameRaw)) {
+      changes = changes.filter(c => c !== 'Dose changed');
+    }
   }
 
   // collapse trivial TOD/freq double-hit
