@@ -2190,7 +2190,7 @@ function normalizeIndication(txt) {
 
   txt = txt
     .replace(/\banticoag(ulation)? clinic\b/gi, '')
-    .replace(/\binr\s*\d(\.\d)?\s*-\s*\d(\.\d)?\b/gi, '')
+    .replace(/\binr\s*\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?\b/gi, '')
     .replace(/\b(no\s+)?taper\b/gi, '')
     .trim();
   return txt;
