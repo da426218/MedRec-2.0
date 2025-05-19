@@ -534,7 +534,7 @@ addTest('Vancomycin totals equal when qty null', () => {
 addTest('Warfarin vs Coumadin INR range diff', () => {
   const b = 'Warfarin 3 mg INR 2-3';
   const a = 'Coumadin 3 mg INR 2.0-3.0';
-  expect(diff(b, a)).toBe('Dose changed, Brand/Generic changed, Time of day changed');
+  expect(diff(b, a)).toBe('Brand/Generic changed');
 });
 
 addTest('Prednisone taper vs no taper quantity diff', () => {
