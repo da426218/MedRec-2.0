@@ -207,7 +207,6 @@ table.changes-table th {
   page-break-inside: avoid !important;
 }
 
-
     .progress-bar {
       display: flex;
       justify-content: space-between;
@@ -1676,7 +1675,6 @@ function hasContra(orderObj, wholeList = []) {
     ['ferrous sulfate',        'ferrous gluconate']
   ];
 
-
   const genericSynonyms = {
     hctz: 'hydrochlorothiazide',
     hydrochlorothiazide: 'hydrochlorothiazide'
@@ -1789,7 +1787,6 @@ const commonIndicationsPatterns = [
     n = n.replace(/\b(?:\d+\s*(?:min(?:ute)?s?|hr|hrs?|hours?)\s*)?(?:at|before|after|with|without)\s+(?:breakfast|lunch|dinner|meal(?:s)?|night|bedtime|morning|evening)\b/ig, '')
          .trim();
 
-
     /* 4. Remove common leftover instructional/form words and numbers from name string */
     n = n.replace(/\b\d+(?:\.\d+)?\b/g, '');
     n = n.replace(/\b(?:tablet|tablets|tab|tabs|cap|capsule|capsules|caplet|oral|po|subq|sc|im|iv|id|pr|sl|os|od|au|oin|oint|ophth|neb|inh|inj|inject|supp|sol|solution|susp|elix|syr|tr|tinct|lot|crm|crm.|ung|gel|aero|conc|dil|dp|ds|emuls|enema|er|film|gas|gran|gum|impl|inf|ins|irrig|jec|liq|lotn|loz|mdi|mis|nebu|oint|oph|pad|part|pas|past|pel|pen|pill|plst|powd|pwd|rinse|sat|shamp|soak|spg|spl|spray|stk|strip|subl|sup|swab|syr|sys|tab|tamp|tape|top|troche|twa|vag|wafer|xt|xr|xl|xd|sr|cr|dr|la|patch|puffs|drops|lozenge|spray|unit|units|ml|mcg|mg|g|solostar|actuation)\b/gi, '');
@@ -1830,7 +1827,6 @@ const commonIndicationsPatterns = [
   mEq:      ['meq', 'mEq', 'milliequivalents'],
   g:        ['g','gram','grams']
 };
-
 
     let photo1Files = [];
     let photo2Files = [];
@@ -1988,7 +1984,6 @@ function mergeEMRLines(lines) {
     /^[a-zA-Z\s.-]+\s+\d+(?:\.\d+)?\s*(?:mg|mcg|g|u|iu|units?|ml|meq|unit\/ml)\s+[a-zA-Z\s.-]+$/i.test(line1) || // Added units: u, iu, meq, unit/ml. Added 'i' flag. Escaped '/'.
     /^[a-zA-Z\s.-]+\s+inhaler$/i.test(line1); // Added 'i' flag for case-insensitivity
 
-
     const line2 = lines[i + 1]?.trim();
     const line3 = lines[i + 2]?.trim();
 
@@ -2061,12 +2056,10 @@ function keepOrderLines(rawText) {
   let lines = rawText.split(/\r?\n+/).map(line => line.trim());
   // console.log("DEBUG keepOrderLines - Initial split & trimmed lines:", JSON.parse(JSON.stringify(lines)));
 
-
   // 2. Apply EMR-specific 3-line merging.
   //    This function should now receive lines that are only split by original newlines.
   lines = mergeEMRLines(lines);
   // console.log("DEBUG keepOrderLines - After mergeEMRLines:", JSON.parse(JSON.stringify(lines)));
-
 
   // 3. Now, apply further cleaning and other processing to each (potentially merged) line.
   let processedLines = lines.map(line => {
@@ -2082,12 +2075,10 @@ function keepOrderLines(rawText) {
   });
   // console.log("DEBUG keepOrderLines - After comma/semicolon/and replacement and cleanLine map:", JSON.parse(JSON.stringify(processedLines)));
 
-
   // 4. Split lines that might themselves contain two distinct orders (e.g., "Drug A ... Drug B")
   //    This function expects to operate on single strings.
   //processedLines = processedLines.flatMap(splitConcatOrders);
   // console.log("DEBUG keepOrderLines - After splitConcatOrders:", JSON.parse(JSON.stringify(processedLines)));
-
 
   // 5. Final filter for valid-looking order lines
   const finalFilteredLines = processedLines.filter(line => {
@@ -2111,7 +2102,6 @@ function keepOrderLines(rawText) {
   	// 2) remove trailing non-alphanumeric junk and trim
   	return line.replace(/[^a-z0-9]+$/i, '').trim();
 }
-
 
 // ——— remove trailing junk from merged lines ———
 function pruneLine(line) {
@@ -2297,7 +2287,6 @@ function getChangeReason(orig, updated) {
 // const updTail  = tail(updated.drug); // REMOVE OR COMMENT OUT
 // const tailDiff = ...; // REMOVE OR COMMENT OUT
 
-
   if (!orig || !updated) return 'Misc. Change'; // <-- THIS LINE STAYS OR IS RE-ADDED
 
 // START OF REPLACEMENT/ADDITION
@@ -2319,7 +2308,6 @@ function getChangeReason(orig, updated) {
 
   const { name: origDrugNorm } = normalizeMedicationName(orig.drug); // Fully normalized name for substance matching
   const { name: updatedDrugNorm } = normalizeMedicationName(updated.drug);
-
 
   // --- Comparisons ---
       const drugNameMatchStrict = origDrugNorm === updatedDrugNorm; // Based on fully normalized names (substance match)
@@ -2427,7 +2415,6 @@ function getChangeReason(orig, updated) {
 
 // END OF REPLACEMENT/ADDITION (The original `if (!orig || !updated)` should still be there or re-added right before this block)
 
-
   // --- Logging for debug ---
   if (DEBUG_CHANGE_REASON) {
     console.log('DEBUG getChangeReason - Comparisons:');
@@ -2450,7 +2437,6 @@ function getChangeReason(orig, updated) {
   }
 
  // --- End Debugging Conditions ---
-
 
 // --- Start/End Date Changes --- // <-- START ADDING NEW LOGIC HERE
   if (!startDateMatch) add('Date changed');
@@ -2519,7 +2505,6 @@ if (!qtyMatch || taperDiff) {
   add('Quantity changed');
 }
 
-
 // --- Frequency Change ---
 if (!frequencyMatch) {
     if (!( (canon(orig.frequency)==='daily' && updated.frequency === '') ||
@@ -2547,7 +2532,6 @@ if (!formMatch && (norm(orig.form) || norm(updated.form))) {
 if (!routeMatch && (norm(orig.route) || norm(updated.route))) { // Only if routes specified and different
      add('Route changed');
 }
-
 
 // --- PRN logic ---
 if (orig.prn !== updated.prn) {
@@ -2609,7 +2593,6 @@ const isQodToDaily =
   canon(orig.frequency) === 'every other day' &&
   canon(updated.frequency) === 'daily';
 
-
 // THIS IS YOUR EXISTING IF STATEMENT FOR BLOCK #3:
 // Modify it by adding the console.log inside the if, and adding the else block.
 if (
@@ -2639,7 +2622,6 @@ else {
 // REMOVE ANY DUPLICATE IF BLOCK FOR THIS LOGIC.
 // The code should now flow directly to the 'let changes = [];' part
 // if Block #3's condition was false.
-
 
   // collapse trivial TOD/freq double-hit
   if (changes.includes('Frequency changed') && changes.includes('Time of day changed') &&
@@ -2680,19 +2662,6 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
   // and the formulation is part of the brand name (e.g. Metoprolol Tartrate vs Lopressor),
   // "Brand/Generic changed" might be sufficient. This is complex, for now, list both if detected.
 
-  // If only "Date changed" or "End Date changed" but everything else is identical (substance, dose, freq etc.)
-  if (changes.length === 1 && (changes[0] === 'Date changed' || changes[0] === 'End Date changed') &&
-      drugNameMatchStrict && doseTotalMatch && doseUnitMatch && frequencyMatch && timeOfDayMatch &&
-      formMatch && formulationMatch && routeMatch && prnMatch && qtyMatch && !indicationDiff) {
-      // Keep as "Date changed" or "End Date changed"
-  } else if (changes.length === 0 && // No primary changes detected above
-             drugNameMatchStrict && doseTotalMatch && doseUnitMatch && frequencyMatch && timeOfDayMatch &&
-             formMatch && formulationMatch && routeMatch && prnMatch && qtyMatch && !indicationDiff &&
-             startDateMatch && endDateMatch) {
-      return 'Unchanged'; // All key aspects are the same
-  }
-
-
   if (changes.length === 0) return 'Unchanged'; // Default to Unchanged if no specific diffs were added
   if (changes.length === 1) return changes[0];
   if (changes.length <= 4) { // List up to 4 specific changes
@@ -2716,7 +2685,6 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
   const originalRaw = orderStr;   // keep untouched copy
   orderStr = orderStr.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
   orderStr = normalizeText(orderStr); // Normalizes "qhs" to "at bedtime", etc.
-
 
   let order = {
     drug: "",
@@ -2851,7 +2819,6 @@ for (const mapping of timeOfDayMappings) {
   }
 }
 
-
 // If a time of day was found (e.g. "morning") but frequency wasn't set by a specific shorthand (like qam, every morning)
 // then check for weekly-style phrases before assuming it's a daily frequency.
 if (order.timeOfDay && !order.frequency) {
@@ -2901,7 +2868,6 @@ orderStr = orderStr
   .replace(/\bevery\s+(morning|evening|night)\b/gi, '$1')
   .trim();
 
-
   // 2. Extract Administration (with/without food/water)
   const adminMatch = orderStr.match(
   new RegExp(
@@ -2911,7 +2877,6 @@ orderStr = orderStr
     'i'
   )
 );
-
 
   if (adminMatch) {
     const prefix = adminMatch[0].toLowerCase().startsWith('with') ? 'with ' : 'without ';
@@ -3050,7 +3015,6 @@ orderStr = orderStr.replace(/\bmay\s+increase\s+to.*$/i, '').trim();
   // and orderStr should be "atorvastatin 40 mg tablet po" (or similar for other drugs)
 
   // console.log(`DEBUG parseOrder: After indication attempts: orderStr="${orderStr}", indication="${order.indication}"`);
-
 
 // Extract Quantity (e.g., "2 tabs") before dose, as it might be part of the dose string // <-- START ADDING THIS BLOCK
 const qtyWords = [
@@ -3251,7 +3215,6 @@ if (order.dose.value !== null && typeof order.dose.value === 'number' && order.q
     order.dose.total = order.dose.value; // Default total to value if qty is not applicable/found
 }
 
-
 // If dose unit itself is 'tablet' or 'capsule' and value is set, this implies qty if qty is still null
 if (order.qty === null && (order.dose.unit === 'tablet' || order.dose.unit === 'capsule' || order.dose.unit === 'puff' || order.dose.unit === 'spray')) {
     if (order.dose.value && order.dose.value > 0) { // ensure value is a positive number
@@ -3331,7 +3294,6 @@ if (order.qty === null && (order.dose.unit === 'tablet' || order.dose.unit === '
   }
 } 
 
-
   // 7. Extract Route
   const routes = [
     { standard: "po", variations: ["po", "oral", "by mouth"] }, { standard: "sl", variations: ["sl", "sublingual", "sublingually"] },
@@ -3364,7 +3326,6 @@ if (order.qty === null && (order.dose.unit === 'tablet' || order.dose.unit === '
     }
     // console.log(`DEBUG parseOrder Step 7 (Route): order.route="${order.route}", orderStr="${orderStr}"`);
   }
-
 
   // 8. Extract Frequency
 
@@ -3692,7 +3653,6 @@ function similarity(a, b) {
   return 1 - distance / maxLen;        // 0 = no overlap, 1 = identical
 }
 
-
 // ===========================================================
   // Find every contra‑indicated pair present in the full list
   // ===========================================================
@@ -3785,7 +3745,6 @@ function findContraIndications(allOrders) {
   if ((a.form || '') !== (b.form || '')) return false;
   // 6) PRN flag …
   if (a.prn !== b.prn) return false;
-
 
 // ——— ENSURE PAIN INDICATION MATCHES (NORMALIZED) ——— (Fix 1C)
 if ((a.indication || b.indication) && normalizeIndicationText(a.indication) !== normalizeIndicationText(b.indication)) {
@@ -3906,7 +3865,6 @@ for (let i = removed.length - 1; i >= 0; i--) {
     document.getElementById(id).classList.remove('filled');
   });
 
-
       if (screenId === 'disclaimer-screen') {
         document.getElementById('step1').classList.add('current');
       } else if (screenId === 'photo1-screen') {
@@ -4017,8 +3975,6 @@ for (let i = removed.length - 1; i >= 0; i--) {
   document.getElementById('photo1-capture').value = "";
   document.getElementById('photo1-upload').value = "";
 }
-
-
 
     function handlePhoto2(files) {
       if (!files || files.length === 0) return;
@@ -4419,7 +4375,6 @@ console.log("Remaining addedMap keys (will appear as ‘Added’ rows):", Object
 
 //=== END STEP-MERGE-REMOVED-ADDED ==============================
 
-
 //=== STEP‑FIX  skip any blank or junk entries =========================
 const notBlank = obj =>
   obj && obj.original && obj.original.trim().length > 0;
@@ -4452,7 +4407,6 @@ const ciSet = new Set(
 );
 
 const finalResults = [];
-
 
 // ---------------------------------------------
 
@@ -4615,7 +4569,6 @@ if (!match) {
        });
       });
 
-
         // Added orders
     added.forEach(a => {
       const crit = isCriticalOrder(a);
@@ -4679,7 +4632,6 @@ if (!match) {
         </p>
       `;
     }
-
 
     document.getElementById('results-content').innerHTML = html;
    
@@ -4747,7 +4699,6 @@ if (!match) {
   // 5) save the PDF
   pdf.save('MedRec_Report.pdf');
 }
-
 
 function printResults() {
   // 1) make sure we’re on the results screen
