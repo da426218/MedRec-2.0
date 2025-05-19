@@ -2195,18 +2195,14 @@ function normalizeIndication(txt) {
   txt = txt
     .replace(/\banticoag(ulation)? clinic\b/gi, '')
     .replace(/\binr\s*\d+(?:\.\d+)?\s*-\s*\d+(?:\.\d+)?\b/gi, '')
-    .replace(/\b(no\s+)?taper\b/gi, '')
-    .replace(/\bpo\b/gi, '')
-    .replace(/\bby mouth\b/gi, '')
-    .replace(/\borally\b/gi, '')
-    .replace(/\bdaily\b/gi, '')
-    .replace(/\bin evening\b/gi, '')
-    .replace(/\bevening\b/gi, '')
-    .replace(/\bmorning\b/gi, '')
-    .replace(/\bat bedtime\b/gi, '')
-    .replace(/\bqhs\b/gi, '')
+    .replace(/\b(no\s+)?taper\b/gi, '');
+
+  const fillerRE =
+    /\b(?:po|by mouth|orally|tablet?s?|tab|daily|every day|in evening|evening|at bedtime|morning|stop|no taper|taper|for \d+\s*days?)\b/gi;
+  txt = txt
+    .replace(fillerRE, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
-  if (!txt) return '';
   return txt;
 }
 
@@ -2419,7 +2415,7 @@ function getChangeReason(orig, updated) {
     simpleNorm(orig.prnCondition) === simpleNorm(updated.prnCondition);
   const indA = normInd(orig.indication);
   const indB = normInd(updated.indication);
-  const indicationDiff = !(!indA && !indB) && indA !== indB;
+  const indicationDiff = indA && indB && indA !== indB;
   const startDateMatch = same(orig.startDate, updated.startDate);
   const endDateMatch = same(orig.endDate, updated.endDate);
   const qtyMatch = same(orig.qty ?? 1, updated.qty ?? 1); // Default to 1 if null for comparison
@@ -3763,8 +3759,12 @@ function findContraIndications(allOrders) {
   if (a.prn !== b.prn) return false;
 
 // ——— ENSURE PAIN INDICATION MATCHES (NORMALIZED) ——— (Fix 1C)
-if ((a.indication || b.indication) && normalizeIndicationText(a.indication) !== normalizeIndicationText(b.indication)) {
-  return false;
+{
+  const ind1 = normalizeIndicationText(a.indication || '');
+  const ind2 = normalizeIndicationText(b.indication || '');
+  if (ind1 && ind2 && ind1 !== ind2) {
+    return false;
+  }
 }
 // ——————————————————————————————
 
@@ -4477,21 +4477,6 @@ if (!match) {
     match = added.find(a => a.original.toLowerCase().includes(drugName));
     if (match) {
         changeType = getChangeReason(r.parsed, match.parsed);
-
-        // very novice-friendly override for “only indication” cases
-        const origInd = (r.parsed.indication || '').toLowerCase().trim();
-        const newInd  = (match.parsed.indication || '').toLowerCase().trim();
-        const normOrig = normalizeIndicationText(origInd);
-        const normNew  = normalizeIndicationText(newInd);
-        if (
-            normalizeMedicationName(r.parsed.drug).name === normalizeMedicationName(match.parsed.drug).name
-            && r.parsed.dose.value === match.parsed.dose.value
-            && r.parsed.dose.unit  === match.parsed.dose.unit
-            && normOrig !== normNew
-        ) {
-            changeType = 'Indication changed';
-        }
-
         console.log(`   → substring matched "${drugName}" to`, match.original);
     }
 }  // <-- closes the if(!match) block correctly

@@ -28,7 +28,7 @@ describe('Medication comparison', () => {
     expect(result).toBe('Dose changed, Form changed');
   });
 
-  test('adding nerve pain indication detected', () => {
+  test('adding nerve pain indication ignored when original blank', () => {
     const ctx = loadAppContext();
     const before = 'Gabapentin 300mg capsule - take 1 cap po tid';
     const after = 'Gabapentin 300mg capsule - take 1 cap po tid for nerve pain';
@@ -36,7 +36,7 @@ describe('Medication comparison', () => {
     const p2 = ctx.parseOrder(after);
     expect(p2.indication).toBe('nerve pain');
     const result = ctx.getChangeReason(p1, p2);
-    expect(result).toBe('Indication changed');
+    expect(result).toBe('Unchanged');
   });
 
   test('route change from oral to sublingually detected', () => {
@@ -76,5 +76,21 @@ describe('Medication comparison', () => {
     const after = 'Clonidine 0.1 mg tablet – Take 1 tablet by mouth twice a day';
     const result = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
     expect(result).toBe('Frequency changed, Route changed, Form changed');
+  });
+
+  test('filler words in indication ignored', () => {
+    const ctx = loadAppContext();
+    const before = 'Prednisone 5 mg tablet - take 1 tablet daily for asthma';
+    const after = 'Prednisone 5 mg tablet - take 1 tablet daily for asthma for 7 days stop';
+    const result = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
+    expect(result).toBe('Unchanged');
+  });
+
+  test('indication change requires both non-empty', () => {
+    const ctx = loadAppContext();
+    const before = 'Gabapentin 300mg capsule - take 1 cap tid for nerve pain';
+    const after = 'Gabapentin 300mg capsule - take 1 cap tid for seizures';
+    const result = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
+    expect(result).toBe('Indication changed');
   });
 });
