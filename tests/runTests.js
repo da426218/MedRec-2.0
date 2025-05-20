@@ -268,6 +268,21 @@ addTest('Normalize twice daily with meals', () => {
   expect(ctx.normalizeFrequency('twice daily with meals')).toBe('bid');
 });
 
+addTest('Normalize numeric times per day', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const ctx = {
+    console: { log: () => {}, warn: () => {}, error: () => {} },
+    window: {},
+    document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} },
+    firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
+  };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  expect(ctx.normalizeFrequency('3 times a day')).toBe('tid');
+  expect(ctx.normalizeFrequency('5 times a day')).toBe('5 times a day');
+});
+
 addTest('normalizeAdministration canonical forms', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const script = html.split('<script>')[2].split('</script>')[0];
