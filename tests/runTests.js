@@ -772,3 +772,15 @@ addTest('Iron numeric frequent phrase', () => {
     'Iron sulfate 325 mg 2 times a day'
   )).toBe('Frequency changed');
 });
+
+addTest('Lipitor vs atorvastatin brand only', () => {
+  const brand = 'Lipitor 20 mg tablet po daily';
+  const generic = 'Atorvastatin 20 mg tablet po daily';
+  expect(diff(brand, generic)).toBe('Brand/Generic changed');
+});
+
+addTest('BID equals two times a day', () => {
+  const b = 'Metformin 500 mg tablet po BID';
+  const a = 'Metformin 500 mg tablet po two times a day';
+  expect(diff(b, a)).toBe('');
+});
