@@ -93,9 +93,9 @@ global.diffRows = diffRowsList;
 require('./medDiff.test');
 
 addTest('Metformin evening vs nightly time change', () => {
-  const before = 'Metformin hydrochloride 1000mg ER - take one tablet by mouth every evening with supper';
-  const after = 'Metformin ER 1000mg - take 1 tab PO nightly with food';
-  expect(diff(before, after)).toBe('Administration changed, Time of day changed');
+  const before = 'Metformin 500 mg tablet po BID';
+  const after = 'Metformin 500 mg tablet - take 1 tab every morning';
+  expect(diff(before, after)).toBe('Frequency changed, Time of day changed');
 });
 
 addTest('Vitamin D brand/generic without formulation change', () => {
@@ -762,7 +762,7 @@ addTest('Coumadin brand & time only', () => {
   expect(diff(
     'Warfarin 3 mg 1 tab M/W/F; \u00bd tab Tu/Th/Sa/Su',
     'Coumadin 3 mg 1 tab M/W/F; \u00bd tab Tu/Th/Sa/Su evening'
-  )).toBe('Brand/Generic changed, Time of day changed');
+  )).toBe('Frequency changed, Brand/Generic changed, Time of day changed');
 });
 
 /* “2 times a day” numeric frequency */

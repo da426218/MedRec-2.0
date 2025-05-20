@@ -160,4 +160,12 @@ describe('Medication comparison', () => {
     const result = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
     expect(result).toBe('Dose changed, Brand/Generic changed');
   });
+
+  test('frequency text change with different time of day', () => {
+    const ctx = loadAppContext();
+    const before = 'Metformin 500 mg tablet po BID';
+    const after = 'Metformin 500 mg tablet - take 1 tab every morning';
+    const result = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
+    expect(result).toBe('Frequency changed, Time of day changed');
+  });
 });
