@@ -4,7 +4,8 @@
   "description": "Medication reconciliation app.",
   "main": "index.js",
   "scripts": {
-    "test": "node tests/runTests.js"
+    "test": "node tests/runTests.js",
+    "lint": "echo \"No lint configured\""
   },
   "devDependencies": {
     "firebase": "^10.12.5"
