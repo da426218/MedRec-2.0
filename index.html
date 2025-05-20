@@ -2802,6 +2802,13 @@ else {
       changes = changes.filter(c => c !== 'Dose changed');
     }
   }
+  if (
+    changes.includes('Frequency changed') &&
+    coumBrand &&
+    freqSameNum
+  ) {
+    changes = changes.filter(c => c !== 'Frequency changed');
+  }
 
   // collapse trivial TOD/freq double-hit
   if (
