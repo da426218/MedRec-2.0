@@ -2211,13 +2211,53 @@ function normalizeTimeOfDay(t) {
   return t;
 }
 
+function getFrequencyMap() {
+  return {
+    'once daily': 'daily',
+    'once a day': 'daily',
+    '1 times daily': 'daily',
+    daily: 'daily',
+    od: 'daily',
+    qd: 'daily',
+    'twice daily': 'bid',
+    '2 times daily': 'bid',
+    '2 times a day': 'bid',
+    'twice a day': 'bid',
+    bid: 'bid',
+    'twice a day with meals': 'bid',
+    'twice daily with meals': 'bid',
+    'three times daily': 'tid',
+    '3 times daily': 'tid',
+    tid: 'tid',
+    tidac: 'tid',
+    'before meals': 'tid',
+    'with meals': 'tid',
+    'before breakfast lunch dinner': 'tid',
+    'four times daily': 'qid',
+    '4 times daily': 'qid',
+    qid: 'qid',
+    'every other day': 'every other day',
+    qod: 'every other day',
+    stat: 'immediately',
+    now: 'immediately',
+    immediately: 'immediately',
+    weekly: 'weekly',
+    'once a week': 'weekly',
+    'once per week': 'weekly',
+    monthly: 'monthly',
+    'once a month': 'monthly'
+  };
+}
+
 function normalizeFrequency(str) {
   if (!str) return '';
   str = str.toLowerCase().trim();
-  const tidPattern = /\b(tidac|tid\b|three\s+times\s+daily|3\s+times\s+daily|before\s+meals?)\b/;
-  if (tidPattern.test(str)) return 'tid';   // canonical label
-  const bidPattern = /\b(twice\s+(a|per)?\s*day|twice\s+daily)(\s+with.*)?\b/;
-  if (bidPattern.test(str)) return 'bid';
+  const freqMap = getFrequencyMap();
+  const sorted = Object.keys(freqMap).sort((a, b) => b.length - a.length);
+  for (const key of sorted) {
+    const pattern = new RegExp(`\\b${key.replace(/\s+/g, '\\s+')}\\b`, 'i');
+    if (pattern.test(str)) return freqMap[key];
+  }
   const numTimes = str.match(/(\d+)\s*times?\s*(?:a|per)?\s*day\b/);
   if (numTimes) {
     const n = parseInt(numTimes[1], 10);
@@ -3457,24 +3497,7 @@ if (!order.frequency) {
           order.frequencyTokens.push(everyHours[0].toLowerCase());
           orderStr = orderStr.replace(everyHours[0], '').trim();
         } else {
-          const freqMapping = { /* ... your existing map ... */
-              "once daily": "daily", "once a day": "daily", "1 times daily": "daily", "daily": "daily", "od": "daily", "qd": "daily",
-              "twice daily": "twice daily", "2 times daily": "twice daily", "2 times a day": "twice daily", "bid": "twice daily", "twice a day": "twice daily",
-              "three times daily": "three times daily", "3 times daily": "three times daily", "tid": "three times daily", "tidac": "three times daily", "before meals": "three times daily", "with meals": "three times daily", "before breakfast lunch dinner": "three times daily",
-              "four times daily": "four times daily", "4 times daily": "four times daily", "qid": "four times daily",
-              "every other day": "every other day", "qod": "every other day",
-              "stat": "immediately", "now": "immediately",
-              "weekly": "weekly", "once a week": "weekly", "once per week": "weekly",
-              "monthly": "monthly", "once a month": "monthly"
-          };
-          const freqMapExtra = {
-            'twice a day': 'bid',
-            'twice daily': 'bid',
-            'twice a day with meals': 'bid',
-            'twice daily with meals': 'bid'
-          };
-          Object.assign(freqMapping, freqMapExtra);
-          freqMapping['bid'] = 'bid';
+          const freqMapping = getFrequencyMap();
           const sortedFreqKeys = Object.keys(freqMapping).sort((a, b) => b.length - a.length);
           for (const key of sortedFreqKeys) {
             const pattern = new RegExp(`\\b${key.replace(/\s+/g, '\\s+')}\\b`, 'i');
