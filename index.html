@@ -2523,6 +2523,12 @@ function getChangeReason(orig, updated) {
     if ((r1 === 'po' && !r2) || (r2 === 'po' && !r1)) {
       routeMatch = true;
     }
+    // Treat inhaler brand swaps with 'by mouth' as inhalation
+    if (!routeMatch && inhaled(orig) && inhaled(updated)) {
+      if ((r1 === 'po' && r2 === 'inhalation') || (r2 === 'po' && r1 === 'inhalation')) {
+        routeMatch = true;
+      }
+    }
   }
   const prnMatch = same(orig.prn, updated.prn);
   const ind1 = normalizeIndication(orig.indication);
