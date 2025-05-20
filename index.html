@@ -2218,6 +2218,14 @@ function normalizeFrequency(str) {
   if (tidPattern.test(str)) return 'tid';   // canonical label
   const bidPattern = /\b(twice\s+(a|per)?\s*day|twice\s+daily)(\s+with.*)?\b/;
   if (bidPattern.test(str)) return 'bid';
+  const numTimes = str.match(/(\d+)\s*times?\s*(?:a|per)?\s*day\b/);
+  if (numTimes) {
+    const n = parseInt(numTimes[1], 10);
+    if (n === 2) return 'bid';
+    if (n === 3) return 'tid';
+    if (n === 4) return 'qid';
+    return str;
+  }
   const weeklyRE = /once\s+(per\s+)?week(ly)?/i;
   if (weeklyRE.test(str)) return 'weekly';
   return str;
