@@ -4039,6 +4039,21 @@ for (let i = removed.length - 1; i >= 0; i--) {
       document.getElementById('error-message').textContent = msg;
     }
 
+    // Hide upload controls after a list is finalized
+    function showProcessedState(screenId) {
+      const screen = document.getElementById(screenId);
+      if (!screen) return;
+      const h = screen.querySelector('h2');
+      if (h && !h.dataset.orig) h.dataset.orig = h.textContent;
+      if (h) h.textContent = 'List saved \u2014 continue below or Start Over';
+
+      screen
+        .querySelectorAll('[id^="initial-"], [id^="additional-"], .text-input-container, .upload-instructions')
+        .forEach(el => {
+          el.style.display = 'none';
+        });
+    }
+
     function acknowledgeDisclaimer() {
       showScreen('photo1-screen');
     }
@@ -4253,6 +4268,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
   photo1Files = [];
   document.getElementById('photo1-prompt').style.display = 'none';
   showError('');
+  showProcessedState('photo1-screen');
   showScreen('photo2-screen');
 }
 
@@ -4301,6 +4317,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
   document.getElementById('photo2-prompt').style.display = 'block';
   document.getElementById('photo2-prompt').innerHTML = 'List processed. Click <strong>Compare</strong> to continue, or upload photos to overwrite.';
   showError('');
+  showProcessedState('photo2-screen');
 }
 
     async function goToPhoto2() {
@@ -4338,6 +4355,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
 
       console.log('goToPhoto2 - Meds1 (parsed objects from OCR):', meds1);
       hideLoading();
+      showProcessedState('photo1-screen');
       showScreen('photo2-screen');
     } catch (err) { // This catch is for errors from processFiles or the mapping
       console.error('Error in goToPhoto2 OCR processing:', err);
@@ -4382,6 +4400,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
 
       console.log('comparePhotos - Meds2 (parsed objects from OCR):', meds2);
       hideLoading();
+      showProcessedState('photo2-screen');
       compareAndShowResults();
     } catch (err) { // This catch is for errors from processFiles or the mapping
       console.error('Error in comparePhotos OCR processing:', err);
@@ -4830,6 +4849,18 @@ function printResults() {
 }
 
     function startOver() {
+      document.querySelectorAll('[data-orig]').forEach(h => {
+        h.textContent = h.dataset.orig;
+      });
+
+      ['photo1-screen','photo2-screen'].forEach(id => {
+        const s = document.getElementById(id);
+        if (!s) return;
+        s.querySelectorAll('[id^="initial-"]').forEach(el => el.style.display = 'flex');
+        s.querySelectorAll('[id^="additional-"]').forEach(el => el.style.display = 'none');
+        s.querySelectorAll('.text-input-container').forEach(el => el.style.display = 'flex');
+        s.querySelectorAll('.upload-instructions').forEach(el => el.style.display = 'block');
+      });
       photo1Files = [];
       photo2Files = [];
       meds1 = [];
