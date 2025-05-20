@@ -2492,8 +2492,13 @@ function getChangeReason(orig, updated) {
     // remove the tag if it was added earlier
     changes = changes.filter(c => c !== 'Formulation changed');
   }
-  const stripER = f => (f || '').replace(/\ber\b/gi, '').trim();
-  if (!formulationMatch && stripER(orig.formulation) === stripER(updated.formulation)) {
+  const hasCanonER = f => /\ber\b/i.test(canonFormulation(f));
+  const stripER = f => canonFormulation(f).replace(/\ber\b/gi, '').trim();
+  if (
+    !formulationMatch &&
+    stripER(orig.formulation) === stripER(updated.formulation) &&
+    hasCanonER(orig.formulation) === hasCanonER(updated.formulation)
+  ) {
     formulationMatch = true;
     changes = changes.filter(c => c !== 'Formulation changed');
   }
