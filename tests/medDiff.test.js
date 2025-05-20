@@ -103,6 +103,12 @@ describe('Medication comparison', () => {
     expect(order.qty).toBe(0.5);
   });
 
+  test('spelled-out quantity parsed', () => {
+    const ctx = loadAppContext();
+    const order = ctx.parseOrder('Aspirin one tab daily');
+    expect(order.qty).toBe(1);
+  });
+
   test('prn shortness of breath sets breathing difficulty indication', () => {
     const ctx = loadAppContext();
     const order = ctx.parseOrder('Albuterol \u2013 2 puffs PRN shortness of breath');

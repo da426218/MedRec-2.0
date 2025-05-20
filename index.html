@@ -2972,6 +2972,20 @@ return 'Multiple changes'; // For 5 or more
   }
 
   function extractQuantity(str, order) {
+    const word2num = {
+      one: 1,
+      two: 2,
+      three: 3,
+      four: 4,
+      five: 5,
+      six: 6,
+      seven: 7,
+      eight: 8,
+      nine: 9,
+      ten: 10
+    };
+    const wordRegex = new RegExp(`\\b(${Object.keys(word2num).join('|')})\\b`, 'gi');
+    str = str.replace(wordRegex, w => String(word2num[w.toLowerCase()]));
     const qtyRegex = new RegExp(
       `(?:\\b(?:take|give|administer|inhale|inject|apply|use)\\s+)?((?:\\d+\\/\\d+|[\\u00bc-\\u00be]|\\d+(?:\\.\\d+)?))\\s*(${qtyWords.join('|')})(?:s)?\\b`,
       'i'
