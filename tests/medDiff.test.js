@@ -198,4 +198,12 @@ describe('Medication comparison', () => {
       throw new Error('Route flag set for inhaler brand swap: ' + result);
     }
   });
+
+  test('q6h equals every 4 to 6 hours', () => {
+    const ctx = loadAppContext();
+    const a = ctx.parseOrder('Tylenol 500 mg tablet q6h');
+    const b = ctx.parseOrder('Tylenol 500 mg tablet every 4 to 6 hours');
+    const result = ctx.getChangeReason(a, b);
+    expect(result).toBe('Unchanged');
+  });
 });
