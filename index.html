@@ -4061,7 +4061,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
       if (!screen) return;
       const h = screen.querySelector('h2');
       if (h && !h.dataset.orig) h.dataset.orig = h.textContent;
-      if (h) h.textContent = 'List saved \u2014 click Compare (or Start Over)';
+      if (h) h.textContent = 'List saved. Continue below or start over.';
 
       screen
         .querySelectorAll('[id^="initial-"], [id^="additional-"], .text-input-container, .upload-instructions')
