@@ -2308,8 +2308,21 @@ function normalizeFrequency(str) {
 function freqNumeric(freqStr) {
   if (!freqStr) return 1; // treat blank as daily
   const f = normalizeFrequency(freqStr);
-  const map = { daily: 1, bid: 2, tid: 3, qid: 4, weekly: 1 / 7,
-                 monthly: 1 / 30, 'every other day': 0.5, immediately: 0 };
+  const map = {
+    daily: 1,
+    bid: 2,
+    tid: 3,
+    qid: 4,
+    weekly: 1 / 7,
+    monthly: 1 / 30,
+    'every other day': 0.5,
+    immediately: 0,
+    qam: 1,
+    qpm: 1,
+    qhs: 1,
+    hs: 1,
+    nightly: 1
+  };
   const range = /^q(\d+)-(\d+)h$/i.exec(f);
   if (range) {
     const min = Number(range[1]);
@@ -2319,6 +2332,8 @@ function freqNumeric(freqStr) {
   }
   const qh = /^q(\d+)h$/i.exec(f);
   if (qh) return 24 / Number(qh[1]);
+  const qd = /^q(\d+)d$/i.exec(f);
+  if (qd) return 1 / Number(qd[1]);
   const times = /(\d+)\s*times?\s*(?:a|per)?\s*day\b/.exec(f);
   if (times) return Number(times[1]);
   return map[f] != null ? map[f] : null;
