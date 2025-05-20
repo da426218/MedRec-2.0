@@ -2366,6 +2366,7 @@ function getChangeReason(orig, updated) {
   const add = lbl => { if (!changes.includes(lbl)) changes.push(lbl); };
 
   const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  // --- 2. Frequency: normalise “daily” variants ---
   const canon = f => {
     f = norm(f);
     if (f === '' || f === 'daily' || f === 'q24h') return 'daily';
@@ -2399,6 +2400,7 @@ function getChangeReason(orig, updated) {
     return n1 !== null && n1 === n2;
   };
 
+  // --- 1. Brand vs generic ---
   const coumBrand =
     /\bwarfarin\b/i.test(`${origDrugNameRaw} ${updatedDrugNameRaw}`) &&
     /\bcoumadin\b/i.test(`${origDrugNameRaw} ${updatedDrugNameRaw}`);
@@ -2494,10 +2496,11 @@ function getChangeReason(orig, updated) {
     formMatch = true;
     changes = changes.filter(c => c !== 'Form changed');
   }
+  // --- 3. Formulation (ER/XR/SR/extended-release) ---
   const origFormCanon = canonFormulation(orig.formulation);
   const updatedFormCanon = canonFormulation(updated.formulation);
   let formulationMatch = same(norm(origFormCanon), norm(updatedFormCanon));
-  // Re-evaluate formulationMatch minus trivial salts
+  // --- 4. Ignore benign salts (besylate, mesylate, etc.) ---
   const normForm = f =>
     canonFormulation((f || '').replace(trivialSalts, '').replace(/\s{2,}/g, ''))
       .trim();
