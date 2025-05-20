@@ -19,17 +19,17 @@ contact email.
 
 Tests live in the `tests` folder.
 
-First install dependencies:
+First install dependencies if you plan to modify Firebase functionality:
 
 ```bash
 npm install
 ```
+
+`tests/runTests.js` provides a stubbed `firebase` object, so the suite runs even
+when the package is not installed.
 
 Then execute tests with:
 
 ```bash
 npm test
 ```
-
-The test harness expects the `firebase` package to be available. Install it with
-`npm i firebase` or rely on the dev dependency declared in `package.json`.
