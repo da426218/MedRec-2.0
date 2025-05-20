@@ -2305,7 +2305,10 @@ function freqNumeric(freqStr) {
 
 function canonFormulation(f) {
   if (!f) return '';
-  return f.toLowerCase().replace(/\b(xl|xr|sr|cr)\b/g, 'er').trim();
+  return f
+    .toLowerCase()
+    .replace(/\b(?:extended[- ]?release|xl|xr|sr|cr)\b/g, 'er')
+    .trim();
 }
 
 function normalizeAdministration(str) {
@@ -2491,10 +2494,14 @@ function getChangeReason(orig, updated) {
     formMatch = true;
     changes = changes.filter(c => c !== 'Form changed');
   }
-  let formulationMatch = same(norm(orig.formulation), norm(updated.formulation));
+  const origFormCanon = canonFormulation(orig.formulation);
+  const updatedFormCanon = canonFormulation(updated.formulation);
+  let formulationMatch = same(norm(origFormCanon), norm(updatedFormCanon));
   // Re-evaluate formulationMatch minus trivial salts
-  const normForm = (f) => (f || '').replace(trivialSalts, '').replace(/\s{2,}/g,'').trim();
-  if ( !formulationMatch && normForm(orig.formulation) === normForm(updated.formulation) ) {
+  const normForm = f =>
+    canonFormulation((f || '').replace(trivialSalts, '').replace(/\s{2,}/g, ''))
+      .trim();
+  if (!formulationMatch && normForm(orig.formulation) === normForm(updated.formulation)) {
     formulationMatch = true;
     // remove the tag if it was added earlier
     changes = changes.filter(c => c !== 'Formulation changed');
@@ -2503,15 +2510,15 @@ function getChangeReason(orig, updated) {
   const stripER = f => canonFormulation(f).replace(/\ber\b/gi, '').trim();
   if (
     !formulationMatch &&
-    stripER(orig.formulation) === stripER(updated.formulation) &&
-    hasCanonER(orig.formulation) === hasCanonER(updated.formulation)
+    stripER(origFormCanon) === stripER(updatedFormCanon) &&
+    hasCanonER(origFormCanon) === hasCanonER(updatedFormCanon)
   ) {
     formulationMatch = true;
     changes = changes.filter(c => c !== 'Formulation changed');
   }
   if (
     !formulationMatch &&
-    canonFormulation(orig.formulation) === canonFormulation(updated.formulation)
+    origFormCanon === updatedFormCanon
   ) {
     formulationMatch = true;
     changes = changes.filter(c => c !== 'Formulation changed');
