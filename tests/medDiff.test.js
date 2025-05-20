@@ -39,6 +39,21 @@ describe('Medication comparison', () => {
     expect(result).toBe('Unchanged');
   });
 
+  test('normalizeIndicationText maps wheezing', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeIndicationText('wheezing')).toBe('breathing difficulty');
+  });
+
+  test('normalizeIndicationText maps nerve pain to neuropathy', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeIndicationText('nerve pain')).toBe('neuropathy');
+  });
+
+  test('normalizeIndicationText keeps neuropathy', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeIndicationText('neuropathy')).toBe('neuropathy');
+  });
+
   test('route change from oral to sublingually detected', () => {
     const ctx = loadAppContext();
     const before = 'Ondansetron 4 mg po q4h';
