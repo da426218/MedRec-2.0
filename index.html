@@ -1684,44 +1684,6 @@ function hasContra(orderObj, wholeList = []) {
   genericSynonyms['iron'] = 'ferrous';
   genericSynonyms['iron sulfate'] = 'ferrous sulfate';
 
-const commonIndicationsPatterns = [
-    { pattern: /(hypertension)$/i, indication: "hypertension" },
-    { pattern: /(diabetes\s+mellitus)$/i, indication: "diabetes mellitus" }, // More specific first
-    { pattern: /(type\s+\d\s+diabetes)$/i, indication: "type 2 diabetes" }, // Or capture type
-    { pattern: /(diabetes)$/i, indication: "diabetes" },
-    { pattern: /(thyroid\s+disorder)$/i, indication: "thyroid disorder" },
-    { pattern: /(hypothyroidism)$/i, indication: "hypothyroidism" },
-    { pattern: /(gerd)$/i, indication: "gerd" },
-    { pattern: /(gastroesophageal\s+reflux\s+disease)$/i, indication: "gerd" },
-    { pattern: /(major\s+depression)$/i, indication: "major depression" },
-    { pattern: /(depression)$/i, indication: "depression" },
-    { pattern: /(anxiety)$/i, indication: "anxiety" },
-    { pattern: /(heart\s+failure)$/i, indication: "heart failure" },
-    { pattern: /(high\s+blood\s+pressure)$/i, indication: "high blood pressure" },
-    { pattern: /(high\s+cholesterol)$/i, indication: "high cholesterol" },
-    { pattern: /(hyperlipidemia)$/i, indication: "hyperlipidemia" },
-    { pattern: /(asthma)$/i, indication: "asthma" },
-    { pattern: /(copd)$/i, indication: "copd" },
-    { pattern: /(chronic\s+obstructive\s+pulmonary\s+disease)$/i, indication: "copd"},
-    { pattern: /(arthritis)$/i, indication: "arthritis" },
-    { pattern: /(osteoarthritis)$/i, indication: "osteoarthritis" },
-    { pattern: /(rheumatoid\s+arthritis)$/i, indication: "rheumatoid arthritis" },
-    { pattern: /(insomnia)$/i, indication: "insomnia" },
-    { pattern: /(constipation)$/i, indication: "constipation" },
-    { pattern: /\ballergies\b/i, indication: "allergies" },
-    { pattern: /(pain)$/i, indication: "pain" }, // General pain
-    { pattern: /(mild\s+pain)$/i, indication: "mild pain" },
-    { pattern: /(moderate\s+pain)$/i, indication: "moderate pain" },
-    { pattern: /(severe\s+pain)$/i, indication: "severe pain" },
-    { pattern: /(acute\s+pain)$/i, indication: "acute pain" },
-    { pattern: /(chronic\s+pain)$/i, indication: "chronic pain" },
-    // Add more common, relatively unambiguous terms.
-    // Order more specific patterns (e.g., "diabetes mellitus") before less specific ones (e.g., "diabetes").
-].sort((a,b) => { // Sort by length of a sample match to prioritize longer matches
-    const matchA = "text " + a.indication; // sample for length
-    const matchB = "text " + b.indication;
-    return matchB.length - matchA.length;
-});
 
   function normalizeMedicationName(name) {
     if (!name) return { name: '', brandTok: [] };
