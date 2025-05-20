@@ -283,6 +283,34 @@ addTest('Normalize numeric times per day', () => {
   expect(ctx.normalizeFrequency('5 times a day')).toBe('5 times a day');
 });
 
+addTest('Normalize 2 times a day', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const ctx = {
+    console: { log: () => {}, warn: () => {}, error: () => {} },
+    window: {},
+    document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} },
+    firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
+  };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  expect(ctx.normalizeFrequency('2 times a day')).toBe('bid');
+});
+
+addTest('Normalize 3 times a day', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const ctx = {
+    console: { log: () => {}, warn: () => {}, error: () => {} },
+    window: {},
+    document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} },
+    firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
+  };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  expect(ctx.normalizeFrequency('3 times a day')).toBe('tid');
+});
+
 addTest('normalizeAdministration canonical forms', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const script = html.split('<script>')[2].split('</script>')[0];
