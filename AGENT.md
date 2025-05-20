@@ -24,7 +24,7 @@ public/
 
 Static hosting root. Assets (logo, CSS), compiled bundles if we ever split JS.
 
-docs/AGENT.md
+AGENT.md
 
 ← you are here
 
