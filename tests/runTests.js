@@ -217,6 +217,12 @@ addTest('Metformin HCl ER vs Metformin ER unchanged', () => {
   expect(diff(b, a)).toBe('Time of day changed');
 });
 
+addTest('Metformin ER vs IR keeps formulation flag only', () => {
+  const before = 'Metformin 500mg tab – 2 PO BID';
+  const after  = 'Metformin ER 500mg – 2 PO BID';
+  expect(diff(before, after)).toBe('Formulation changed');
+});
+
 addTest('Fluticasone propionate omission not formulation', () => {
   const before = 'Fluticasone Propionate nasal spray 50 mcg – 2 sprays each nostril daily';
   const after  = 'Fluticasone nasal spray 50 mcg – 1 spray each nostril qd';
