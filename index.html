@@ -2879,6 +2879,90 @@ return 'Multiple changes'; // For 5 or more
     return str;
   }
 
+  function extractDates(str) {
+    let startDate = '';
+    let endDate = '';
+    let dateFound = false;
+    const explicitStartDateRegex = /\b(?:start|started|on)\s*:\s*(\d{1,2}\/\d{1,2}\/(?:\d{2}|\d{4}))\b/i;
+    const startMatch = str.match(explicitStartDateRegex);
+    if (startMatch) {
+      startDate = startMatch[1];
+      str = str.replace(startMatch[0], '').trim();
+      dateFound = true;
+    }
+    const explicitEndDateRegex = /\b(?:end|ended|stop|stopped|dc|d\/c|discontinue(?:d)?)\s*:\s*(\d{1,2}\/\d{1,2}\/(?:\d{2}|\d{4}))\b/i;
+    const endMatch = str.match(explicitEndDateRegex);
+    if (endMatch) {
+      endDate = endMatch[1];
+      str = str.replace(endMatch[0], '').trim();
+    }
+    if (!dateFound) {
+      const genericDateRegex = /(?<!\b(?:end|ended|stop|stopped|dc|d\/c|discontinue(?:d)?)\s*:\s*)(\b\d{1,2}\/\d{1,2}\/(?:\d{2}|\d{4})\b)/i;
+      const genericDateMatch = str.match(genericDateRegex);
+      if (genericDateMatch && genericDateMatch[1]) {
+        const nearbyEnd = /\b(?:end|ended|stop|stopped|dc|d\/c|discontinue(?:d)?)\s*:\s*\d{1,2}\/\d{1,2}\/((?:\d{2}|\d{4}))\b/i.test(str.substring(genericDateMatch.index));
+        if (!nearbyEnd || !endDate) {
+          startDate = genericDateMatch[1];
+          str = str.replace(genericDateMatch[0], '').trim();
+        }
+      }
+    }
+    const endDateRegex = /\b(?:end|ended|stop|stopped|dc|d\/c|discontinue(?:d)?):\s*(\d{1,2}\/\d{1,2}\/\d{4})\b/i;
+    const endDateMatchResult = str.match(endDateRegex);
+    if (endDateMatchResult) {
+      endDate = endDateMatchResult[1];
+      str = str.replace(endDateMatchResult[0], '').trim();
+    }
+    return { cleanedStr: str, startDate, endDate };
+  }
+
+  function handleBrandGeneric(order, finalDrugName) {
+    const drugStr = finalDrugName
+      .replace(/[^a-zA-Z0-9\/\s\-\.#]+/g, ' ')
+      .replace(/\s\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+    order.rawDrug = drugStr;
+    const { name: drugName, brandTok } = normalizeMedicationName(drugStr);
+    order.drug = drugName;
+    order.brandTokens = brandTok;
+  }
+
+  function applyFinalNormalizations(order, troughNote, originalRaw) {
+    if (!order.form) {
+      const raw = (originalRaw || '').toLowerCase();
+      if (/\btab(lets?)?\b/.test(raw)) {
+        order.form = 'tablet';
+      } else if (/\bcap(sules?|lets?)?\b/.test(raw)) {
+        order.form = 'capsule';
+      }
+    }
+    const deviceRE = /\b(solostar|flexpen|kwikpen|pen)\b/gi;
+    if (order.form) {
+      order.form = order.form.replace(deviceRE, '').trim() || 'pen';
+    } else if (deviceRE.test((originalRaw || '').toLowerCase())) {
+      order.form = 'pen';
+    }
+    const injMatch = (originalRaw || '').match(/inject\s*(\d+(?:\.\d+)?)\s*u(?:nits?)?\b/i);
+    if (injMatch && /u\s*\/\s*ml/i.test(originalRaw)) {
+      const units = parseFloat(injMatch[1]);
+      order.dose.value = units;
+      order.dose.unit = 'unit';
+      order.dose.total = units;
+    }
+    const oralFormsForPo = ['tablet','capsule','caplet','softgel','lozenge','syrup','solution','suspension','elixir','liquid','oral disintegrating tablet'];
+    if (!order.route && oralFormsForPo.includes(order.form)) {
+      order.route = 'po';
+    }
+    order.frequency = normalizeFrequency(order.frequency);
+    order.timeOfDay = normalizeTimeOfDay(order.timeOfDay);
+    if (!order.indication && troughNote) order.indication = troughNote;
+    order.indication = normalizeIndication(order.indication);
+    order.formulation = canonFormulation(order.formulation);
+    const schedRe = /\b(?:m\/?w\/?f|m\s*w\s*f|mwf|tu\/?th\/?sa\/?su|ttsu)\b/gi;
+    order.scheduleTokens = (originalRaw.match(schedRe) || []).map(t => t.toLowerCase());
+  }
+
 
     function parseOrder(orderStr) {
   // Keep a copy of the original input for debugging if needed at the very end
@@ -2926,54 +3010,10 @@ return 'Multiple changes'; // For 5 or more
     order.taperFlag = 1;
   }
 
-// --- Enhanced Date Parsing ---
-let dateFoundAndRemoved = false;
-
-// Regex for "Start: MM/DD/YYYY", "Started: MM/DD/YYYY", "On: MM/DD/YYYY"
-const explicitStartDateRegex = /\b(?:start|started|on)\s*:\s*(\d{1,2}\/\d{1,2}\/(?:\d{2}|\d{4}))\b/i;
-let explicitStartDateMatch = orderStr.match(explicitStartDateRegex);
-if (explicitStartDateMatch) {
-    order.startDate = explicitStartDateMatch[1];
-    orderStr = orderStr.replace(explicitStartDateMatch[0], "").trim();
-    dateFoundAndRemoved = true;
-    // console.log(`DEBUG parseOrder (Explicit Start Date): startDate="<span class="math-inline">\{order\.startDate\}", orderStr\="</span>{orderStr}"`);
-}
-
-// Regex for "End: MM/DD/YYYY", "Discontinue: MM/DD/YYYY", etc.
-const explicitEndDateRegex = /\b(?:end|ended|stop|stopped|dc|d\/c|discontinue(?:d)?)\s*:\s*(\d{1,2}\/\d{1,2}\/(?:\d{2}|\d{4}))\b/i;
-let explicitEndDateMatch = orderStr.match(explicitEndDateRegex);
-if (explicitEndDateMatch) {
-    order.endDate = explicitEndDateMatch[1];
-    orderStr = orderStr.replace(explicitEndDateMatch[0], "").trim();
-    // console.log(`DEBUG parseOrder (Explicit End Date): endDate="<span class="math-inline">\{order\.endDate\}", orderStr\="</span>{orderStr}"`);
-}
-
-// Fallback: Look for standalone MM/DD/YYYY or MM/DD/YY dates if not already captured
-// Try to capture them as start dates if no end date was found yet, or if they appear before an end date.
-// This is tricky to avoid misinterpreting dates within drug names or strengths if not careful.
-// We'll assume dates appearing generally are start dates if no "End:" prefix was near them.
-if (!dateFoundAndRemoved) { // Only if an explicit "Start: date" wasn't found
-    // Regex to find a date pattern that is NOT immediately preceded by an end-date keyword
-    const genericDateRegex = /(?<!\b(?:end|ended|stop|stopped|dc|d\/c|discontinue(?:d)?)\s*:\s*)(\b\d{1,2}\/\d{1,2}\/(?:\d{2}|\d{4})\b)/i;
-    let genericDateMatch = orderStr.match(genericDateRegex);
-    if (genericDateMatch && genericDateMatch[1]) {
-        // To be safer, only take this as a start date if no end date is also present in the close vicinity AFTER it
-        const potentialEndDateNearby = /\b(?:end|ended|stop|stopped|dc|d\/c|discontinue(?:d)?)\s*:\s*\d{1,2}\/\d{1,2}\/(?:\d{2}|\d{4})\b/i.test(orderStr.substring(genericDateMatch.index));
-        if (!potentialEndDateNearby || !order.endDate) { // If no end date is set OR no end date is found after this generic date
-            order.startDate = genericDateMatch[1];
-            orderStr = orderStr.replace(genericDateMatch[0], "").trim(); // Replace the found generic date
-            // console.log(`DEBUG parseOrder (Generic Start Date): startDate="<span class="math-inline">\{order\.startDate\}", orderStr\="</span>{orderStr}"`);
-        }
-    }
-}
-// --- End of Enhanced Date Parsing ---
-
-const endDateRegex = /\b(?:end|ended|stop|stopped|dc|d\/c|discontinue(?:d)?):\s*(\d{1,2}\/\d{1,2}\/\d{4})\b/i;
-let endDateMatchResult = orderStr.match(endDateRegex);
-if (endDateMatchResult) {
-    order.endDate = endDateMatchResult[1];
-    orderStr = orderStr.replace(endDateMatchResult[0], "").trim(); // Remove "End: MM/DD/YYYY"
-}
+const dates = extractDates(orderStr);
+orderStr = dates.cleanedStr;
+order.startDate = dates.startDate;
+order.endDate = dates.endDate;
 
   // 1. Extract Time-of-Day and common morning/evening/night shorthands
 //    Also sets frequency if implied by the shorthand (e.g., qam is daily)
@@ -3727,49 +3767,9 @@ if (!order.drug && initialCleanedDrugString &&
     order.drug = initialCleanedDrugString.trim().toLowerCase();
 }
 
-// If no form detected but original text mentions tablets or capsules
-  if (!order.form) {
-      const raw = originalRaw.toLowerCase();
-      if (/\btab(lets?)?\b/.test(raw)) {
-          order.form = 'tablet';
-      } else if (/\bcap(sules?|lets?)?\b/.test(raw)) {
-          order.form = 'capsule';
-      }
-  }
-
-  const deviceRE = /\b(solostar|flexpen|kwikpen|pen)\b/gi;
-  if (order.form) {
-      order.form = order.form.replace(deviceRE, '').trim() || 'pen';
-  } else if (deviceRE.test(originalRaw.toLowerCase())) {
-      order.form = 'pen';
-  }
-
-  const injMatch = originalRaw.match(/inject\s*(\d+(?:\.\d+)?)\s*u(?:nits?)?\b/i);
-  if (injMatch && /u\s*\/\s*ml/i.test(originalRaw)) {
-      const units = parseFloat(injMatch[1]);
-      order.dose.value = units;
-      order.dose.unit = 'unit';
-      order.dose.total = units;
-      // leave qty null so dose change is flagged, not quantity
-  }
-// Default route to 'po' if form implies oral administration and route not set
-const oralFormsForPo = ['tablet','capsule','caplet','softgel','lozenge','syrup','solution','suspension','elixir','liquid','oral disintegrating tablet'];
-if (!order.route && oralFormsForPo.includes(order.form)) {
-    order.route = 'po';
-}
-
-  order.frequency  = normalizeFrequency(order.frequency);
-  order.timeOfDay  = normalizeTimeOfDay(order.timeOfDay);
-  if (!order.indication && troughNote) order.indication = troughNote;
-  order.indication = normalizeIndication(order.indication);
-  order.formulation = canonFormulation(order.formulation);
-
-  // Capture day-of-week schedule tokens like "MWF" or "Tu/Th/Sa/Su" for later diff checks
-  const schedRe = /\b(?:m\/?w\/?f|m\s*w\s*f|mwf|tu\/?th\/?sa\/?su|ttsu)\b/gi;
-  order.scheduleTokens = (originalRaw.match(schedRe) || []).map(t => t.toLowerCase());
-
-  // console.log('FINAL DEBUG Parsed order:', { /* input: originalInputToParseOrder, */ parsed: order });
-  return order;
+applyFinalNormalizations(order, troughNote, originalRaw);
+  // console.log('FINAL DEBUG Parsed order:', { parsed: order });
+  return order;
 }
 
     function levenshteinDistance(a, b) {
