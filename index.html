@@ -2276,6 +2276,10 @@ function getFrequencyMap() {
 function normalizeFrequency(str) {
   if (!str) return '';
   str = str.toLowerCase().trim();
+  // replace numeric words with digits so "three times" => "3 times"
+  str = str.replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten)\b/g,
+    w => String(numericWord(w))
+  );
   const freqMap = getFrequencyMap();
   const sorted = Object.keys(freqMap).sort((a, b) => b.length - a.length);
   for (const key of sorted) {
@@ -2310,14 +2314,28 @@ function freqNumeric(freqStr) {
   }
   const qh = /^q(\d+)h$/i.exec(f);
   if (qh) return 24 / Number(qh[1]);
+  const times = /(\d+)\s*times?\s*(?:a|per)?\s*day\b/.exec(f);
+  if (times) return Number(times[1]);
   return map[f] != null ? map[f] : null;
 }
 
 /* ---------- simple word→number helper (one-ten) ---------- */
-const numericWord = w => ({
-  one:1,two:2,three:3,four:4,five:5,
-  six:6,seven:7,eight:8,nine:9,ten:10
-}[w.toLowerCase()] ?? null);
+function numericWord(w) {
+  return (
+    {
+      one: 1,
+      two: 2,
+      three: 3,
+      four: 4,
+      five: 5,
+      six: 6,
+      seven: 7,
+      eight: 8,
+      nine: 9,
+      ten: 10
+    }[w.toLowerCase()] ?? null
+  );
+}
 
 // ---------- QUANTITY PARSER ----------
 function parseQuantity(str){
