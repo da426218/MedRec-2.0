@@ -93,3 +93,20 @@ describe('sameDrugCore', () => {
     expect(ctx.sameDrugCore('Lasix', 'furosemide')).toBe(true);
   });
 });
+
+describe('parseQuantity', () => {
+  test('"2 tabs" parses to 2', () => {
+    const ctx = loadAppContext();
+    expect(ctx.parseQuantity('2 tabs')).toBe(2);
+  });
+
+  test('"one tablet" parses to 1', () => {
+    const ctx = loadAppContext();
+    expect(ctx.parseQuantity('one tablet')).toBe(1);
+  });
+
+  test('"½ tab" parses to 0.5', () => {
+    const ctx = loadAppContext();
+    expect(ctx.parseQuantity('\u00bd tab')).toBe(0.5);
+  });
+});

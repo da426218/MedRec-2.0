@@ -2344,11 +2344,13 @@ function numericWord(w) {
 
 // ---------- QUANTITY PARSER ----------
 function parseQuantity(str){
-  // matches “2 tabs”, “two tablets”, etc.
-  const m=str.match(/(\d+|\w+)\s*(tabs?|caps?|tablets?|capsules?)/i);
+  // matches "2 tabs", "one tablet", "½ tab", etc.
+  const m = str.match(/(\d+\/\d+|[\u00bc-\u00be]|\d+(?:\.\d+)?|\w+)\s*(tabs?|caps?|tablets?|capsules?)/i);
   if(!m) return null;
-  const raw=m[1];
-  return /^\d+$/.test(raw)?Number(raw):numericWord(raw)||null;
+  const raw = m[1];
+  const num = fractionToDecimal(raw);
+  if(!Number.isNaN(num)) return num;
+  return numericWord(raw) ?? null;
 }
 
 function quantitiesMatch(o1,o2){
