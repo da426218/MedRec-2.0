@@ -161,6 +161,14 @@ describe('Medication comparison', () => {
     expect(result).toBe('Dose changed, Brand/Generic changed');
   });
 
+  test('Coumadin daily keeps TOD flag only', () => {
+    const ctx = loadAppContext();
+    const a = ctx.parseOrder('Warfarin 2.5 mg – 1 tab PO daily');
+    const b = ctx.parseOrder('Coumadin 2.5 mg – 1 tab PO daily in evening');
+    const result = ctx.getChangeReason(a, b);
+    expect(result).toBe('Brand/Generic changed, Time of day changed');
+  });
+
   test('frequency text change with different time of day', () => {
     const ctx = loadAppContext();
     const before = 'Metformin 500 mg tablet po BID';
