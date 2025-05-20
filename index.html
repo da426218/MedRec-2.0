@@ -3026,7 +3026,8 @@ orderStr = orderStr.replace(/\bmay\s+increase\s+to.*$/i, '').trim();
 // END of new formulation parsing block
 
     // 3. Extract PRN  ── capture condition when present
-  const prnCondWords = '(?:anxious|anxiety|pain|in\\s+pain|nausea|vomiting|sob|shortness\\s+of\\s+breath|itching|fever|dizzy|headache)';
+  const painPattern = '(?:[a-zA-Z]+(?:\\s+[a-zA-Z]+)*)?\\s*pain';
+  const prnCondWords = `(?:anxious|anxiety|${painPattern}|nausea|vomiting|sob|shortness\\s+of\\s+breath|itching|fever|dizzy|headache)`;
   let prnMatch = orderStr.match(new RegExp(`\\bprn\\s+(?:for\\s+)?(${prnCondWords})\\b`, 'i'));
   if (!prnMatch) prnMatch = orderStr.match(new RegExp(`\\bas\\s+needed\\s+(?:for\\s+)?(${prnCondWords})\\b`, 'i'));
   if (!prnMatch) prnMatch = orderStr.match(new RegExp(`\\bif\\s+(${prnCondWords}|needed)\\b`, 'i'));
@@ -3055,7 +3056,7 @@ orderStr = orderStr.replace(/\bmay\s+increase\s+to.*$/i, '').trim();
   // This needs to be careful not to grab parts of drug names.
   if (!order.indication) {
     // Matches phrases like "moderate pain", "acute pain", or just "pain" if it's clearly an indication
-    const painIndicRegex = /\b((?:[a-zA-Z]+(?:\s+[a-zA-Z]+)*)?\s*pain)\b/i;
+    const painIndicRegex = new RegExp(`\\b(${painPattern})\\b`, 'i');
     const painIndicMatch = orderStr.match(painIndicRegex);
     // Ensure the match is not just the drug name itself if the drug name contains "pain"
     if (painIndicMatch && painIndicMatch[0] && painIndicMatch.index > 0) { // Check index > 0 to avoid matching if "pain" is the start (could be drug)
