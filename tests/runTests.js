@@ -91,6 +91,7 @@ global.diffRowsList = diffRowsList;
 global.diffRows = diffRowsList;
 
 require('./medDiff.test');
+require('./helpers.test');
 
 addTest('Metformin evening vs nightly time change', () => {
   const before = 'Metformin 500 mg tablet po BID';
