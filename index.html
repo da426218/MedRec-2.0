@@ -2383,6 +2383,15 @@ function getChangeReason(orig, updated) {
   let changes = [];
   const add = lbl => { if (!changes.includes(lbl)) changes.push(lbl); };
 
+  const generic1 = brandToGenericMap[orig.drug.toLowerCase()] || coreDrugName(orig.drug);
+  const generic2 = brandToGenericMap[updated.drug.toLowerCase()] || coreDrugName(updated.drug);
+
+  if (generic1 === generic2 &&
+      orig.drug.toLowerCase() !== updated.drug.toLowerCase() &&
+      !changes.includes('Brand/Generic changed')) {
+    changes.push('Brand/Generic changed');
+  }
+
   const gen1 = coreName(orig.drug);
   const gen2 = coreName(updated.drug);
   const b1   = brandMap[gen1] || gen1;
@@ -2707,7 +2716,7 @@ if (!frequencyMatch) {
       add('Frequency changed');
     }
 } else if (
-    norm(orig.frequency) !== norm(updated.frequency) &&
+    normalizeFrequency(orig.frequency) !== normalizeFrequency(updated.frequency) &&
     todChanged(orig, updated)
   ) {
     add('Frequency changed');
