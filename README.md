@@ -33,3 +33,11 @@ Then execute tests with:
 ```bash
 npm test
 ```
+
+## Linting
+
+Run ESLint over the JavaScript and HTML files with:
+
+```bash
+npm run lint
+```
