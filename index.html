@@ -2733,8 +2733,88 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
       });
       return changes.slice(0, 4).join(', ');
   }
-  return 'Multiple changes'; // For 5 or more
+return 'Multiple changes'; // For 5 or more
 }
+
+  const qtyWords = [
+    'tabs', 'tab', 'tablets',
+    'caps', 'capsules', 'caplets',
+    'puff', 'puffs',
+    'spray', 'sprays',
+    'drop', 'drops',
+    'lozenge', 'lozenges',
+    'patch', 'patches'
+  ];
+
+  function fractionToDecimal(str) {
+    const map = { '½': 0.5, '¼': 0.25, '¾': 0.75 };
+    if (map[str]) return map[str];
+    const frac = str.match(/^(\d+)\s*\/\s*(\d+)$/);
+    if (frac) return parseFloat(frac[1]) / parseFloat(frac[2]);
+    return parseFloat(str);
+  }
+
+  function extractPrn(str, order) {
+    const painPattern = '(?:[a-zA-Z]+(?:\\s+[a-zA-Z]+)*)?\\s*pain';
+    const prnCondWords = `(?:anxious|anxiety|${painPattern}|nausea|vomiting|sob|shortness\\s+of\\s+breath|itching|fever|dizzy|headache)`;
+    let m = str.match(new RegExp(`\\bprn\\s+(?:for\\s+)?(${prnCondWords})\\b`, 'i'));
+    if (!m) m = str.match(new RegExp(`\\bas\\s+needed\\s+(?:for\\s+)?(${prnCondWords})\\b`, 'i'));
+    if (!m) m = str.match(new RegExp(`\\bif\\s+(${prnCondWords}|needed)\\b`, 'i'));
+    if (!m) m = str.match(/\b(?:prn|as\s+needed|if\s+needed)\b/i);
+    if (m) {
+      order.prn = true;
+      if (m[1]) order.prnCondition = normalizeIndication(m[1]);
+      str = str.replace(m[0], '').trim();
+    }
+    return str;
+  }
+
+  function extractIndication(str, order) {
+    const painPattern = '(?:[a-zA-Z]+(?:\\s+[a-zA-Z]+)*)?\\s*pain';
+    const forIndicationRegex = /\bfor\s+([a-zA-Z0-9\s\/.-]+)/i;
+    const m = str.match(forIndicationRegex);
+    if (m && m[1]) {
+      order.indication = normalizeIndication(m[1].trim().toLowerCase());
+      str = str.replace(m[0], '').trim();
+    }
+    if (!order.indication) {
+      const painIndicRegex = new RegExp(`\\b(${painPattern})\\b`, 'i');
+      const pm = str.match(painIndicRegex);
+      if (pm && pm[0] && pm.index > 0) {
+        order.indication = normalizeIndication(pm[0].trim().toLowerCase());
+        str = str.replace(pm[0], '').trim();
+      }
+    }
+    if (!order.indication) {
+      const sobMatch = str.match(/\bshortness of breath\b/i);
+      if (sobMatch) {
+        order.indication = normalizeIndication('shortness of breath');
+        str = str.replace(sobMatch[0], '').trim();
+      }
+    }
+    if (!order.indication && order.prnCondition) {
+      order.indication = order.prnCondition;
+    }
+    return str;
+  }
+
+  function extractQuantity(str, order) {
+    const qtyRegex = new RegExp(
+      `(?:\\b(?:take|give|administer|inhale|inject|apply|use)\\s+)?((?:\\d+\\/\\d+|[\\u00bc-\\u00be]|\\d+(?:\\.\\d+)?))\\s*(${qtyWords.join('|')})(?:s)?\\b`,
+      'i'
+    );
+    const m = str.match(qtyRegex);
+    if (m) {
+      order.qty = fractionToDecimal(m[1]);
+      const unit = m[2].toLowerCase();
+      if (['tablet', 'tab', 'tablets', 'tabs'].includes(unit) && !order.form) order.form = 'tablet';
+      else if (['capsule', 'caps', 'caplet', 'capsules'].includes(unit) && !order.form) order.form = 'capsule';
+      else if (['puff', 'puffs'].includes(unit) && !order.form) order.form = 'puff';
+      str = str.replace(m[0], '').trim();
+    }
+    return str;
+  }
+
 
     function parseOrder(orderStr) {
   // Keep a copy of the original input for debugging if needed at the very end
@@ -3036,102 +3116,14 @@ orderStr = orderStr.replace(/\bmay\s+increase\s+to.*$/i, '').trim();
 // console.log(`DEBUG parseOrder (Formulation): formulation="<span class="math-inline">\{order\.formulation\}", orderStr\="</span>{orderStr}"`);
 // END of new formulation parsing block
 
-    // 3. Extract PRN  ── capture condition when present
-  const painPattern = '(?:[a-zA-Z]+(?:\\s+[a-zA-Z]+)*)?\\s*pain';
-  const prnCondWords = `(?:anxious|anxiety|${painPattern}|nausea|vomiting|sob|shortness\\s+of\\s+breath|itching|fever|dizzy|headache)`;
-  let prnMatch = orderStr.match(new RegExp(`\\bprn\\s+(?:for\\s+)?(${prnCondWords})\\b`, 'i'));
-  if (!prnMatch) prnMatch = orderStr.match(new RegExp(`\\bas\\s+needed\\s+(?:for\\s+)?(${prnCondWords})\\b`, 'i'));
-  if (!prnMatch) prnMatch = orderStr.match(new RegExp(`\\bif\\s+(${prnCondWords}|needed)\\b`, 'i'));
-  if (!prnMatch) prnMatch = orderStr.match(/\b(?:prn|as\s+needed|if\s+needed)\b/i);
-  if (prnMatch) {
-    order.prn = true;
-    if (prnMatch[1]) order.prnCondition = normalizeIndication(prnMatch[1]);
-    orderStr = orderStr.replace(prnMatch[0], '').trim();
+    // 3. Extract PRN information
+    orderStr = extractPrn(orderStr, order);
 
-    // console.log(`DEBUG parseOrder Step 3 (PRN): order.prn=${order.prn}, prnCondition="${order.prnCondition}", orderStr="${orderStr}"`);
-  }
+    // 4. Extract Indications
+    orderStr = extractIndication(orderStr, order);
 
-  // 4. Extract Indications - This is a critical section
-  // Attempt to find "for [text]" first, as it's a strong indication marker.
-  // Example: "for moderate pain", "for blood pressure"
-  const forIndicationRegex = /\bfor\s+([a-zA-Z0-9\s\/.-]+)/i;
-  let forIndicationMatchResult = orderStr.match(forIndicationRegex);
-  if (forIndicationMatchResult && forIndicationMatchResult[1]) {
-    const potentialIndication = forIndicationMatchResult[1].trim().toLowerCase();
-    order.indication = normalizeIndication(potentialIndication);
-    orderStr = orderStr.replace(forIndicationMatchResult[0], '').trim(); // Remove "for [indication]"
-    // console.log(`DEBUG parseOrder Step 4a (For Indication): order.indication="${order.indication}", orderStr="${orderStr}"`);
-  }
-
-  // If no "for" indication, check for specific keywords like "pain", "shortness of breath"
-  // This needs to be careful not to grab parts of drug names.
-  if (!order.indication) {
-    // Matches phrases like "moderate pain", "acute pain", or just "pain" if it's clearly an indication
-    const painIndicRegex = new RegExp(`\\b(${painPattern})\\b`, 'i');
-    const painIndicMatch = orderStr.match(painIndicRegex);
-    // Ensure the match is not just the drug name itself if the drug name contains "pain"
-    if (painIndicMatch && painIndicMatch[0] && painIndicMatch.index > 0) { // Check index > 0 to avoid matching if "pain" is the start (could be drug)
-      // Further check: make sure we are not grabbing "drugname pain" if "pain" is part of a common suffix for the drug.
-      // This is complex. For now, a simple match:
-      let matchedPainStr = painIndicMatch[0].trim().toLowerCase();
-      order.indication = normalizeIndication(matchedPainStr);
-      orderStr = orderStr.replace(painIndicMatch[0], '').trim();
-      // console.log(`DEBUG parseOrder Step 4b (Pain Indication): order.indication="${order.indication}", orderStr="${orderStr}"`);
-    }
-  }
-
-  if (!order.indication) {
-    const sobMatch = orderStr.match(/\bshortness of breath\b/i); // "SOB" is already expanded by normalizeText
-    if (sobMatch) {
-      order.indication = normalizeIndication('shortness of breath');
-      orderStr = orderStr.replace(sobMatch[0], '').trim();
-      // console.log(`DEBUG parseOrder Step 4c (SOB Indication): order.indication="${order.indication}", orderStr="${orderStr}"`);
-    }
-  }
-  if (!order.indication && order.prnCondition) {
-    order.indication = order.prnCondition;
-  }
-  // At this point, for your new order, order.indication should ideally be "moderate pain"
-  // and orderStr should be "atorvastatin 40 mg tablet po" (or similar for other drugs)
-
-  // console.log(`DEBUG parseOrder: After indication attempts: orderStr="${orderStr}", indication="${order.indication}"`);
-
-// Extract Quantity (e.g., "2 tabs") before dose, as it might be part of the dose string
-const qtyWords = [
-  'tabs', 'tab', 'tablets',
-  'caps', 'capsules', 'caplets',
-  'puff', 'puffs',
-  'spray', 'sprays',
-  'drop', 'drops',
-  'lozenge', 'lozenges',
-  'patch', 'patches'
-];
-// Helper to convert "1/2" or "½" style strings to decimals
-function fractionToDecimal(str) {
-  const map = { '½': 0.5, '¼': 0.25, '¾': 0.75 };
-  if (map[str]) return map[str];
-  const frac = str.match(/^(\d+)\s*\/\s*(\d+)$/);
-  if (frac) return parseFloat(frac[1]) / parseFloat(frac[2]);
-  return parseFloat(str);
-}
-// Regex to match "take/give/administer X units" or just "X units"
-const qtyRegexEarly = new RegExp(
-  `(?:\\b(?:take|give|administer|inhale|inject|apply|use)\\s+)?((?:\\d+\\/\\d+|[\\u00bc-\\u00be]|\\d+(?:\\.\\d+)?))\\s*(${qtyWords.join('|')})(?:s)?\\b`,
-  'i'
-);
-const qtyMatchEarly = orderStr.match(qtyRegexEarly);
-if (qtyMatchEarly) {
-    order.qty = fractionToDecimal(qtyMatchEarly[1]); // Group 1 is the number
-    const matchedQtyWord = qtyMatchEarly[2].toLowerCase(); // Group 2 is the unit word
-
-    // If the matched word is a form, set order.form if not already set by a more specific term
-    if ((['tablet', 'tab', 'tablets', 'tabs'].includes(matchedQtyWord)) && !order.form) order.form = 'tablet';
-    else if ((['capsule', 'caps', 'caplet', 'capsules'].includes(matchedQtyWord)) && !order.form) order.form = 'capsule';
-    else if ((['puff', 'puffs'].includes(matchedQtyWord)) && !order.form) order.form = 'puff';
-    // ... add other form types if needed
-
-    orderStr = orderStr.replace(qtyMatchEarly[0], '').trim();
-}
+    // Extract Quantity (e.g., "2 tabs") before dose, as it might be part of the dose string
+    orderStr = extractQuantity(orderStr, order);
 
   // 5. Extract Dose (mg/kg, combo-dose, then general unit parsing)
   // Strip parenthetical elemental-iron note
