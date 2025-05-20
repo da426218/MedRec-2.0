@@ -3224,7 +3224,10 @@ orderStr = orderStr
 
 // In parseOrder, START of new formulation parsing block (replaces old one)
 const formulationKeywords = [
-    'modified release', 'delayed release', 'extended release', 'controlled release', // Multi-word first
+    'modified release', 'modified-release',
+    'delayed release', 'delayed-release',
+    'extended release', 'extended-release',
+    'controlled release', 'controlled-release', // Multi-word first and hyphenated variants
     'xr', 'er', 'sr', 'la', 'xl', 'cr', 'dr',
     'succinate', 'tartrate', 'maleate', 'fumarate', 'besylate', 'camsylate', 'mesylate',
     'acetate', 'phosphate', 'carbonate', 'gluconate', 'propionate', 'sodium', 'hydrochloride'

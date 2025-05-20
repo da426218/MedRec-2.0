@@ -177,6 +177,30 @@ describe('Medication comparison', () => {
     expect(result).toBe('Frequency changed, Time of day changed');
   });
 
+  test('does not flag formulation on K-Dur vs KCl ER', () => {
+    const ctx = loadAppContext();
+    const o1 = ctx.parseOrder('Potassium Chloride 10 mEq ER tab BID');
+    const o2 = ctx.parseOrder('K-Dur 10 mEq extended-release tablet BID');
+    const result = ctx.getChangeReason(o1, o2);
+    expect(/Formulation/.test(result)).toBe(false);
+  });
+
+  test('identifies brand switch Lipitor\u2192atorvastatin', () => {
+    const ctx = loadAppContext();
+    const o1 = ctx.parseOrder('Lipitor 20 mg tab QHS');
+    const o2 = ctx.parseOrder('Atorvastatin 20 mg tab nightly');
+    const result = ctx.getChangeReason(o1, o2);
+    expect(/Brand\/Generic/.test(result)).toBe(true);
+  });
+
+  test('suppresses frequency change on daily Coumadin/Warfarin', () => {
+    const ctx = loadAppContext();
+    const o1 = ctx.parseOrder('Warfarin 2.5 mg tab daily');
+    const o2 = ctx.parseOrder('Coumadin 2.5 mg tab daily in evening');
+    const result = ctx.getChangeReason(o1, o2);
+    expect(/Frequency changed/.test(result)).toBe(false);
+  });
+
   test('Inhaler brand swap does not trigger Route flag', () => {
     const ctx = loadAppContext();
     const o = ctx.parseOrder('Albuterol HFA inhaler 2 puffs by mouth q4h PRN');
