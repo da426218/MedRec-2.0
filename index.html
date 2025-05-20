@@ -2165,6 +2165,14 @@ function normalizeIndication(txt) {
     .replace(fillerRE, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+  const synonyms = {
+    'shortness of breath': 'breathing difficulty',
+    sob: 'breathing difficulty',
+    wheezing: 'breathing difficulty',
+    'nerve pain': 'neuropathy',
+    neuropathy: 'neuropathy'
+  };
+  if (synonyms[txt]) txt = synonyms[txt];
   return txt;
 }
 
@@ -3079,6 +3087,9 @@ orderStr = orderStr.replace(/\bmay\s+increase\s+to.*$/i, '').trim();
       orderStr = orderStr.replace(sobMatch[0], '').trim();
       // console.log(`DEBUG parseOrder Step 4c (SOB Indication): order.indication="${order.indication}", orderStr="${orderStr}"`);
     }
+  }
+  if (!order.indication && order.prnCondition) {
+    order.indication = order.prnCondition;
   }
   // At this point, for your new order, order.indication should ideally be "moderate pain"
   // and orderStr should be "atorvastatin 40 mg tablet po" (or similar for other drugs)
