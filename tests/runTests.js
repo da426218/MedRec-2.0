@@ -56,7 +56,10 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-function diff(before, after) {
+let cachedContext = null;
+
+function loadAppContext() {
+  if (cachedContext) return cachedContext;
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const script = html.split('<script>')[2].split('</script>')[0];
   const context = {
@@ -67,6 +70,12 @@ function diff(before, after) {
   };
   vm.createContext(context);
   vm.runInContext(script, context);
+  cachedContext = context;
+  return context;
+}
+
+function diff(before, after) {
+  const context = loadAppContext();
   const p1 = context.parseOrder(before);
   const p2 = context.parseOrder(after);
   const result = context.getChangeReason(p1, p2);
@@ -74,21 +83,13 @@ function diff(before, after) {
 }
 
 function diffRowsList(beforeList, afterList) {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-  const script = html.split('<script>')[2].split('</script>')[0];
-  const context = {
-    console: { log: () => {}, warn: () => {}, error: () => {} },
-    window: {},
-    document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} },
-    firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
-  };
-  vm.createContext(context);
-  vm.runInContext(script, context);
+  const context = loadAppContext();
   return context.diffRows(beforeList, afterList);
 }
 
 global.diffRowsList = diffRowsList;
 global.diffRows = diffRowsList;
+global.loadAppContext = loadAppContext;
 
 require('./medDiff.test');
 require('./helpers.test');
