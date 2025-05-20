@@ -34,6 +34,11 @@ describe('freqNumeric', () => {
     expect(ctx.normalizeFrequency('every 4 to 6 hours')).toBe('q4-6h');
   });
 
+  test("freqNumeric handles ranges like 'q4-6h'", () => {
+    const ctx = loadAppContext();
+    expect(ctx.freqNumeric('q4-6h')).toBe(24 / 5);
+  });
+
   test('blank frequency treated as once daily', () => {
     const ctx = loadAppContext();
     expect(ctx.freqNumeric('')).toBe(1);

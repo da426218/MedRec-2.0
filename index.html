@@ -2301,6 +2301,13 @@ function freqNumeric(freqStr) {
   const f = normalizeFrequency(freqStr);
   const map = { daily: 1, bid: 2, tid: 3, qid: 4, weekly: 1 / 7,
                  monthly: 1 / 30, 'every other day': 0.5, immediately: 0 };
+  const range = /^q(\d+)-(\d+)h$/i.exec(f);
+  if (range) {
+    const min = Number(range[1]);
+    const max = Number(range[2]);
+    const avg = (min + max) / 2;
+    return 24 / avg;
+  }
   const qh = /^q(\d+)h$/i.exec(f);
   if (qh) return 24 / Number(qh[1]);
   return map[f] != null ? map[f] : null;
