@@ -801,6 +801,12 @@ addTest('Lipitor vs atorvastatin brand only', () => {
   expect(diff(brand, generic)).toBe('Brand/Generic changed');
 });
 
+addTest('Basaglar vs insulin glargine brand only', () => {
+  const brand = 'Basaglar 10 units SC nightly';
+  const generic = 'Insulin glargine 10 units SC nightly';
+  expect(diff(brand, generic)).toBe('Brand/Generic changed');
+});
+
 addTest('BID equals two times a day', () => {
   const b = 'Metformin 500 mg tablet po BID';
   const a = 'Metformin 500 mg tablet po two times a day';
