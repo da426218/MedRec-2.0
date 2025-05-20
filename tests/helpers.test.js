@@ -14,6 +14,26 @@ describe('freqNumeric', () => {
     expect(ctx.freqNumeric('2 times a day')).toBe(2);
   });
 
+  test("'three times a day' normalizes to tid", () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeFrequency('three times a day')).toBe('tid');
+  });
+
+  test("'four times a day' normalizes to qid", () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeFrequency('four times a day')).toBe('qid');
+  });
+
+  test("'every 4-6 hours' normalizes to q4-6h", () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeFrequency('every 4-6 hours')).toBe('q4-6h');
+  });
+
+  test("'every 4 to 6 hours' normalizes to q4-6h", () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeFrequency('every 4 to 6 hours')).toBe('q4-6h');
+  });
+
   test('blank frequency treated as once daily', () => {
     const ctx = loadAppContext();
     expect(ctx.freqNumeric('')).toBe(1);
