@@ -60,3 +60,12 @@ describe('todChanged', () => {
     expect(ctx.todChanged(a, b)).toBe(false);
   });
 });
+
+describe('canonFormulation comparisons', () => {
+  test('ER vs extended release not flagged', () => {
+    const ctx = loadAppContext();
+    const before = ctx.parseOrder('metformin ER tablet');
+    const after = ctx.parseOrder('metformin extended release tablet');
+    expect(ctx.getChangeReason(before, after)).toBe('Unchanged');
+  });
+});
