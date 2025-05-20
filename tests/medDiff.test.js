@@ -168,4 +168,14 @@ describe('Medication comparison', () => {
     const result = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
     expect(result).toBe('Frequency changed, Time of day changed');
   });
+
+  test('Inhaler brand swap does not trigger Route flag', () => {
+    const ctx = loadAppContext();
+    const o = ctx.parseOrder('Albuterol HFA inhaler 2 puffs by mouth q4h PRN');
+    const n = ctx.parseOrder('ProAir Respiclick 2 puffs inhalation q6h PRN');
+    const result = ctx.getChangeReason(o, n);
+    if (result.includes('Route changed')) {
+      throw new Error('Route flag set for inhaler brand swap: ' + result);
+    }
+  });
 });
