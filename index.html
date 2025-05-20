@@ -2414,7 +2414,7 @@ const brandPairs = {
   coumadin: 'warfarin',
   lipitor: 'atorvastatin',
   proair: 'albuterol',
-  'k-dur': 'potassium chloride',
+  kdur: 'potassium chloride',
   basaglar: 'insulin glargine',
   humalog: 'insulin lispro',
   novolog: 'insulin aspart'
@@ -4657,34 +4657,12 @@ for (let i = removed.length - 1; i >= 0; i--) {
     }
 
 // === CORE‑DRUG helper (global) ===
-const coreDrugName = n => (n || '')
-  .toLowerCase()
-
-    /* 1. salts / formulations */
-  .replace(/\b(?:sodium|calcium|acetate|phosphate|carbonate|hydrochloride|succinate|tartrate|gluconate|anhydrous|choline|modified)\b/gi, '')
-  // Specific handling for potassium/chloride to avoid removing them if they are the drug name
-  .replace(/\bpotassium\b/gi, (match, offset, str) => {
-      const s = str.toLowerCase();
-      return (s.startsWith("potassium chloride") || s.startsWith("potassium citrate") || s.startsWith("potassium phosphate")) ? match : '';
-  })
-  .replace(/\bchloride\b/gi, (match, offset, str) => {
-      const s = str.toLowerCase();
-      return (s.includes("potassium chloride") || s.includes("sodium chloride")) ? match : '';
-  })
-
-   /* 2. dosage-form words */
-  .replace(/\b(?:tab|tabs?|tablet|tablets?|cap|caps?|capsule|capsules?|caplet|patch|patches|puff|puffs|drop|drops|spray|sprays|lozenge|suppository|solution|suspension|ointment|cream|gel|inhaler|inhalation|neb|mdi|dpi)\b/gi, '')
-
-  /* 3. scheduling words */
-  .replace(/\b(?:daily|nightly|morning|evening|bedtime|qam|qpm|qhs|am|pm|q\d+h)\b/gi, '')
-  
-  /* 3b. stray numbers */
-  .replace(/\b\d+\b/g, '')
-
-  /* 4. punctuation / extra spaces */
-  .replace(/[^a-z0-9\s/-]+/g, ' ')
-  .replace(/\s+/g, ' ')
-  .trim();
+// Return the canonical medication name using the same logic as
+// normalizeMedicationName().  This avoids duplicating brand/generic
+// replacements here and keeps coreDrugName in sync with parsing logic.
+const coreDrugName = n => {
+  return normalizeMedicationName(n).name;
+};
 
 function compareAndShowResults() {
     let { unchanged, removed, added } = compareOrders(meds1, meds2);
