@@ -2414,6 +2414,13 @@ function getChangeReason(orig, updated) {
     add('Brand/Generic changed');
   }
   const same = (a,b) => (!a && !b) || a===b;
+  const sameRoute = (r1, r2) => {
+    const normalize = s => (s || '').toLowerCase().trim();
+    const eq = x =>
+      x.replace(/\b(by )?mouth\b/, 'inhalation')
+       .replace(/\b(respir(ator|iclick)|hfa|mdi)\b/, 'inhaler');
+    return normalize(eq(r1)) === normalize(eq(r2));
+  };
   function valuesEqual(v1, v2) {
     if (Array.isArray(v1) && Array.isArray(v2)) {
       if (v1.length !== v2.length) return false;
@@ -2509,7 +2516,7 @@ function getChangeReason(orig, updated) {
     formulationMatch = true;
     changes = changes.filter(c => c !== 'Formulation changed');
   }
-  let routeMatch = same(norm(orig.route), norm(updated.route));
+  let routeMatch = sameRoute(orig.route, updated.route);
   if (!routeMatch) {
     const r1 = norm(orig.route);
     const r2 = norm(updated.route);
