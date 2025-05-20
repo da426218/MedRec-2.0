@@ -22,3 +22,6 @@ Tests live in the `tests` folder and can be executed with:
 ```bash
 npm test
 ```
+
+The test harness expects the `firebase` package to be available. Install it with
+`npm i firebase` or rely on the dev dependency declared in `package.json`.

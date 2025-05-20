@@ -6,6 +6,9 @@
   "scripts": {
     "test": "node tests/runTests.js"
   },
+  "devDependencies": {
+    "firebase": "^10.12.5"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC"
