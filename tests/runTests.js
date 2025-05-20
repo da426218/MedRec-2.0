@@ -769,7 +769,7 @@ addTest('Coumadin brand & time only', () => {
   expect(diff(
     'Warfarin 3 mg 1 tab M/W/F; \u00bd tab Tu/Th/Sa/Su',
     'Coumadin 3 mg 1 tab M/W/F; \u00bd tab Tu/Th/Sa/Su evening'
-  )).toBe('Frequency changed, Brand/Generic changed, Time of day changed');
+  )).toBe('Brand/Generic changed, Time of day changed');
 });
 
 /* “2 times a day” numeric frequency */
@@ -790,4 +790,10 @@ addTest('BID equals two times a day', () => {
   const b = 'Metformin 500 mg tablet po BID';
   const a = 'Metformin 500 mg tablet po two times a day';
   expect(diff(b, a)).toBe('');
+});
+
+addTest('Coumadin brand swap with numeric freq unchanged', () => {
+  const before = 'Warfarin 3 mg tablet po BID';
+  const after = 'Coumadin 3 mg tablet po twice daily';
+  expect(diff(before, after)).toBe('Brand/Generic changed');
 });
