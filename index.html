@@ -2223,6 +2223,11 @@ function normalizeTimeOfDay(t) {
   return t;
 }
 
+// Determine if the normalized time of day differs between two orders
+function todChanged(o, u) {
+  return normalizeTimeOfDay(o.timeOfDay) !== normalizeTimeOfDay(u.timeOfDay);
+}
+
 function getFrequencyMap() {
   return {
     'once daily': 'daily',
@@ -2285,6 +2290,17 @@ function normalizeFrequency(str) {
   const weeklyRE = /once\s+(per\s+)?week(ly)?/i;
   if (weeklyRE.test(str)) return 'weekly';
   return str;
+}
+
+// Map frequency phrases to a numeric occurrences-per-day value
+function freqNumeric(freqStr) {
+  if (!freqStr) return 1; // treat blank as daily
+  const f = normalizeFrequency(freqStr);
+  const map = { daily: 1, bid: 2, tid: 3, qid: 4, weekly: 1 / 7,
+                 monthly: 1 / 30, 'every other day': 0.5, immediately: 0 };
+  const qh = /^q(\d+)h$/i.exec(f);
+  if (qh) return 24 / Number(qh[1]);
+  return map[f] != null ? map[f] : null;
 }
 
 function canonFormulation(f) {
@@ -2424,6 +2440,10 @@ function getChangeReason(orig, updated) {
     canonUnit(orig.rawUnit || orig.dose?.unit) ===
     canonUnit(updated.rawUnit || updated.dose?.unit);
   const frequencyMatch = canon(orig.frequency) === canon(updated.frequency);
+  const freqNum1 = freqNumeric(orig.frequency);
+  const freqNum2 = freqNumeric(updated.frequency);
+  const freqSameNum =
+    freqNum1 !== null && freqNum2 !== null && freqNum1 === freqNum2;
   const tokensEqual = (a,b) => {
     a = (a || []).map(norm).sort();
     b = (b || []).map(norm).sort();
@@ -2500,6 +2520,7 @@ function getChangeReason(orig, updated) {
   const startDateMatch = same(orig.startDate, updated.startDate);
   const endDateMatch = same(orig.endDate, updated.endDate);
   const qtyMatch = same(orig.qty ?? 1, updated.qty ?? 1); // Default to 1 if null for comparison
+  const qtySame = (orig.qty ?? 1) === (updated.qty ?? 1);
   const taperDiff =
     orig.taperFlag !== null &&
     updated.taperFlag !== null &&
@@ -2629,6 +2650,11 @@ if (!frequencyMatch) {
     if (!(canon(orig.frequency) === 'tid' && canon(updated.frequency) === 'tid')) {
       add('Frequency changed');
     }
+} else if (
+    norm(orig.frequency) !== norm(updated.frequency) &&
+    todChanged(orig, updated)
+  ) {
+    add('Frequency changed');
 }
 
 // --- Time of Day Change ---
@@ -2753,9 +2779,21 @@ else {
   }
 
   // collapse trivial TOD/freq double-hit
-  if (changes.includes('Frequency changed') && changes.includes('Time of day changed') &&
-    canon(orig.frequency) === 'daily' && canon(updated.frequency) === 'daily') {
+  if (
+    changes.includes('Frequency changed') &&
+    changes.includes('Time of day changed') &&
+    freqSameNum &&
+    !todChanged(orig, updated)
+  ) {
     changes = changes.filter(c => c !== 'Frequency changed');
+  }
+  if (
+    changes.includes('Quantity changed') &&
+    changes.includes('Time of day changed') &&
+    qtySame &&
+    !todChanged(orig, updated)
+  ) {
+    changes = changes.filter(c => c !== 'Quantity changed');
   }
   // collapse inhaler form/route double-hit
   if (changes.includes('Form changed') && changes.includes('Route changed') && inhaled(orig) && inhaled(updated)) { // check if both are inhaled
