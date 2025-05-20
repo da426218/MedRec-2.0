@@ -76,3 +76,10 @@ describe('canonFormulation comparisons', () => {
     expect(ctx.getChangeReason(before, after)).toBe('Unchanged');
   });
 });
+
+describe('sameDrugCore', () => {
+  test('Lasix vs furosemide treated as same', () => {
+    const ctx = loadAppContext();
+    expect(ctx.sameDrugCore('Lasix', 'furosemide')).toBe(true);
+  });
+});
