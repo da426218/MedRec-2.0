@@ -17,7 +17,15 @@ contact email.
 
 ## Running Tests
 
-Tests live in the `tests` folder and can be executed with:
+Tests live in the `tests` folder.
+
+First install dependencies:
+
+```bash
+npm install
+```
+
+Then execute tests with:
 
 ```bash
 npm test
