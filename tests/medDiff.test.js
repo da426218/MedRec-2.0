@@ -34,7 +34,7 @@ describe('Medication comparison', () => {
     const after = 'Gabapentin 300mg capsule - take 1 cap po tid for nerve pain';
     const p1 = ctx.parseOrder(before);
     const p2 = ctx.parseOrder(after);
-    expect(p2.indication).toBe('nerve pain');
+    expect(p2.indication).toBe('neuropathy');
     const result = ctx.getChangeReason(p1, p2);
     expect(result).toBe('Unchanged');
   });
@@ -119,6 +119,18 @@ describe('Medication comparison', () => {
     const ctx = loadAppContext();
     const order = ctx.parseOrder('Aspirin 1/2 tab daily');
     expect(order.qty).toBe(0.5);
+  });
+
+  test('prn shortness of breath sets breathing difficulty indication', () => {
+    const ctx = loadAppContext();
+    const order = ctx.parseOrder('Albuterol \u2013 2 puffs PRN shortness of breath');
+    expect(order.indication).toBe('breathing difficulty');
+  });
+
+  test('for neuropathy normalized to neuropathy', () => {
+    const ctx = loadAppContext();
+    const order = ctx.parseOrder('Gabapentin 300 mg \u2013 take 1 cap tid for neuropathy');
+    expect(order.indication).toBe('neuropathy');
   });
 
   test('administration difference flagged', () => {
