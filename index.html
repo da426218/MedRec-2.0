@@ -2843,6 +2843,8 @@ if (changes.includes('Frequency changed') && changes.includes('Time of day chang
   }
 } 
 // --- End of New Rule ---
+  const refillsDiff = orig.refills != null && updated.refills != null && orig.refills !== updated.refills;
+  if (refillsDiff) add("Refills changed");
 
   if (DEBUG_CHANGE_REASON) console.log('DEBUG: changes array before final formatting:', JSON.stringify(changes));
 
@@ -2982,6 +2984,15 @@ return 'Multiple changes'; // For 5 or more
     }
     return { cleanedStr: str, startDate, endDate };
   }
+  function extractRefills(str, order) {
+    const m = str.match(/\b(\d+)\s*refills?\b/i);
+    if (m) {
+      order.refills = parseInt(m[1], 10);
+      str = str.replace(m[0], "").trim();
+    }
+    return str;
+  }
+
 
   function handleBrandGeneric(order, finalDrugName) {
     const drugStr = finalDrugName
@@ -3065,6 +3076,7 @@ return 'Multiple changes'; // For 5 or more
     rawDrug: "",
     rawUnit: "",
     taperFlag: null,
+    refills: null,
     originalRaw
   };
 // Store the initially cleaned drug string for later Brand/Generic comparison
@@ -3081,6 +3093,7 @@ const dates = extractDates(orderStr);
 orderStr = dates.cleanedStr;
 order.startDate = dates.startDate;
 order.endDate = dates.endDate;
+orderStr = extractRefills(orderStr, order);
 
   // 1. Extract Time-of-Day and common morning/evening/night shorthands
 //    Also sets frequency if implied by the shorthand (e.g., qam is daily)

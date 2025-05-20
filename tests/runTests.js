@@ -797,3 +797,8 @@ addTest('Coumadin brand swap with numeric freq unchanged', () => {
   const after = 'Coumadin 3 mg tablet po twice daily';
   expect(diff(before, after)).toBe('Brand/Generic changed');
 });
+addTest('Refills count change flagged', () => {
+  const before = 'Amoxicillin 500 mg capsule - take 1 cap tid 2 refills';
+  const after  = 'Amoxicillin 500 mg capsule - take 1 cap tid 3 refills';
+  expect(diff(before, after)).toBe('Refills changed');
+});
