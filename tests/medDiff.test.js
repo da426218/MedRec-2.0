@@ -189,6 +189,15 @@ describe('Medication comparison', () => {
     expect(/Frequency changed/.test(result)).toBe(false);
   });
 
+  test('Lipitor vs Atorvastatin flags Brand/Generic only', () => {
+    const ctx = loadAppContext();
+    const a = ctx.parseOrder('Lipitor 20 mg tablet 1 PO qhs');
+    const b = ctx.parseOrder('Atorvastatin 20 mg tablet 1 PO qhs');
+    const r = ctx.getChangeReason(a, b);
+    expect(r.includes('Brand/Generic changed')).toBe(true);
+    expect(r.includes('Frequency changed')).toBe(false);
+  });
+
   test('Inhaler brand swap does not trigger Route flag', () => {
     const ctx = loadAppContext();
     const o = ctx.parseOrder('Albuterol HFA inhaler 2 puffs by mouth q4h PRN');
