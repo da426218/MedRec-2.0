@@ -557,6 +557,7 @@ footer a:hover {
 </script>
 
   <script>
+    const DEBUG = false;
     const criticalMeds = [
       'warfarin', 'coumadin', 'apixaban', 'rivaroxaban', 'dabigatran', 'edoxaban', 'heparin', 'enoxaparin',
       'clopidogrel', 'ticagrelor', 'prasugrel', 'insulin regular', 'insulin glargine', 'insulin detemir',
@@ -1846,7 +1847,7 @@ function processFile(file) {
       reject(new Error("No file provided"));
       return;
     }
-    console.log('Processing file:', file.name, file.type, file.size);
+    if (DEBUG) console.log('Processing file:', file.name, file.type, file.size);
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
@@ -1855,12 +1856,12 @@ function processFile(file) {
           throw new Error('FileReader result is undefined');
         }
         const imageData = e.target.result;
-        console.log('Sending image data:', imageData.substring(0, 100));
+        if (DEBUG) console.log('Sending image data:', imageData.substring(0, 100));
         const payload = { data: { image: imageData } };
-        console.log('Payload being sent:', payload);
+        if (DEBUG) console.log('Payload being sent:', payload);
         const callOcrFunction = firebase.functions().httpsCallable('callOcrTest');
         const response = await callOcrFunction(payload);
-        console.log('Received response from callOcrTest:', response);
+        if (DEBUG) console.log('Received response from callOcrTest:', response);
         if (!response.data || typeof response.data !== 'object') {
           throw new Error('Invalid response from OCR function');
         }
@@ -1881,9 +1882,9 @@ async function testCallOcr() {
   try {
     const callOcrFunction = firebase.functions().httpsCallable('callOcrTest');
     const payload = { data: { test: "Hello, world!" } };
-    console.log('Testing callOcrTest with payload:', payload);
+    if (DEBUG) console.log('Testing callOcrTest with payload:', payload);
     const response = await callOcrFunction(payload);
-    console.log('Test response from callOcrTest:', response);
+    if (DEBUG) console.log('Test response from callOcrTest:', response);
   } catch (err) {
     console.error('Error in testCallOcr:', err);
   }
@@ -1946,7 +1947,7 @@ async function testCallOcr() {
 function mergeEMRLines(lines) {
   const mergedOrders = [];
   let i = 0;
-  console.log("mergeEMRLines: Input lines count:", lines.length); // Log total lines
+  if (DEBUG) console.log("mergeEMRLines: Input lines count:", lines.length); // Log total lines
   while (i < lines.length) {
     const line1 = lines[i]?.trim();
     if (!line1) { 
@@ -1963,11 +1964,13 @@ function mergeEMRLines(lines) {
 
     // DEBUGGING LOGS START HERE
     if (line1.toLowerCase().includes("lantus") || line1.toLowerCase().includes("prednisone") || line1.toLowerCase().includes("albuterol") || line1.toLowerCase().includes("potassium")) { // Focus on problem meds
+        if (DEBUG) {
         console.log("------------------------------------");
         console.log("mergeEMRLines checking:", JSON.stringify(line1));
         console.log("  isOrderStartLine1:", isOrderStartLine1);
         console.log("  line2:", JSON.stringify(line2));
         console.log("  line3:", JSON.stringify(line3));
+        }
     }
     // DEBUGGING LOGS END HERE
 
@@ -1982,26 +1985,28 @@ function mergeEMRLines(lines) {
 
     // MORE DEBUGGING LOGS
     if (line1.toLowerCase().includes("lantus") || line1.toLowerCase().includes("prednisone") || line1.toLowerCase().includes("albuterol") || line1.toLowerCase().includes("potassium")) {
+         if (DEBUG) {
          console.log("  line2ConditionMet:", line2ConditionMet);
          console.log("  line3ConditionMet:", line3ConditionMet);
+         }
     }
     // DEBUGGING LOGS END
 
     if (isOrderStartLine1 && line2ConditionMet && line3ConditionMet) {
       if (line1.toLowerCase().includes("lantus") || line1.toLowerCase().includes("prednisone") || line1.toLowerCase().includes("albuterol") || line1.toLowerCase().includes("potassium")){
-        console.log("  DECISION: MERGING these 3 lines.");
+        if (DEBUG) console.log("  DECISION: MERGING these 3 lines.");
       }
       mergedOrders.push(`${line1} ${line2} ${line3}`);
       i += 3; 
     } else {
       if (line1.toLowerCase().includes("lantus") || line1.toLowerCase().includes("prednisone") || line1.toLowerCase().includes("albuterol") || line1.toLowerCase().includes("potassium")){
-        console.log("  DECISION: NOT MERGING. Pushing line1 only:", JSON.stringify(line1));
+        if (DEBUG) console.log("  DECISION: NOT MERGING. Pushing line1 only:", JSON.stringify(line1));
       }
       mergedOrders.push(line1); 
       i += 1; 
     }
   }
-  console.log("mergeEMRLines: Output mergedOrders count:", mergedOrders.length); // Log output count
+  if (DEBUG) console.log("mergeEMRLines: Output mergedOrders count:", mergedOrders.length); // Log output count
   return mergedOrders;
 }
 
@@ -4472,7 +4477,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
   // keepOrderLines handles splitting, cleaning, merging (including EMR), and filtering.
   let processedOrderStrings = keepOrderLines(rawPastedText);
 
-  console.log('handleTextInput1 - Processed Order Strings by keepOrderLines:', processedOrderStrings);
+  if (DEBUG) console.log('handleTextInput1 - Processed Order Strings by keepOrderLines:', processedOrderStrings);
 
   if (processedOrderStrings.length === 0) {
     showError('No valid medication orders detected in the pasted list. Please try again.');
@@ -4495,7 +4500,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
     }
   });
 
-  console.log('handleTextInput1 - Meds1 (parsed objects):', meds1);
+  if (DEBUG) console.log('handleTextInput1 - Meds1 (parsed objects):', meds1);
   document.getElementById('photo1-status').textContent = '';
   document.getElementById('initial-photo1-options').style.display = 'none';
   document.getElementById('additional-photo1-option').style.display = 'none';
@@ -4519,7 +4524,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
   // Use keepOrderLines to process the pasted text.
   let processedOrderStrings = keepOrderLines(rawPastedText);
 
-  console.log('handleTextInput2 - Processed Order Strings by keepOrderLines:', processedOrderStrings);
+  if (DEBUG) console.log('handleTextInput2 - Processed Order Strings by keepOrderLines:', processedOrderStrings);
 
   if (processedOrderStrings.length === 0) {
     showError('No valid medication orders detected in the pasted list. Please try again.');
@@ -4542,7 +4547,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
     }
   });
 
-  console.log('handleTextInput2 - Meds2 (parsed objects):', meds2);
+  if (DEBUG) console.log('handleTextInput2 - Meds2 (parsed objects):', meds2);
   document.getElementById('photo2-status').textContent = '';
   document.getElementById('photo2-compare').disabled = false; // Enable compare button
   document.getElementById('initial-photo2-options').style.display = 'none';
@@ -4566,7 +4571,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
       // processFiles now returns an array of fully processed order strings
       let processedOrderStrings = await processFiles(photo1Files);
 
-      console.log('goToPhoto2 - Processed Order Strings from OCR:', processedOrderStrings);
+      if (DEBUG) console.log('goToPhoto2 - Processed Order Strings from OCR:', processedOrderStrings);
 
       if (processedOrderStrings.length === 0) {
         hideLoading();
@@ -4588,7 +4593,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
         }
       });
 
-      console.log('goToPhoto2 - Meds1 (parsed objects from OCR):', meds1);
+      if (DEBUG) console.log('goToPhoto2 - Meds1 (parsed objects from OCR):', meds1);
       hideLoading();
       showProcessedState('photo1-screen');
       showScreen('photo2-screen');
@@ -4611,7 +4616,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
       // processFiles now returns an array of fully processed order strings
       let processedOrderStrings = await processFiles(photo2Files);
 
-      console.log('comparePhotos - Processed Order Strings from OCR:', processedOrderStrings);
+      if (DEBUG) console.log('comparePhotos - Processed Order Strings from OCR:', processedOrderStrings);
 
       if (processedOrderStrings.length === 0) {
         hideLoading();
@@ -4633,7 +4638,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
         }
       });
 
-      console.log('comparePhotos - Meds2 (parsed objects from OCR):', meds2);
+      if (DEBUG) console.log('comparePhotos - Meds2 (parsed objects from OCR):', meds2);
       hideLoading();
       showProcessedState('photo2-screen');
       compareAndShowResults();
@@ -4685,26 +4690,26 @@ const merged = [];
 const addedMap = Object.create(null);
 
 // --- START DEBUG LOGS FOR addedMap POPULATION ---
-console.log("--- Building addedMap (Primary Merge Step) ---");
+if (DEBUG) console.log("--- Building addedMap (Primary Merge Step) ---");
 added.forEach(a => {
   const originalDrugString = a.original; // For logging
   const parsedDrugField = a.parsed.drug;
   // Use the first word of the normalized generic name as the primary key
   const primaryKey = normalizeMedicationName(parsedDrugField).name.split(' ')[0].trim();
   if (primaryKey) { // Ensure the key is not empty
-      console.log(`  [addedMap]: Adding: Original Str: "<span class="math-inline">\{originalDrugString\}" \-\-\> Parsed Drug\: "</span>{parsedDrugField}" --> Primary Key: "${primaryKey}"`);
+      if (DEBUG) console.log(`  [addedMap]: Adding: Original Str: "<span class="math-inline">\{originalDrugString\}" \-\-\> Parsed Drug\: "</span>{parsedDrugField}" --> Primary Key: "${primaryKey}"`);
       addedMap[primaryKey] = a;
   } else {
-      console.log(`  [addedMap]: SKIPPING ADD due to empty primaryKey. Original Str: "<span class="math-inline">\{originalDrugString\}", Parsed Drug\: "</span>{parsedDrugField}"`);
+      if (DEBUG) console.log(`  [addedMap]: SKIPPING ADD due to empty primaryKey. Original Str: "<span class="math-inline">\{originalDrugString\}", Parsed Drug\: "</span>{parsedDrugField}"`);
   }
 });
 
-console.log("--- Finished building addedMap. Keys: ", Object.keys(addedMap));
-console.log("addedMap after build:", addedMap);
+if (DEBUG) console.log("--- Finished building addedMap. Keys: ", Object.keys(addedMap));
+if (DEBUG) console.log("addedMap after build:", addedMap);
 // --- END DEBUG LOGS FOR addedMap POPULATION ---
 
 // --- START DEBUG LOGS FOR removed.filter (Primary Merge Step) ---
-console.log("--- Filtering 'removed' list (Primary Merge Step) ---");
+if (DEBUG) console.log("--- Filtering 'removed' list (Primary Merge Step) ---");
 removed = removed.filter(r => {
   const originalRemovedDrugString = r.original;
   const parsedRemovedDrugField    = r.parsed.drug;
@@ -4715,27 +4720,30 @@ removed = removed.filter(r => {
   let usedKey = "";
 
   if (primaryLookupKey) {
+      if (DEBUG)
       console.log(
         `  [removed.filter]: Processing Removed: "<span class="math-inline">\{originalRemovedDrugString\}" → drug\="</span>{parsedRemovedDrugField}" → Primary Lookup Key: "${primaryLookupKey}"`
       );
       match = addedMap[primaryLookupKey];
       usedKey = primaryLookupKey;
   } else {
+      if (DEBUG)
       console.log(
         `  [removed.filter]: SKIPPING LOOKUP due to empty primaryLookupKey for Removed: "<span class="math-inline">\{originalRemovedDrugString\}", Parsed Drug\: "</span>{parsedRemovedDrugField}"`
       );
   }
 
   if (!match) {
-    console.log(`     NO MATCH for Primary Lookup Key: "${primaryLookupKey}" → keep in removed`);
+    if (DEBUG) console.log(`     NO MATCH for Primary Lookup Key: "${primaryLookupKey}" → keep in removed`);
     return true; // Keep in removed if no match
   }
 
   if (!match) {
-    console.log(`    NO MATCH for either "${lookupKey}" or "${usedKey}" → keep in removed`);
+    if (DEBUG) console.log(`    NO MATCH for either "${lookupKey}" or "${usedKey}" → keep in removed`);
     return true;
   }
 
+  if (DEBUG)
   console.log(
     `    MATCH FOUND for key "${usedKey}" (merged with added original="${match.original}")`
   );
@@ -4756,10 +4764,10 @@ merged.push({ orig: r, new: match, reason });
   return false;
 });
 
-console.log("--- Finished filtering 'removed' list ---");
+if (DEBUG) console.log("--- Finished filtering 'removed' list ---");
 
 added = Object.values(addedMap);
-console.log("Remaining addedMap keys (will appear as ‘Added’ rows):", Object.keys(addedMap));
+if (DEBUG) console.log("Remaining addedMap keys (will appear as ‘Added’ rows):", Object.keys(addedMap));
 
 //=== END STEP-MERGE-REMOVED-ADDED ==============================
 
@@ -4814,8 +4822,8 @@ merged.forEach(pair => {
 });
     
 removed.forEach(r => {
-        console.group(`🔍 Comparing removed: ${r.original}`);
-        console.log('   current added[]:', added.map(a => a.original));
+        if (DEBUG) console.group(`🔍 Comparing removed: ${r.original}`);
+        if (DEBUG) console.log('   current added[]:', added.map(a => a.original));
         const lowerRem = r.original.toLowerCase();
         let match = null;
         let changeType = null;
@@ -4849,7 +4857,7 @@ if (!match) {
     match = added.find(a => a.original.toLowerCase().includes(drugName));
     if (match) {
         changeType = getChangeReason(r.parsed, match.parsed);
-        console.log(`   → substring matched "${drugName}" to`, match.original);
+        if (DEBUG) console.log(`   → substring matched "${drugName}" to`, match.original);
     }
 }  // <-- closes the if(!match) block correctly
 
@@ -4874,7 +4882,7 @@ if (!match) {
               changes: reasons
             });
      added = added.filter(a => a !== match);
-     console.groupEnd();
+     if (DEBUG) console.groupEnd();
      return;
    }
 
@@ -4891,7 +4899,7 @@ if (!match) {
                 changes: reason === 'Unchanged' ? [] : [reason]
             });
             added = added.filter(a => a !== match);
-            console.groupEnd();
+            if (DEBUG) console.groupEnd();
             return;
         }
 
@@ -4910,7 +4918,7 @@ if (!match) {
                 changes: reason === 'Unchanged' ? [] : [reason]
             });
             added = added.filter(a => a !== sameDrug);
-            console.groupEnd();
+            if (DEBUG) console.groupEnd();
             return;
         }
 
@@ -4923,7 +4931,7 @@ if (!match) {
             ci: false,
             changes: ['Removed']
         });
-        console.groupEnd();
+        if (DEBUG) console.groupEnd();
     });
 
     // Unchanged ‑‑→ now re‑evaluate for brand/generic etc.
