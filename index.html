@@ -2388,6 +2388,9 @@ function getChangeReason(orig, updated) {
   // New: direct raw-name comparison for certain brand/generic swaps
   const rawNamesDiffer = norm(origDrugNameRaw) !== norm(updatedDrugNameRaw);
 
+  const leftHasBrand  = (orig.brandTokens || []).length > 0;
+  const rightHasBrand = (updated.brandTokens || []).length > 0;
+
   const sameMgStrength = (a, b) => {
     const grab = s => {
       const m = (s || '').match(/(\d+(?:\.\d+)?)\s*mg\b/i);
@@ -2408,14 +2411,7 @@ function getChangeReason(orig, updated) {
   if (coumBrand && !changes.includes('Brand/Generic changed'))
     add('Brand/Generic changed');
 
-  if (
-    rawNamesDiffer &&
-    drugNameMatchStrict &&
-    (/coumadin/i.test(origDrugNameRaw) ||
-      /coumadin/i.test(updatedDrugNameRaw) ||
-      /humalog/i.test(origDrugNameRaw) ||
-      /humalog/i.test(updatedDrugNameRaw))
-  ) {
+  if (rawNamesDiffer && drugNameMatchStrict && leftHasBrand !== rightHasBrand) {
     add('Brand/Generic changed');
   }
   const same = (a,b) => (!a && !b) || a===b;
@@ -2603,8 +2599,6 @@ function getChangeReason(orig, updated) {
   }
 
   // --- Brand/Generic Change ---
-  const leftHasBrand  = (orig.brandTokens || []).length;
-  const rightHasBrand = (updated.brandTokens || []).length;
   if (drugNameMatchStrict && leftHasBrand !== rightHasBrand) {
     add('Brand/Generic changed');
   }
