@@ -1678,8 +1678,8 @@ function hasContra(orderObj, wholeList = []) {
     tylenol:        'acetaminophen'
   };
 
-  const ignoreSalts = /\b(hydrochloride|sulfate|phosphate|acetate|maleate|tartrate|mesylate|succinate|propionate|sodium|potassium|calcium|magnesium)\b/gi;
-  const trivialSalts = /\b(sodium|hydrochloride|sulfate|phosphate|acetate|succinate|maleate|tartrate|mesylate|propionate|potassium|calcium|magnesium)\b/gi;
+  const ignoreSalts = /\b(hydrochloride|sulfate|phosphate|acetate|carbonate|maleate|succinate|tartrate|mesylate|besylate|camsylate|gluconate|bitartrate|edisylate|propionate|sodium|potassium|calcium|magnesium|fumarate)\b/gi;
+  const trivialSalts = /\b(sodium|hydrochloride|sulfate|phosphate|acetate|carbonate|succinate|maleate|tartrate|mesylate|besylate|camsylate|gluconate|bitartrate|edisylate|propionate|potassium|calcium|magnesium|fumarate)\b/gi;
 
   const importantSaltPairs = [
     ['diclofenac sodium',      'diclofenac potassium'],
