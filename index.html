@@ -521,8 +521,8 @@ footer a:hover {
       </div>
     </div>
   </main>
-<footer>
-  &copy; 2025 David Gottschalk. For technical support, please contact <a href="mailto:david@med-reconciliation.com">david@med-reconciliation.com</a>.
+  <footer>
+  &copy; 2025 David Gottschalk. For technical support, please contact <a id="supportEmail" href="#">support@example.com</a>.
 </footer>
   <div id="loading">
     <p id="loading-text">Processing...</p>
@@ -532,16 +532,28 @@ footer a:hover {
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-functions-compat.js"></script>
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBYrJPALSB45rPm5D0T29rEwCdJ5Ek24ug",
-  authDomain: "medrec-solutions-cd00e.firebaseapp.com",
-  projectId: "medrec-solutions-cd00e",
-  storageBucket: "medrec-solutions-cd00e.appspot.com",
-  messagingSenderId: "276805089930",
-  appId: "1:276805089930:web:9631c7d4cf223f1666d087"
-};
-const app = firebase.initializeApp(firebaseConfig);
-const functions = firebase.functions(app);
+  window.appConfig = {};
+  function applyConfig(cfg) {
+    window.appConfig = cfg;
+    if (cfg.firebase) {
+      const app = firebase.initializeApp(cfg.firebase);
+      window.firebaseApp = app;
+    }
+    if (cfg.supportEmail) {
+      const link = document.getElementById('supportEmail');
+      if (link) {
+        link.href = 'mailto:' + cfg.supportEmail;
+        link.textContent = cfg.supportEmail;
+      }
+    }
+  }
+
+  if (typeof window !== 'undefined' && window.fetch) {
+    fetch('config.json')
+      .then(res => res.json())
+      .then(applyConfig)
+      .catch(err => console.error('Failed to load config.json', err));
+  }
 </script>
 
   <script>
