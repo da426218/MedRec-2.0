@@ -802,3 +802,22 @@ addTest('Refills count change flagged', () => {
   const after  = 'Amoxicillin 500 mg capsule - take 1 cap tid 3 refills';
   expect(diff(before, after)).toBe('Refills changed');
 });
+
+addTest('Warfarin sodium vs warfarin direct comparison', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const ctx = {
+    console: { log: () => {}, warn: () => {}, error: () => {} },
+    window: {},
+    document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} },
+    firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
+  };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  const before = 'Warfarin sodium 5 mg tablet po evening';
+  const after = 'Warfarin 5 mg tablet po qpm';
+  const reason = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
+  if (reason.includes('Formulation changed')) {
+    throw new Error('Unexpected formulation flag: ' + reason);
+  }
+});
