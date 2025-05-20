@@ -2241,7 +2241,7 @@ function getFrequencyMap() {
     '2 times daily': 'bid',
     '2 times a day': 'bid',
     'two times daily': 'bid',
-    'two times a day': 'bid',
+    'two times a day': 'bid',      // NEW alias → BID
     'twice a day': 'bid',
     bid: 'bid',
     'twice a day with meals': 'bid',
@@ -2311,6 +2311,27 @@ function freqNumeric(freqStr) {
   const qh = /^q(\d+)h$/i.exec(f);
   if (qh) return 24 / Number(qh[1]);
   return map[f] != null ? map[f] : null;
+}
+
+/* ---------- simple word→number helper (one-ten) ---------- */
+const numericWord = w => ({
+  one:1,two:2,three:3,four:4,five:5,
+  six:6,seven:7,eight:8,nine:9,ten:10
+}[w.toLowerCase()] ?? null);
+
+// ---------- QUANTITY PARSER ----------
+function parseQuantity(str){
+  // matches “2 tabs”, “two tablets”, etc.
+  const m=str.match(/(\d+|\w+)\s*(tabs?|caps?|tablets?|capsules?)/i);
+  if(!m) return null;
+  const raw=m[1];
+  return /^\d+$/.test(raw)?Number(raw):numericWord(raw)||null;
+}
+
+function quantitiesMatch(o1,o2){
+  // treat null === 1 (implicit single tablet)
+  const q1=o1.quantity??1, q2=o2.quantity??1;
+  return q1===q2;
 }
 
 function canonFormulation(f) {
