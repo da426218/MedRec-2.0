@@ -2799,22 +2799,23 @@ if (!qtyMatch || taperDiff || courseDiff) {
   }
 
 // --- Frequency Change ---
-if (!frequencyMatch) {
-    if (!( (canon(orig.frequency)==='daily' && updated.frequency === '') ||
-           (orig.frequency === '' && canon(updated.frequency)==='daily') )) {
-       add('Frequency changed');
-    }
-} else if (!tokensEqual(orig.frequencyTokens, updated.frequencyTokens) &&
-           (containsMeals(orig.frequencyTokens) || containsMeals(updated.frequencyTokens))) {
-    if (!(canon(orig.frequency) === 'tid' && canon(updated.frequency) === 'tid')) {
-      add('Frequency changed');
-    }
+let freqChange = false;
+if (!freqSameNum) {
+  freqChange = true;
 } else if (
-    normalizeFrequency(orig.frequency) !== normalizeFrequency(updated.frequency) &&
-    todChanged(orig, updated)
-  ) {
-    add('Frequency changed');
+  !tokensEqual(orig.frequencyTokens, updated.frequencyTokens) &&
+  (containsMeals(orig.frequencyTokens) || containsMeals(updated.frequencyTokens))
+) {
+  if (!(canon(orig.frequency) === 'tid' && canon(updated.frequency) === 'tid')) {
+    freqChange = true;
+  }
+} else if (
+  normalizeFrequency(orig.frequency) !== normalizeFrequency(updated.frequency) &&
+  todChanged(orig, updated)
+) {
+  freqChange = true;
 }
+if (freqChange) add('Frequency changed');
 
 // --- Time of Day Change ---
 if (!timeOfDayMatch && (norm(orig.timeOfDay) || norm(updated.timeOfDay))) {
