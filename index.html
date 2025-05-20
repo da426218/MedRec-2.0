@@ -2413,16 +2413,6 @@ function inhaled(parsedOrder) {
     return false;
 }
 
-// === brand lookup (add right above getChangeReason) ===
-const brandMap = {
-  lipitor: 'atorvastatin',
-  proair: 'albuterol',
-  'k-dur': 'potassium chloride',
-  lasix: 'furosemide',
-  coumadin: 'warfarin',
-  basaglar: 'insulin glargine'
-};
-
 // One-to-one brand/generic pairs used for quick same-drug checks
 const brandPairs = {
   lasix: 'furosemide',
