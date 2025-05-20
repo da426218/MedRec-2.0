@@ -49,6 +49,21 @@ describe('freqNumeric', () => {
     expect(ctx.freqNumeric('q4-6h')).toBe(24 / 5);
   });
 
+  test('"q12h" evaluates to twice daily', () => {
+    const ctx = loadAppContext();
+    expect(ctx.freqNumeric('q12h')).toBe(2);
+  });
+
+  test('"q48h" evaluates to every other day', () => {
+    const ctx = loadAppContext();
+    expect(ctx.freqNumeric('q48h')).toBe(0.5);
+  });
+
+  test('"q2d" evaluates to every other day', () => {
+    const ctx = loadAppContext();
+    expect(ctx.freqNumeric('q2d')).toBe(0.5);
+  });
+
   test('blank frequency treated as once daily', () => {
     const ctx = loadAppContext();
     expect(ctx.freqNumeric('')).toBe(1);
@@ -91,6 +106,16 @@ describe('sameDrugCore', () => {
   test('Lasix vs furosemide treated as same', () => {
     const ctx = loadAppContext();
     expect(ctx.sameDrugCore('Lasix', 'furosemide')).toBe(true);
+  });
+
+  test('ProAir vs albuterol treated as same', () => {
+    const ctx = loadAppContext();
+    expect(ctx.sameDrugCore('ProAir', 'albuterol')).toBe(true);
+  });
+
+  test('K-Dur vs potassium chloride treated as same', () => {
+    const ctx = loadAppContext();
+    expect(ctx.sameDrugCore('K-Dur', 'potassium chloride')).toBe(true);
   });
 });
 
