@@ -1763,7 +1763,7 @@ function hasContra(orderObj, wholeList = []) {
 
     /* 4. Remove common leftover instructional/form words and numbers from name string */
     n = n.replace(/\b\d+(?:\.\d+)?\b/g, '');
-    n = n.replace(/\b(?:tablet|tablets|tab|tabs|cap|capsule|capsules|caplet|oral|po|subq|sc|im|iv|id|pr|sl|os|od|au|oin|oint|ophth|neb|inh|inj|inject|supp|sol|solution|susp|elix|syr|tr|tinct|lot|crm|crm.|ung|gel|aero|conc|dil|dp|ds|emuls|enema|er|film|gas|gran|gum|impl|inf|ins|irrig|jec|liq|lotn|loz|mdi|mis|nebu|oint|oph|pad|part|pas|past|pel|pen|pill|plst|powd|pwd|rinse|sat|shamp|soak|spg|spl|spray|stk|strip|subl|sup|swab|syr|sys|tab|tamp|tape|top|troche|twa|vag|wafer|xt|xr|xl|xd|sr|cr|dr|la|patch|puffs|drops|lozenge|spray|unit|units|ml|mcg|mg|g|solostar|actuation)\b/gi, '');
+    n = n.replace(/\b(?:tablet|tablets|tab|tabs|cap|capsule|capsules|caplet|oral|po|subq|sc|im|iv|id|pr|sl|os|od|au|oin|oint|ophth|neb|inh|inj|inject|supp|sol|solution|susp|elix|syr|tr|tinct|lot|crm|crm.|ung|gel|aero|conc|dil|dp|ds|emuls|enema|er|film|gas|gran|gum|impl|inf|ins|irrig|jec|liq|lotn|loz|mdi|hfa|mis|nebu|oint|oph|pad|part|pas|past|pel|pen|pill|plst|powd|pwd|rinse|sat|shamp|soak|spg|spl|spray|stk|strip|subl|sup|swab|syr|sys|tab|tamp|tape|top|troche|twa|vag|wafer|xt|xr|xl|xd|sr|cr|dr|la|patch|puffs|drops|lozenge|spray|unit|units|ml|mcg|mg|g|solostar|actuation)\b/gi, '');
 
     /* 5. Final cleanup */
     n = n.replace(/[\/\-]/g, ' ')
@@ -2349,6 +2349,7 @@ const brandMap = {
   'k-dur': 'potassium chloride',
   lasix:   'furosemide'
 };
+const benignBrandSet = new Set(['k-dur']);
 
 const coreName = n => (n||'')
   .toLowerCase()
@@ -2434,7 +2435,11 @@ function getChangeReason(orig, updated) {
     add('Brand/Generic changed');
 
   if (rawNamesDiffer && drugNameMatchStrict && leftHasBrand !== rightHasBrand) {
-    add('Brand/Generic changed');
+    const leftTok = (orig.brandTokens || [])[0] || '';
+    const rightTok = (updated.brandTokens || [])[0] || '';
+    if (!benignBrandSet.has(leftTok) && !benignBrandSet.has(rightTok)) {
+      add('Brand/Generic changed');
+    }
   }
   const same = (a,b) => (!a && !b) || a===b;
   const sameRoute = (r1, r2) => {
@@ -2622,7 +2627,11 @@ function getChangeReason(orig, updated) {
 
   // --- Brand/Generic Change ---
   if (drugNameMatchStrict && leftHasBrand !== rightHasBrand) {
-    add('Brand/Generic changed');
+    const lt = (orig.brandTokens || [])[0] || '';
+    const rt = (updated.brandTokens || [])[0] || '';
+    if (!benignBrandSet.has(lt) && !benignBrandSet.has(rt)) {
+      add('Brand/Generic changed');
+    }
   }
   if (drugNameMatchStrict) {
     const leftFull  = `${origDrugNameRaw} ${orig.formulation || ''}`.trim();
@@ -2845,6 +2854,15 @@ else {
     !todChanged(orig, updated)
   ) {
     changes = changes.filter(c => c !== 'Quantity changed');
+  }
+  if (
+    changes.includes('Time of day changed') &&
+    canon(orig.frequency) === 'daily' &&
+    canon(updated.frequency) === 'daily' &&
+    ((orig.brandTokens || []).includes('lasix') ||
+      (updated.brandTokens || []).includes('lasix'))
+  ) {
+    changes = changes.filter(c => c !== 'Time of day changed');
   }
   // collapse inhaler form/route double-hit
   if (changes.includes('Form changed') && changes.includes('Route changed') && inhaled(orig) && inhaled(updated)) { // check if both are inhaled

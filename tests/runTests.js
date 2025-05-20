@@ -840,3 +840,15 @@ addTest('Benign salt swap is ignored', () => {
     throw new Error('Unexpected formulation flag: ' + reason);
   }
 });
+addTest('benign brand swaps', () => {
+  expect(diff('Lipitor 20mg tab nightly', 'Atorvastatin 20mg tab QHS')).toBe(
+    'Brand/Generic changed'
+  );
+  expect(diff('ProAir 90 mcg 2 puffs PRN', 'Albuterol HFA 90 mcg 2 puffs PRN'))
+    .toBe('Brand/Generic changed');
+  expect(diff('K-Dur 10 mEq ER tab BID', 'Potassium Chloride 10 mEq ER tab BID'))
+    .toBe('');
+  expect(diff('Lasix 20 mg qAM', 'Furosemide 20 mg daily')).toBe(
+    'Brand/Generic changed'
+  );
+});
