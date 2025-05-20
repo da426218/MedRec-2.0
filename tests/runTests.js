@@ -821,3 +821,22 @@ addTest('Warfarin sodium vs warfarin direct comparison', () => {
     throw new Error('Unexpected formulation flag: ' + reason);
   }
 });
+
+addTest('Benign salt swap is ignored', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const script = html.split('<script>')[2].split('</script>')[0];
+  const ctx = {
+    console: { log: () => {}, warn: () => {}, error: () => {} },
+    window: {},
+    document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} },
+    firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
+  };
+  vm.createContext(ctx);
+  vm.runInContext(script, ctx);
+  const before = 'Amlodipine 5 mg tab – 1 PO daily';
+  const after = 'Amlodipine besylate 5 mg tab – 1 PO daily';
+  const reason = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
+  if (reason.includes('Formulation changed')) {
+    throw new Error('Unexpected formulation flag: ' + reason);
+  }
+});
