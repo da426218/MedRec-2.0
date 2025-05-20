@@ -1,21 +1,3 @@
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
-
-function loadAppContext() {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-  const script = html.split('<script>')[2].split('</script>')[0];
-  const context = {
-    console: { log: () => {}, warn: () => {}, error: () => {} },
-    window: {},
-    document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} },
-    firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
-  };
-  vm.createContext(context);
-  vm.runInContext(script, context);
-  return context;
-}
-
 describe('Medication comparison', () => {
   test('dose and form changes detected for Spiriva Respimat vs HandiHaler', () => {
     const ctx = loadAppContext();
