@@ -407,6 +407,8 @@ footer a:hover {
   background-color: #fffbe6;          /* pale yellow that prints as light grey */
 }
 
+    .hidden { display:none !important; }
+
   </style>
 
 <!-- === PDF LIBRARIES === -->
@@ -4039,6 +4041,20 @@ for (let i = removed.length - 1; i >= 0; i--) {
       document.getElementById('error-message').textContent = msg;
     }
 
+    // Hide upload controls / text inputs once a list is final
+    function showProcessedState(screenId) {
+      const s = document.getElementById(screenId);
+      if (!s) return;
+      // stash original heading text if not saved yet
+      const h = s.querySelector('h2');
+      if (h && !h.dataset.orig) h.dataset.orig = h.textContent;
+      if (h) h.textContent = 'List saved \u2014 continue below or Start Over';
+
+      // hide upload buttons & text areas
+      s.querySelectorAll('.photo-actions, .text-input-container')
+       .forEach(el => el.classList.add('hidden'));
+    }
+
     function acknowledgeDisclaimer() {
       showScreen('photo1-screen');
     }
@@ -4217,6 +4233,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
   }
   document.getElementById('photo1-status').textContent = 'Processing pasted list...';
   hasTextInput1 = true;
+  showProcessedState('photo1-screen');
 
   // Use keepOrderLines to process the pasted text.
   // keepOrderLines handles splitting, cleaning, merging (including EMR), and filtering.
@@ -4264,6 +4281,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
   }
   document.getElementById('photo2-status').textContent = 'Processing pasted list...';
   hasTextInput2 = true;
+  showProcessedState('photo2-screen');
 
   // Use keepOrderLines to process the pasted text.
   let processedOrderStrings = keepOrderLines(rawPastedText);
@@ -4830,6 +4848,14 @@ function printResults() {
 }
 
     function startOver() {
+      // un-hide anything we previously hid
+      document.querySelectorAll('.hidden')
+        .forEach(el => el.classList.remove('hidden'));
+
+      // restore any headings we overwrote
+      document.querySelectorAll('[data-orig]')
+        .forEach(h => { h.textContent = h.dataset.orig; });
+
       photo1Files = [];
       photo2Files = [];
       meds1 = [];
