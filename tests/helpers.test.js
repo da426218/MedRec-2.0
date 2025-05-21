@@ -54,6 +54,11 @@ describe('freqNumeric', () => {
     expect(ctx.freqNumeric('q12h')).toBe(2);
   });
 
+  test('"every 8 hours" evaluates to 3 times daily', () => {
+    const ctx = loadAppContext();
+    expect(ctx.freqNumeric('every 8 hours')).toBe(3);
+  });
+
   test('"q48h" evaluates to every other day', () => {
     const ctx = loadAppContext();
     expect(ctx.freqNumeric('q48h')).toBe(0.5);
@@ -116,6 +121,16 @@ describe('normalizeTimeOfDay', () => {
   test('"midday" normalizes to noon', () => {
     const ctx = loadAppContext();
     expect(ctx.normalizeTimeOfDay('midday')).toBe('noon');
+  });
+
+  test('plural evenings normalize to evening', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeTimeOfDay('evenings')).toBe('evening');
+  });
+
+  test('"in the evenings" normalizes to evening', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeTimeOfDay('in the evenings')).toBe('evening');
   });
 });
 

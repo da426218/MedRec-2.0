@@ -2198,12 +2198,14 @@ function normalizeTimeOfDay(t) {
     'in the morning': 'morning',
     'daily in morning': 'morning',
     evening: 'evening',
+    evenings: 'evening',
     pm: 'evening',
     qpm: 'evening',
     'every evening': 'evening',
     'daily in evening': 'evening',
     'in evening': 'evening',
     'in the evening': 'evening',
+    'in the evenings': 'evening',
     'in the pm': 'evening',
     bedtime: 'bedtime',
     night: 'bedtime',
@@ -2335,6 +2337,10 @@ function freqNumeric(freqStr) {
     hs: 1,
     nightly: 1
   };
+
+  /* every N hours or N-M hours → treat first number as the interval */
+  const ev = f.match(/\bevery\s*(\d+)(?:\s*-\s*(\d+))?\s*hours?\b/i);
+  if (ev) return 24 / parseInt(ev[1], 10);
   const range = /^q(\d+)-(\d+)h$/i.exec(f);
   if (range) {
     const min = Number(range[1]);
