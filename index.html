@@ -2953,6 +2953,12 @@ if (!freqSameNum) {
     freqChange = true;
   }
 } else if (
+  /* Only count a wording-only difference when *both* sides
+     actually specify a frequency string.  This prevents a
+     spurious "Frequency changed" when one side is blank
+     (implicitly daily) and the other says "daily in the evening". */
+  orig.frequency &&
+  updated.frequency &&
   normalizeFrequency(orig.frequency) !== normalizeFrequency(updated.frequency) &&
   todChanged(orig, updated)
 ) {
