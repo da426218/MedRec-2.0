@@ -3120,6 +3120,21 @@ if (indicationDiff) {
     changes = changes.filter(c => c !== 'Route changed'); // or form, depending on preference
   }
 
+  /* --- CRITICAL TIME-OF-DAY RULE ------------------------------------ */
+  const criticalTodDrug =
+    ['warfarin','coumadin','apixaban','eliquis','rivaroxaban','xarelto',
+     'dabigatran','pradaxa','edoxaban','lixiana',
+     'heparin','enoxaparin','lovenox'].some(d =>
+       generic1 === d || generic2 === d
+     );
+
+  if (criticalTodDrug &&
+      !changes.includes('Time of day changed') &&
+      todChanged(orig, updated)) {
+    changes.push('Time of day changed');
+  }
+  /* -------------------------------------------------------------------- */
+
 // --- New Rule for Stat/Immediately vs. Timed Dosing ---
   const origFreqIsImmediately = norm(orig.frequency) === 'immediately';
   const updatedFreqIsDaily =
