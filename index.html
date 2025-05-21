@@ -2560,10 +2560,10 @@ function getChangeReason(orig, updated) {
   const doseUnitMatch =
     canonUnit(orig.rawUnit || orig.dose?.unit) ===
     canonUnit(updated.rawUnit || updated.dose?.unit);
-  const frequencyMatch = canon(orig.frequency) === canon(updated.frequency);
+  let frequencyMatch = canon(orig.frequency) === canon(updated.frequency);
   const freqNum1 = perDay(orig.frequency);
   const freqNum2 = perDay(updated.frequency);
-  const freqSameNum =
+  let freqSameNum =
     freqNum1 !== null && freqNum2 !== null && freqNum1 === freqNum2;
   const tokensEqual = (a,b) => {
     a = (a || []).map(norm).sort();
@@ -2776,6 +2776,19 @@ if (!qtyMatch || taperDiff || courseDiff) {
   if ((drug === 'ferrous sulfate' || drug === 'iron sulfate') &&
       doseValueMatch && changes.includes('Dose changed')) {
     changes = changes.filter(c => c !== 'Dose changed');
+  }
+
+  // Before checking frequency changes, see if numeric values match exactly.
+  const freqSame =
+    freqNumeric(orig.frequency) !== null &&
+    freqNumeric(orig.frequency) === freqNumeric(updated.frequency);
+
+  // Treat numeric equivalence as "same", even if wording differs.
+  // Also treat inhaler brand swaps as same when numeric freq equal.
+  if (freqSame || (inhaled(orig) && inhaled(updated) && freqSame)) {
+    // Prevent a Frequency flag later
+    frequencyMatch = true;
+    freqSameNum = true;
   }
 
 // --- Frequency Change ---
