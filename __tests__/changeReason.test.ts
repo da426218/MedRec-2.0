@@ -12,3 +12,10 @@ test('indication-only keeps brand switch', () => {
   const upd = parseOrder('ProAir Respiclick 90 mcg/inhalation - inhale 2 puffs q6h PRN shortness of breath');
   expect(getChangeReason(orig, upd)).toMatch(/Brand\/Generic changed/);
 });
+
+test('daily same-freq TOD only', () => {
+  const o = 'Warfarin 2.5 mg 1 tab po daily';
+  const u = 'Coumadin 2.5 mg 1 tab po daily in evening';
+  expect(getChangeReason(parseOrder(o), parseOrder(u)))
+    .toBe('Brand/Generic changed, Time of day changed');
+});
