@@ -83,4 +83,12 @@ describe('issue regressions', () => {
     expect(r).toMatch(/Time of day changed/);
     expect(r).not.toMatch(/Frequency changed/);
   });
+
+  test('Daily vs daily-in-evening shows TOD, not Frequency', () => {
+    const o = 'Warfarin 2.5 mg take 1 tab daily';
+    const u = 'Coumadin 2.5 mg take 1 tab daily in the evening';
+    const r = getChangeReason(parseOrder(o), parseOrder(u));
+    expect(r).toMatch(/Time of day changed/);
+    expect(r).not.toMatch(/Frequency changed/);
+  });
 });
