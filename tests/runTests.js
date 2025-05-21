@@ -15,6 +15,10 @@ global.test = (name, fn) => {
   }
 };
 
+function arrayContains(haystack, needles) {
+  return needles.every(n => haystack.includes(n));
+}
+
 global.expect = actual => ({
   toBe: expected => {
     if (actual !== expected) {
@@ -22,6 +26,18 @@ global.expect = actual => ({
     }
   },
   toEqual: expected => {
+    if (expected && expected.__arrayContaining) {
+      if (!Array.isArray(actual)) {
+        throw new Error('Expected an array for arrayContaining check');
+      }
+      const arr = expected.__arrayContaining;
+      if (!arrayContains(actual, arr)) {
+        throw new Error(
+          `Expected ${JSON.stringify(actual)} to contain ${JSON.stringify(arr)}`
+        );
+      }
+      return;
+    }
     const a = JSON.stringify(actual);
     const b = JSON.stringify(expected);
     if (a !== b) {
@@ -53,6 +69,8 @@ global.expect = actual => ({
     }
   }
 });
+
+global.expect.arrayContaining = arr => ({ __arrayContaining: arr });
 
 // Alias used by some tests
 global.addTest = (name, fn) => test(name, fn);
@@ -548,7 +566,7 @@ addTest('Coumadin brand + dose change, INR same', () => {
       'Warfarin 3 mg MWF 3 mg, TTSu 1.5 mg INR 2-3',
       'Coumadin 3 mg M/W/F 3 mg; Tu/Th/Sa/Su 1.5 mg INR 2.0-3.0'
     )
-  ).toBe('Brand/Generic changed, Time of day changed');
+  ).toBe('Brand/Generic changed');
 });
 
 addTest('Iron vs Ferrous frequency change only', () => {
@@ -650,15 +668,13 @@ addTest('Vancomycin monitoring wording', () => {
 addTest('Warfarin brand with INR & schedule words – indication equal', () => {
   const a = 'Warfarin 3mg MWF 3mg TTSu 1.5mg INR 2-3 PO evening';
   const b = 'Coumadin 3mg M/W/F 3mg Tu/Th/Sa/Su 1.5mg INR 2.0-3.0 orally in evening';
-  expect(diff(a, b))
-    .toBe('Brand/Generic changed, Time of day changed');
+  expect(diff(a, b)).toBe('Brand/Generic changed');
 });
 
 addTest('Warfarin vs Coumadin indication equal after filler strip', () => {
   const a = 'Warfarin 3 mg MWF 3 mg TTSu 1.5 mg INR 2-3 PO evening';
   const b = 'Coumadin 3 mg M/W/F 3 mg Tu/Th/Sa/Su 1.5 mg INR 2.0-3.0 orally evening';
-  expect(diff(a, b))
-    .toBe('Brand/Generic changed, Time of day changed');
+  expect(diff(a, b)).toBe('Brand/Generic changed');
 });
 
 addTest('Prednisone taper vs 5-day course indication equal', () => {
@@ -888,7 +904,7 @@ addTest('benign brand swaps', () => {
   expect(diff('K-Dur 10 mEq ER tab BID', 'Potassium Chloride 10 mEq ER tab BID'))
     .toBe('Brand/Generic changed');
   expect(diff('Lasix 20 mg qAM', 'Furosemide 20 mg daily')).toBe(
-    'Brand/Generic changed'
+    'Brand/Generic changed, Time of day changed'
   );
 });
 

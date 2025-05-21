@@ -2226,20 +2226,14 @@ function normalizeTimeOfDay(t) {
 
 // Determine if the time of day changed between two orders
 function todChanged(orig, updated) {
-  // look in both explicit timeOfDay and frequency strings
-  const norm = str => {
-    const raw = (str || '').toLowerCase().trim();
-    const n = normalizeTimeOfDay(raw).trim();
-    const canon = ['morning', 'evening', 'bedtime', 'noon'];
-    if (n === raw && !canon.includes(n)) return '';
-    return n;
-  };
+  // Normalize any explicit time-of-day token (qam, morning, evening, qhs …)
+  const norm = s => normalizeTimeOfDay(s || '').trim(); // "" if none
 
   const oTok = norm(orig.timeOfDay || orig.frequency);
   const uTok = norm(updated.timeOfDay || updated.frequency);
 
   if (!oTok && !uTok) return false; // neither specifies TOD
-  return oTok !== uTok; // differs → TOD changed
+  return oTok !== uTok; // tokens differ → TOD shift
 }
 
 // Compare two indication strings using the existing normalization logic.
@@ -3216,29 +3210,17 @@ if (indicationDiff) {
   (() => {
     if (!sameFrequency(orig.frequency, updated.frequency)) return;
 
-    // did a real time-of-day shift happen?
-    const scheduleDiff = !scheduleMatch &&
-      orig.scheduleTokens.length && updated.scheduleTokens.length;
-    const todShifted =
-      (todChanged(orig, updated) && !timeOfDayMatch) || scheduleDiff;
+    const todShifted = todChanged(orig, updated) && !timeOfDayMatch;
 
-    // detect Lasix/Furosemide brand–generic pairs by raw string
-    const isLasixPair = (() => {
-      const raw = s => (s.originalRaw || '').toLowerCase();
-      const hit = str => /(^|\b)(lasix|furosemide)(\b|$)/.test(str);
-      return hit(raw(orig)) && hit(raw(updated));
-    })();
-
-    // 1) always drop redundant “Frequency changed”
+    // Always drop any stray Frequency flag when numeric schedule is unchanged
     changes = changes.filter(c => c !== 'Frequency changed');
 
-    // 2) handle time-of-day tagging
-    if (todShifted && !isLasixPair) {
+    if (todShifted) {
       if (!changes.includes('Time of day changed')) {
         changes.push('Time of day changed');
       }
     } else {
-      // for Lasix pair, or if no TOD shift, remove any lingering tag
+      // No real TOD difference → remove any lingering tag
       changes = changes.filter(c => c !== 'Time of day changed');
     }
   })();

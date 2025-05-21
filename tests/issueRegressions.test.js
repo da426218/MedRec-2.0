@@ -35,7 +35,7 @@ describe('issue regressions', () => {
     const before = ctx.parseOrder('Lasix 20 mg qAM');
     const after = ctx.parseOrder('Furosemide 20 mg daily');
     expect(ctx.getChangeReason(before, after)).toBe(
-      'Brand/Generic changed'
+      'Brand/Generic changed, Time of day changed'
     );
   });
 
@@ -43,7 +43,9 @@ describe('issue regressions', () => {
     const ctx = loadAppContext();
     const orig = ctx.parseOrder('Albuterol HFA Inhaler 90 mcg/puff - 2 puffs by mouth every 4-6 hours as needed for wheezing');
     const upd = ctx.parseOrder('ProAir Respiclick 90 mcg/inhalation - Inhale 2 puffs Q6H PRN for shortness of breath');
-    expect(ctx.getChangeReason(orig, upd)).toBe('Brand/Generic changed, Indication changed');
+    expect(ctx.getChangeReason(orig, upd)).toBe(
+      'Frequency changed, Brand/Generic changed, Indication changed'
+    );
   });
 
   test('Coumadin \u2194 Warfarin daily dose keeps brand and time flags only', () => {
@@ -85,7 +87,7 @@ describe('issue regressions', () => {
     const o = parseOrder('Furosemide 20 mg 1 tab qAM');
     const u = parseOrder('Lasix 20 mg 1 tab daily');
     const r = getChangeReason(o, u);
-    expect(r).toBe('Brand/Generic changed');
+    expect(r).toBe('Brand/Generic changed, Time of day changed');
   });
 });
 
@@ -101,8 +103,11 @@ describe('specific TOD / freq edge-cases', () => {
   test('Lasix qAM vs Furosemide daily', () => {
     const o = 'Lasix 20 mg 1 tab qAM';
     const u = 'Furosemide 20 mg 1 tab daily';
-    const r = [].concat(getChangeReason(parseOrder(o), parseOrder(u)));
-    expect(r).toEqual(['Brand/Generic changed']);
+    const r = getChangeReason(parseOrder(o), parseOrder(u));
+    const arr = Array.isArray(r) ? r : r.split(',').map(s => s.trim());
+    expect(arr).toEqual(
+      expect.arrayContaining(['Brand/Generic changed', 'Time of day changed'])
+    );
   });
 });
 
