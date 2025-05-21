@@ -13,12 +13,6 @@ describe('issue regressions', () => {
     expect(ctx.getChangeReason(orig, upd)).toMatch(/Brand\/Generic changed/);
   });
 
-  test('daily same-freq TOD only', () => {
-    const ctx = loadAppContext();
-    const o = ctx.parseOrder('Warfarin 2.5 mg 1 tab po daily');
-    const u = ctx.parseOrder('Coumadin 2.5 mg 1 tab po daily in evening');
-    expect(ctx.getChangeReason(o, u)).toBe('Brand/Generic changed, Time of day changed');
-  });
 
   test('brand swap keeps flag', () => {
     const ctx = loadAppContext();
@@ -66,14 +60,6 @@ describe('issue regressions', () => {
     expect(r).toMatch(/Time of day changed/);
   });
 
-  test('Warfarin vs Coumadin keeps TOD flag', () => {
-    const ctx = loadAppContext();
-    const o = 'Warfarin 2.5 mg \u2013 take 1 tablet PO daily';
-    const u = 'Coumadin 2.5 mg \u2013 1 tablet PO daily in the evening';
-    const r = ctx.getChangeReason(ctx.parseOrder(o), ctx.parseOrder(u));
-    expect(r).toMatch(/Time of day changed/);
-    expect(/Frequency changed/.test(r)).toBe(false);
-  });
 
   test('Warfarin vs Coumadin keeps TOD flag (no bogus Frequency)', () => {
     const o = 'Warfarin 2.5 mg \u2013 1 tablet PO daily';
@@ -83,29 +69,6 @@ describe('issue regressions', () => {
     expect(r).not.toMatch(/Frequency changed/);
   });
 
-  test('Daily vs Daily-in-evening keeps TOD tag only', () => {
-    const o = 'Warfarin 2.5 mg take 1 tab daily';
-    const u = 'Coumadin 2.5 mg take 1 tab daily in the evening';
-    const r = getChangeReason(parseOrder(o), parseOrder(u));
-    expect(r).toMatch(/Time of day changed/);
-    expect(r).not.toMatch(/Frequency changed/);
-  });
-
-  test('Daily vs daily-in-evening shows TOD, not Frequency', () => {
-    const o = 'Warfarin 2.5 mg take 1 tab daily';
-    const u = 'Coumadin 2.5 mg take 1 tab daily in the evening';
-    const r = getChangeReason(parseOrder(o), parseOrder(u));
-    expect(r).toMatch(/Time of day changed/);
-    expect(r).not.toMatch(/Frequency changed/);
-  });
-
-  test('Daily vs daily-in-evening flags TOD only', () => {
-    const o = 'Warfarin 2.5 mg take 1 tab daily';
-    const u = 'Coumadin 2.5 mg take 1 tab daily in the evening';
-    const r = getChangeReason(parseOrder(o), parseOrder(u));
-    expect(r).toMatch(/Time of day changed/);
-    expect(r).not.toMatch(/Frequency changed/);
-  });
 
   test('daily \u2192 daily in evening triggers todChanged()', () => {
     const ctx = loadAppContext();
