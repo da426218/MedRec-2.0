@@ -117,6 +117,16 @@ describe('sameDrugCore', () => {
     const ctx = loadAppContext();
     expect(ctx.sameDrugCore('K-Dur', 'potassium chloride')).toBe(true);
   });
+
+  test('KDur vs potassium chloride treated as same', () => {
+    const ctx = loadAppContext();
+    expect(ctx.sameDrugCore('KDur', 'potassium chloride')).toBe(true);
+  });
+
+  test('Tylenol vs acetaminophen treated as same', () => {
+    const ctx = loadAppContext();
+    expect(ctx.sameDrugCore('Tylenol', 'acetaminophen')).toBe(true);
+  });
 });
 
 describe('parseQuantity', () => {
