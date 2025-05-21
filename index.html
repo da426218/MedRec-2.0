@@ -2919,12 +2919,10 @@ if (
 ) {
   freqChange = false;
 }
-const freqTokensEqual = tokensEqual(orig.frequencyTokens, updated.frequencyTokens);
 if (
   freqSameNum &&
   normalizeFrequency(orig.frequency) === normalizeFrequency(updated.frequency) &&
-  todChanged(orig, updated) &&
-  freqTokensEqual
+  todChanged(orig, updated)
 ) {
   freqChange = false;
 }

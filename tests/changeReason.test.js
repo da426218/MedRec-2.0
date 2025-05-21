@@ -94,4 +94,12 @@ test('Inhaler vs Respiclick brand swap flagged correctly', () => {
     );
     expect(diff).toBe('Brand/Generic changed, Time of day changed');
   });
+
+  test('Coumadin evening vs Warfarin daily \u2014 no freq change', () => {
+    const ctx = loadAppContext();
+    const o = 'Warfarin 2.5 mg 1 tab po daily';
+    const u = 'Coumadin 2.5 mg 1 tab po daily in evening';
+    const reason = ctx.getChangeReason(ctx.parseOrder(o), ctx.parseOrder(u));
+    expect(/Frequency changed/.test(reason)).toBe(false);
+  });
 });
