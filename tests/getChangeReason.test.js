@@ -18,12 +18,12 @@ describe('getChangeReason', () => {
     });
   }
 
-  test('Once-daily \u279c TID keeps frequency but drops TOD', () => {
+  test('Once-daily \u279c TID keeps frequency and flags TOD shift', () => {
     const ctx = loadAppContext();
     const o = 'Gabapentin 300 mg 1 cap at bedtime';
     const u = 'Gabapentin 300 mg 1 cap three times daily';
     const r = ctx.getChangeReason(ctx.parseOrder(o), ctx.parseOrder(u));
     expect(r).toMatch(/Frequency changed/);
-    expect(/Time of day changed/.test(r)).toBe(false);
+    expect(r).toMatch(/Time of day changed/);
   });
 });

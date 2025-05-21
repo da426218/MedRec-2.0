@@ -3208,19 +3208,26 @@ if (indicationDiff) {
 
   /* ---------- ULTIMATE TOD ↔ FREQUENCY CLEAN-UP ---------- */
   (() => {
-    if (!sameFrequency(orig.frequency, updated.frequency)) return;
+    const todShifted   = todChanged(orig, updated) && !timeOfDayMatch;
+    const freqNumeric1 = freqNumeric(orig.frequency);
+    const freqNumeric2 = freqNumeric(updated.frequency);
 
-    const todShifted = todChanged(orig, updated) && !timeOfDayMatch;
+    /* 1️⃣  – ALWAYS strip a redundant “Frequency changed” flag when:
+          • numeric schedules are equal  OR
+          • one side is missing but the other is plainly “daily”  */
+    const equalFreq =
+          sameFrequency(orig.frequency, updated.frequency) ||
+          ( (freqNumeric1 === 1 || freqNumeric2 === 1) &&
+            (freqNumeric1 == null || freqNumeric2 == null) );
 
-    // Always drop any stray Frequency flag when numeric schedule is unchanged
-    changes = changes.filter(c => c !== 'Frequency changed');
+    if (equalFreq)
+      changes = changes.filter(c => c !== 'Frequency changed');
 
+    /* 2️⃣  – If an explicit TOD token was added or removed, ensure the tag: */
     if (todShifted) {
-      if (!changes.includes('Time of day changed')) {
+      if (!changes.includes('Time of day changed'))
         changes.push('Time of day changed');
-      }
     } else {
-      // No real TOD difference → remove any lingering tag
       changes = changes.filter(c => c !== 'Time of day changed');
     }
   })();
