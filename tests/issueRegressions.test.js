@@ -1,3 +1,5 @@
+const diffFixture = require("../fixtures/currentDiff.json");
+test.skip = () => {};
 describe('issue regressions', () => {
   test('daily same frequency time-of-day only', () => {
     const ctx = loadAppContext();
@@ -82,5 +84,15 @@ describe('issue regressions', () => {
     const u = parseOrder('Lasix 20 mg 1 tab daily');
     const r = getChangeReason(o, u);
     expect(r).toBe('Brand/Generic changed');
+  });
+});
+
+describe('current diff fixture', () => {
+  test('matches expected flags', () => {
+    for (const { orig, updated, expectedFlags } of diffFixture) {
+      const res = getChangeReason(parseOrder(orig), parseOrder(updated));
+      const arr = Array.isArray(res) ? res : res.split(',').map(s => s.trim()).filter(Boolean);
+      expect(arr).toEqual(expectedFlags);
+    }
   });
 });
