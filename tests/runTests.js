@@ -93,6 +93,7 @@ global.loadAppContext = loadAppContext;
 
 require('./medDiff.test');
 require('./helpers.test');
+require('./changeReason.test');
 
 addTest('Metformin evening vs nightly time change', () => {
   const before = 'Metformin 500 mg tablet po BID';
