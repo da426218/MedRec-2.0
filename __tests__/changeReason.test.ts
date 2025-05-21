@@ -6,3 +6,9 @@ test('daily same frequency time-of-day only', () => {
   const upd = parseOrder('Metformin 500 mg tablet - take 1 tablet daily in the evening');
   expect(getChangeReason(orig, upd)).toBe('Time of day changed');
 });
+
+test('indication-only keeps brand switch', () => {
+  const orig = parseOrder('Albuterol HFA Inhaler 90 mcg/puff - 2 puffs q4-6h PRN wheezing');
+  const upd = parseOrder('ProAir Respiclick 90 mcg/inhalation - inhale 2 puffs q6h PRN shortness of breath');
+  expect(getChangeReason(orig, upd)).toMatch(/Brand\/Generic changed/);
+});
