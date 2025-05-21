@@ -888,7 +888,7 @@ addTest('benign brand swaps', () => {
   expect(diff('K-Dur 10 mEq ER tab BID', 'Potassium Chloride 10 mEq ER tab BID'))
     .toBe('Brand/Generic changed');
   expect(diff('Lasix 20 mg qAM', 'Furosemide 20 mg daily')).toBe(
-    'Brand/Generic changed'
+    'Brand/Generic changed, Time of day changed'
   );
 });
 

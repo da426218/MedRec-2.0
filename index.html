@@ -3071,27 +3071,6 @@ if (indicationDiff) {
       console.log('--- BLOCK #3 CONDITION FAILED for explicit Time of Day return ---');
   }
 
-  /* ---------- TIME-OF-DAY vs SAME-FREQUENCY GUARD ----------
-   * Block temporarily disabled to prevent premature manipulation
-   * of `changes`
-   *
-   * {
-   *   const sameNumFreq = (() => {
-   *     const n1 = freqNumeric(orig.frequency);
-   *     const n2 = freqNumeric(updated.frequency);
-   *     return n1 != null && n1 === n2;
-   *   })();
-   *
-   *   if (sameNumFreq && todChanged(orig, updated) && !timeOfDayMatch) {
-   *     / * Ensure TOD tag is present * /
-   *     if (!changes.includes('Time of day changed')) {
-   *       changes.push('Time of day changed');
-   *     }
-   *     / * …and drop the redundant freq tag * /
-   *     changes = changes.filter(c => c !== 'Frequency changed');
-   *   }
-   * }
-   * ---------------------------------------------------------- */
 
   if (changes.includes('Dose changed') && coumBrand) {
     if (doseTotalMatch || sameMgStrength(origDrugNameRaw, updatedDrugNameRaw)) {
@@ -3215,42 +3194,29 @@ if (indicationDiff) {
     changes = changes.filter(c => c !== 'Frequency changed');
   }
 
-  /* ---------- FINAL TOD vs FREQ SANITY PASS ---------- */
-  {
-    const sameNumericFreq = (() => {
-      const n1 = freqNumeric(orig.frequency);
-      const n2 = freqNumeric(updated.frequency);
-      return n1 != null && n1 === n2;
+  /* ---------- ULTIMATE TOD ↔ FREQUENCY CLEAN-UP ---------- */
+  (() => {
+    const sameNumericFreq =
+      freqNumeric(orig.frequency) != null &&
+      freqNumeric(orig.frequency) === freqNumeric(updated.frequency);
+
+    const todActuallyChanged = todChanged(orig, updated) && !timeOfDayMatch;
+
+    const isLasixPair = (() => {
+      const lasixTokens = ['lasix', 'furosemide'];
+      const brandTokens = tokens => (tokens || []).some(t => lasixTokens.includes(t));
+      return brandTokens(orig.brandTokens) && brandTokens(updated.brandTokens);
     })();
 
-    if (sameNumericFreq && todChanged(orig, updated) && !timeOfDayMatch) {
-      const isLasixPair = (() => {
-        const lasixish = d => /\b(lasix|furosemide)\b/i.test(d || '');
-        if (!(lasixish(orig.drug) && lasixish(updated.drug))) return false;
-
-        const todHint = ord => {
-          const fromFreq = normalizeTimeOfDay(ord.frequency);
-          const fromTod = normalizeTimeOfDay(ord.timeOfDay);
-          return fromFreq || fromTod;
-        };
-
-        const oHint = todHint(orig);
-        const uHint = todHint(updated);
-
-        return !oHint || !uHint || oHint === uHint;
-      })();
-
-      if (!isLasixPair) {
-        // Ensure TOD tag present
-        if (!changes.includes('Time of day changed')) {
-          changes.push('Time of day changed');
-        }
+    if (sameNumericFreq && todActuallyChanged && !isLasixPair) {
+      if (!changes.includes('Time of day changed')) {
+        changes.push('Time of day changed');
       }
-      // Drop redundant frequency tag
       changes = changes.filter(c => c !== 'Frequency changed');
     }
-  }
-  /* ---------------------------------------------------- */
+  })();
+  /* ------------------------------------------------------- */
+
   if (changes.length === 0) return 'Unchanged'; // Default to Unchanged if no specific diffs were added
   if (changes.length === 1) return changes[0];
   if (changes.length <= 4) { // List up to 4 specific changes
