@@ -3114,6 +3114,15 @@ if (indicationDiff) {
       changes = changes.filter(c => c !== 'Time of day changed');
     }
   }
+
+  /* ——— NEW: drop a bogus Frequency-changed when both sides normalise
+              to the *same* frequency ——— */
+  if (
+    changes.includes('Frequency changed') &&
+    normalizeFrequency(orig.frequency) === normalizeFrequency(updated.frequency)
+  ) {
+    changes = changes.filter(c => c !== 'Frequency changed');
+  }
   // ────────────────────────────────────────────────────────────────
   // collapse inhaler form/route double-hit
   if (changes.includes('Form changed') && changes.includes('Route changed') && inhaled(orig) && inhaled(updated)) { // check if both are inhaled
