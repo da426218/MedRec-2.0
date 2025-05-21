@@ -73,6 +73,26 @@ describe('freqNumeric', () => {
     const ctx = loadAppContext();
     expect(ctx.freqNumeric('')).toBe(1);
   });
+
+  test('"daily in evening" normalizes to daily', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeFrequency('daily in evening')).toBe('daily');
+  });
+
+  test('"daily in the evening" normalizes to daily', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeFrequency('daily in the evening')).toBe('daily');
+  });
+
+  test('"daily in morning" normalizes to daily', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeFrequency('daily in morning')).toBe('daily');
+  });
+
+  test('"daily at noon" normalizes to daily', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeFrequency('daily at noon')).toBe('daily');
+  });
 });
 
 describe('todChanged', () => {
