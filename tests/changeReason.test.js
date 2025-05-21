@@ -44,4 +44,16 @@ describe('getChangeReason', () => {
     const result = ctx.getChangeReason(before, after);
     expect(result).toBe('Brand/Generic changed');
   });
+
+  test('Inhaler vs Respiclick brand swap flagged correctly', () => {
+    const ctx = loadAppContext();
+    const before = ctx.parseOrder(
+      'Albuterol HFA 90 mcg 2 puffs PRN'
+    );
+    const after = ctx.parseOrder(
+      'ProAir 90 mcg 2 puffs PRN'
+    );
+    const result = ctx.getChangeReason(before, after);
+    expect(result).toBe('Brand/Generic changed');
+  });
 });
