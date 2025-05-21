@@ -58,4 +58,13 @@ describe('issue regressions', () => {
     const r = ctx.getChangeReason(ctx.parseOrder(o), ctx.parseOrder(u));
     expect(r).toMatch(/Time of day changed/);
   });
+
+  test('Warfarin vs Coumadin keeps TOD flag', () => {
+    const ctx = loadAppContext();
+    const o = 'Warfarin 2.5 mg \u2013 take 1 tablet PO daily';
+    const u = 'Coumadin 2.5 mg \u2013 1 tablet PO daily in the evening';
+    const r = ctx.getChangeReason(ctx.parseOrder(o), ctx.parseOrder(u));
+    expect(r).toMatch(/Time of day changed/);
+    expect(/Frequency changed/.test(r)).toBe(false);
+  });
 });
