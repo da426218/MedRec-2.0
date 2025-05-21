@@ -3101,6 +3101,20 @@ if (indicationDiff) {
   ) {
     changes = changes.filter(c => c !== 'Time of day changed');
   }
+
+  // ── NEW CLEANUP: drop redundant Time-of-day flag ────────────────
+  if (
+    changes.includes('Frequency changed') &&
+    changes.includes('Time of day changed')
+  ) {
+    const onceDaily = ['daily', 'qam', 'qpm', 'qhs', 'hs', 'nightly'];
+    const f1 = canon(orig.frequency);
+    const f2 = canon(updated.frequency);
+    if (!onceDaily.includes(f1) || !onceDaily.includes(f2)) {
+      changes = changes.filter(c => c !== 'Time of day changed');
+    }
+  }
+  // ────────────────────────────────────────────────────────────────
   // collapse inhaler form/route double-hit
   if (changes.includes('Form changed') && changes.includes('Route changed') && inhaled(orig) && inhaled(updated)) { // check if both are inhaled
     changes = changes.filter(c => c !== 'Route changed'); // or form, depending on preference
