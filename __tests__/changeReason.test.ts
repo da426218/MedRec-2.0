@@ -26,3 +26,10 @@ test('brand swap keeps flag', () => {
   expect(getChangeReason(parseOrder(o), parseOrder(u)))
     .toMatch(/Brand\/Generic changed/);
 });
+
+test('ProAir vs Albuterol flags brand change', () => {
+  const o = 'Albuterol HFA Inhaler 90 mcg 2 puffs q4-6h PRN wheeze';
+  const u = 'ProAir Respiclick 90 mcg inhale 2 puffs q6h PRN sob';
+  expect(getChangeReason(parseOrder(o), parseOrder(u)))
+    .toMatch(/Brand\/Generic changed/);
+});

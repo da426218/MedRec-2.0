@@ -2516,6 +2516,22 @@ function getChangeReason(orig, updated) {
   const leftHasBrand  = (orig.brandTokens || []).length > 0;
   const rightHasBrand = (updated.brandTokens || []).length > 0;
 
+  /* ---------- extra brand/generic guard ---------- */
+  if (!changes.includes('Brand/Generic changed')) {
+    const sameGeneric = norm(orig.drug) === norm(updated.drug);
+    const lt = (orig.brandTokens || [])[0] || '';
+    const rt = (updated.brandTokens || [])[0] || '';
+    if (
+      rawNamesDiffer &&
+      sameGeneric &&
+      (leftHasBrand || rightHasBrand) &&
+      !benignBrandSet.has(lt) &&
+      !benignBrandSet.has(rt)
+    ) {
+      changes.push('Brand/Generic changed');
+    }
+  }
+
   const sameMgStrength = (a, b) => {
     const grab = s => {
       const m = (s || '').match(/(\d+(?:\.\d+)?)\s*mg\b/i);
