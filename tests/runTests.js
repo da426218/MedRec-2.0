@@ -873,3 +873,11 @@ addTest('benign brand swaps', () => {
     'Brand/Generic changed'
   );
 });
+
+addTest('cholesterol vs hyperlipidemia indication equal', () => {
+  const before =
+    'Atorvastatin 20 mg tablet - take 1 tab daily for cholesterol';
+  const after =
+    'Atorvastatin 20 mg tablet - take 1 tab daily for hyperlipidemia';
+  expect(diff(before, after)).toBe('');
+});
