@@ -2967,9 +2967,10 @@ if (indicationDiff) {
 }
  
 // 2) **Indication-only**
-  if (
+  if (!tokensEqual(orig.brandTokens, updated.brandTokens)) {
+    // brand or generic difference - skip this shortcut
+  } else if (
     drugNameMatchStrict && // Use the strict substance name match
-    tokensEqual(orig.brandTokens, updated.brandTokens) && // ensure no brand swap
     doseTotalMatch &&     // Use total dose for comparison
     doseUnitMatch &&
     qtyMatch &&           // Check quantity
