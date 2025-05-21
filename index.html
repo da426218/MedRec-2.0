@@ -548,11 +548,19 @@ footer a:hover {
     }
   }
 
+  function loadOptionalConfig() {
+    return fetch('config.json', { cache: 'no-store' })
+      .then(res => {
+        if (!res.ok) return null;
+        return res.json().catch(() => null);
+      })
+      .catch(() => null);
+  }
+
   if (typeof window !== 'undefined' && window.fetch) {
-    fetch('config.json')
-      .then(res => res.json())
-      .then(applyConfig)
-      .catch(err => console.error('Failed to load config.json', err));
+    loadOptionalConfig()
+      .then(cfg => { if (cfg) applyConfig(cfg); })
+      .catch(() => {});
   }
 </script>
 
