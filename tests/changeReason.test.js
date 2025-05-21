@@ -16,4 +16,16 @@ describe('getChangeReason', () => {
     const result = ctx.getChangeReason(before, after);
     expect(/Frequency changed/.test(result)).toBe(false);
   });
+
+  test('Inhaler brand swap not flagged as frequency change', () => {
+    const ctx = loadAppContext();
+    const before = ctx.parseOrder(
+      'Albuterol HFA inhaler 90 mcg/puff - 2 puffs q6h as needed'
+    );
+    const after = ctx.parseOrder(
+      'ProAir HFA inhaler 90 mcg/puff - 2 puffs q6h prn'
+    );
+    const result = ctx.getChangeReason(before, after);
+    expect(result).toBe('Brand/Generic changed');
+  });
 });
