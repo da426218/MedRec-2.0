@@ -1655,6 +1655,15 @@ function hasContra(orderObj, wholeList = []) {
       });
     });
 
+    // Extra brand spellings not captured above
+    Object.assign(brandToGenericMap, {
+      'k dur': 'potassium chloride',
+      'k-dur': 'potassium chloride',
+      kdur: 'potassium chloride',
+      'tiotropium bromide': 'tiotropium',
+      'fluticasone propionate': 'fluticasone'
+    });
+
     // ——— Map every generic to its brands ———
   const genericToBrandMap = {};
   Object.entries(brandToGenericMap).forEach(([brand, generic]) => {
@@ -1662,22 +1671,6 @@ function hasContra(orderObj, wholeList = []) {
     genericToBrandMap[generic].push(brand);
   });
 
-  const brandSynonyms = {
-    spiriva: 'tiotropium',
-    'tiotropium bromide': 'tiotropium',
-    novolog: 'insulin aspart',
-    humalog: 'insulin lispro',
-    hctz: 'hydrochlorothiazide',
-    'fluticasone propionate': 'fluticasone',
-    lipitor:        'atorvastatin',
-    lantus:         'insulin glargine',
-    claritin:       'loratadine',
-    synthroid:      'levothyroxine',
-    fosamax:        'alendronate',
-    coumadin:       'warfarin',
-    'klor-con':     'potassium chloride',
-    tylenol:        'acetaminophen'
-  };
 
   const ignoreSalts = /\b(hydrochloride|sulfate|phosphate|acetate|carbonate|maleate|succinate|tartrate|mesylate|besylate|camsylate|gluconate|bitartrate|edisylate|propionate|sodium|potassium|calcium|magnesium|fumarate)\b/gi;
   const trivialSalts = /\b(sodium|hydrochloride|sulfate|phosphate|acetate|carbonate|succinate|maleate|tartrate|mesylate|besylate|camsylate|gluconate|bitartrate|edisylate|propionate|potassium|calcium|magnesium|fumarate)\b/gi;
@@ -1693,6 +1686,7 @@ function hasContra(orderObj, wholeList = []) {
     hydrochlorothiazide: 'hydrochlorothiazide'
   };
   genericSynonyms['tiotropium bromide'] = 'tiotropium';
+  genericSynonyms['fluticasone propionate'] = 'fluticasone';
   genericSynonyms['kcl'] = 'potassium chloride';
   genericSynonyms['iron'] = 'ferrous';
   genericSynonyms['iron sulfate'] = 'ferrous sulfate';
@@ -1718,21 +1712,11 @@ function hasContra(orderObj, wholeList = []) {
         });
       }
 
-      for (const syn in brandSynonyms) {
+      // Apply generic synonyms after brand replacements
+      for (const syn in genericSynonyms) {
         const reSyn = new RegExp('\\b' + syn + '\\b', 'gi');
-        n = n.replace(reSyn, match => {
-          const token = match.toLowerCase();
-          if (brandTok.length === 0 && !brandTok.includes(token)) {
-            brandTok.push(token);
-          }
-          return brandSynonyms[syn];
-        });
+        n = n.replace(reSyn, genericSynonyms[syn]);
       }
-    // Apply generic synonyms after brand replacements
-    for (const syn in genericSynonyms) {
-      const reSyn = new RegExp('\\b' + syn + '\\b', 'gi');
-      n = n.replace(reSyn, genericSynonyms[syn]);
-    }
 
     // normalize common formulation abbreviations early
     n = n.replace(/\b(xl|xr)\b/, 'er');
@@ -2430,20 +2414,6 @@ function inhaled(parsedOrder) {
     return false;
 }
 
-// One-to-one brand/generic pairs used for quick same-drug checks
-const brandPairs = {
-  lasix: 'furosemide',
-  coumadin: 'warfarin',
-  lipitor: 'atorvastatin',
-  proair: 'albuterol',
-  'k dur': 'potassium chloride',
-  'k-dur': 'potassium chloride',
-  kdur: 'potassium chloride',
-  basaglar: 'insulin glargine',
-  humalog: 'insulin lispro',
-  novolog: 'insulin aspart',
-  tylenol: 'acetaminophen'
-};
 const benignBrandSet = new Set(['k-dur']);
 
 const coreName = n => (n||'')
@@ -2454,13 +2424,13 @@ const coreName = n => (n||'')
   .replace(/\s+/g, ' ')
   .trim();
 
-// Compare two raw drug strings using brandPairs and normalized core names
+// Compare two raw drug strings using brandToGenericMap and normalized core names
 function sameDrugCore(a, b) {
   const x = coreName(a);
   const y = coreName(b);
   if (x === y) return true;
-  if (brandPairs[x] && brandPairs[x] === y) return true;
-  if (brandPairs[y] && brandPairs[y] === x) return true;
+  if (brandToGenericMap[x] && brandToGenericMap[x] === y) return true;
+  if (brandToGenericMap[y] && brandToGenericMap[y] === x) return true;
   return false;
 }
 
