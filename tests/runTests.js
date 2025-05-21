@@ -127,7 +127,7 @@ require('./issueRegressions.test');
 addTest('Metformin evening vs nightly time change', () => {
   const before = 'Metformin 500 mg tablet po BID';
   const after = 'Metformin 500 mg tablet - take 1 tab every morning';
-  expect(diff(before, after)).toBe('Frequency changed');
+  expect(diff(before, after)).toBe('Frequency changed, Time of day changed');
 });
 
 addTest('Vitamin D brand/generic without formulation change', () => {

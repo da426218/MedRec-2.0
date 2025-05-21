@@ -161,8 +161,11 @@ describe('Medication comparison', () => {
     const ctx = loadAppContext();
     const before = 'Metformin 500 mg tablet po BID';
     const after = 'Metformin 500 mg tablet - take 1 tab every morning';
-    const result = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
-    expect(result).toBe('Frequency changed');
+    const result = ctx.getChangeReason(
+      ctx.parseOrder(before),
+      ctx.parseOrder(after)
+    );
+    expect(result).toBe('Frequency changed, Time of day changed');
   });
 
   test('does not flag formulation on K-Dur vs KCl ER', () => {
