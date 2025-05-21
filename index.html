@@ -2198,12 +2198,14 @@ function normalizeTimeOfDay(t) {
     'in the morning': 'morning',
     'daily in morning': 'morning',
     evening: 'evening',
+    evenings: 'evening',
     pm: 'evening',
     qpm: 'evening',
     'every evening': 'evening',
     'daily in evening': 'evening',
     'in evening': 'evening',
     'in the evening': 'evening',
+    'in the evenings': 'evening',
     'in the pm': 'evening',
     bedtime: 'bedtime',
     night: 'bedtime',
@@ -2277,6 +2279,7 @@ function getFrequencyMap() {
     qid: 'qid',
     'every other day': 'every other day',
     qod: 'every other day',
+    'every 4-6h': 'q4-6h',
     'every 4-6 hours': 'q4-6h',
     'every 4 to 6 hours': 'q4-6h',
     stat: 'immediately',
@@ -3233,6 +3236,19 @@ if (indicationDiff) {
   })();
   /* ------------------------------------------------------- */
 
+  /* ----- final sweep: kill bogus Frequency tag after TOD shift ----- */
+  (() => {
+    const num1 = freqNumeric(orig.frequency);
+    const num2 = freqNumeric(updated.frequency);
+    const numericUnchanged =
+      num1 === num2 ||
+      ((num1 === 1 || num2 === 1) && (num1 == null || num2 == null));
+
+    if (todChanged(orig, updated) && numericUnchanged) {
+      changes = changes.filter(c => c !== 'Frequency changed');
+    }
+  })();
+
   if (changes.length === 0) return 'Unchanged'; // Default to Unchanged if no specific diffs were added
   if (changes.length === 1) return changes[0];
   if (changes.length <= 4) { // List up to 4 specific changes
@@ -3569,6 +3585,25 @@ if (order.timeOfDay && !order.frequency) {
     }
     // console.log(`DEBUG parseOrder Step 1 (Implied Freq): tod="${order.timeOfDay}", freq="${order.frequency}"`);
 }
+
+  /* When a TOD token *was* extracted, strip that same wording from the
+     frequency string so "daily in the evening" becomes just "daily". */
+  if (order.timeOfDay && order.frequency) {
+      const todWords = [
+        'morning', 'evening', 'night', 'bedtime', 'noon',
+        'in the morning', 'in the evening', 'in the night'
+      ];
+      const reTOD = new RegExp('\\b(?:' + todWords.join('|') + ')\\b', 'gi');
+      order.frequency = order.frequency.replace(reTOD, '').trim();
+
+      // Remove duplicate whitespace or leftover fillers
+      order.frequency = order.frequency
+          .replace(/\s{2,}/g, ' ')
+          .replace(/^\b(at|around)\b\s*/i, '')
+          .trim();
+
+      if (!order.frequency) order.frequency = 'daily';
+  }
 // After handling weekly vs daily, catch phrases like "2 times a day"
 if (!order.frequency) {
   const m = orderStr.match(/(\d)\s*times\s+(?:a|per)\s+(?:day|daily)\b/i);
