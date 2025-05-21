@@ -2198,12 +2198,14 @@ function normalizeTimeOfDay(t) {
     'in the morning': 'morning',
     'daily in morning': 'morning',
     evening: 'evening',
+    evenings: 'evening',
     pm: 'evening',
     qpm: 'evening',
     'every evening': 'evening',
     'daily in evening': 'evening',
     'in evening': 'evening',
     'in the evening': 'evening',
+    'in the evenings': 'evening',
     'in the pm': 'evening',
     bedtime: 'bedtime',
     night: 'bedtime',
@@ -3232,6 +3234,19 @@ if (indicationDiff) {
     }
   })();
   /* ------------------------------------------------------- */
+
+  /* ----- final sweep: kill bogus Frequency tag after TOD shift ----- */
+  (() => {
+    const num1 = freqNumeric(orig.frequency);
+    const num2 = freqNumeric(updated.frequency);
+    const numericUnchanged =
+      num1 === num2 ||
+      ((num1 === 1 || num2 === 1) && (num1 == null || num2 == null));
+
+    if (todChanged(orig, updated) && numericUnchanged) {
+      changes = changes.filter(c => c !== 'Frequency changed');
+    }
+  })();
 
   if (changes.length === 0) return 'Unchanged'; // Default to Unchanged if no specific diffs were added
   if (changes.length === 1) return changes[0];

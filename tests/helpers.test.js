@@ -117,6 +117,16 @@ describe('normalizeTimeOfDay', () => {
     const ctx = loadAppContext();
     expect(ctx.normalizeTimeOfDay('midday')).toBe('noon');
   });
+
+  test('plural evenings normalize to evening', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeTimeOfDay('evenings')).toBe('evening');
+  });
+
+  test('"in the evenings" normalizes to evening', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeTimeOfDay('in the evenings')).toBe('evening');
+  });
 });
 
 describe('canonFormulation comparisons', () => {
