@@ -382,21 +382,21 @@ addTest('Klor-Con brand only', () => {
 addTest('Tylenol brand flag', () => {
   const b = 'Tylenol 500 mg 2 tabs PO q6h prn pain';
   const a = 'Acetaminophen 1000 mg tab PO every 6 hours as needed for pain';
-  expect(diff(b, a)).toBe('Dose changed, Quantity changed, Brand/Generic changed');
+  expect(diff(b, a)).toBe('Dose changed, Brand/Generic changed, Quantity changed');
 });
 
 addTest('Implicit tablet form same', () => {
   const before = 'Tylenol 500 mg 2 tabs PO q6h prn pain';
   const after  = 'Acetaminophen 1000 mg PO every 6 hours as needed for pain';
   expect(diff(before, after))
-    .toBe('Dose changed, Quantity changed, Brand/Generic changed');
+    .toBe('Dose changed, Brand/Generic changed, Quantity changed');
 });
 
 addTest('Tabs vs no form equal', () => {
   const before = 'Tylenol 500 mg 2 tabs po q6h prn pain';
   const after  = 'Acetaminophen 1000 mg po every 6 h as needed for pain';
   expect(diff(before, after))
-    .toBe('Dose changed, Quantity changed, Brand/Generic changed');
+    .toBe('Dose changed, Brand/Generic changed, Quantity changed');
 });
 
 addTest('Metoprolol XL vs ER unchanged', () => {
@@ -875,7 +875,7 @@ addTest('benign brand swaps', () => {
   expect(diff('ProAir 90 mcg 2 puffs PRN', 'Albuterol HFA 90 mcg 2 puffs PRN'))
     .toBe('Brand/Generic changed');
   expect(diff('K-Dur 10 mEq ER tab BID', 'Potassium Chloride 10 mEq ER tab BID'))
-    .toBe('');
+    .toBe('Brand/Generic changed');
   expect(diff('Lasix 20 mg qAM', 'Furosemide 20 mg daily')).toBe(
     'Brand/Generic changed'
   );

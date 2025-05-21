@@ -2463,6 +2463,10 @@ function getChangeReason(orig, updated) {
   const base1 = stripStrength(orig.drug);
   const base2 = stripStrength(updated.drug);
 
+  const leftHasBrand  = (orig.brandTokens || []).length > 0;
+  const rightHasBrand = (updated.brandTokens || []).length > 0;
+
+
   const generic1 = brandToGenericMap[base1] || coreDrugName(base1);
   const generic2 = brandToGenericMap[base2] || coreDrugName(base2);
 
@@ -2480,6 +2484,19 @@ function getChangeReason(orig, updated) {
     !changes.includes('Brand/Generic changed')
   ) {
     changes.push('Brand/Generic changed');
+  }
+
+  /* Capture Brand ↔ Generic when the underlying substance matches
+     (e.g. ProAir ↔ Albuterol).  Use core names so salts/HFA/etc. are
+     ignored. */
+  const substance1 = brandToGenericMap[gen1] || gen1;
+  const substance2 = brandToGenericMap[gen2] || gen2;
+  if (
+    substance1 === substance2 &&
+    leftHasBrand !== rightHasBrand &&
+    !changes.includes('Brand/Generic changed')
+  ) {
+    add('Brand/Generic changed');
   }
 
   const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
@@ -2520,9 +2537,6 @@ function getChangeReason(orig, updated) {
   const drugNameMatchStrict = origDrugNorm === updatedDrugNorm; // Based on fully normalized names (substance match)
   // New: direct raw-name comparison for certain brand/generic swaps
   const rawNamesDiffer = norm(origDrugNameRaw) !== norm(updatedDrugNameRaw);
-
-  const leftHasBrand  = (orig.brandTokens || []).length > 0;
-  const rightHasBrand = (updated.brandTokens || []).length > 0;
 
   /* ---------- extra brand/generic guard ---------- */
   if (!changes.includes('Brand/Generic changed')) {
@@ -3126,7 +3140,20 @@ if (indicationDiff) {
   if (changes.length === 1) return changes[0];
   if (changes.length <= 4) { // List up to 4 specific changes
       // Prioritize more significant changes if too many minor ones
-      const priorityOrder = ["Dose changed", "Frequency changed", "Formulation changed", "Quantity changed", "Brand/Generic changed", "Route changed", "Administration changed", "Form changed", "PRN changed", "Indication changed", "Date changed", "End Date changed", "Time of day changed"];
+      const priorityOrder = [
+        'Dose changed',
+        'Frequency changed',
+        'Formulation changed',
+        'Brand/Generic changed',
+        'Quantity changed',
+        'Route changed',
+        'Form changed',
+        'Time of day changed',
+        'Administration changed',
+        'Indication changed',
+        'Date changed',
+        'End Date changed'
+      ];
       changes.sort((a, b) => {
           let idxA = priorityOrder.indexOf(a);
           let idxB = priorityOrder.indexOf(b);
