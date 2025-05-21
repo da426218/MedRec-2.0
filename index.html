@@ -2808,9 +2808,27 @@ if (!qtyMatch || taperDiff || courseDiff) {
     freqNumeric(orig.frequency) === freqNumeric(updated.frequency);
 
   // Treat numeric equivalence as "same", even if wording differs.
-  // Also treat inhaler brand swaps as same when numeric freq equal.
-  if (freqSame || (inhaled(orig) && inhaled(updated) && freqSame)) {
-    // Prevent a Frequency flag later
+  if (freqSame) {
+    frequencyMatch = true;
+    freqSameNum = true;
+  }
+
+  // Inhaler brand swaps with equal numeric frequency should not flag a change
+  if (
+    inhaled(orig) &&
+    inhaled(updated) &&
+    freqNumeric(orig.frequency) === freqNumeric(updated.frequency)
+  ) {
+    frequencyMatch = true;
+    freqSameNum = true;
+  }
+
+  // Daily vs daily with only time-of-day difference shouldn't flag frequency
+  if (
+    canon(orig.frequency, orig.originalRaw) === 'daily' &&
+    canon(updated.frequency, updated.originalRaw) === 'daily' &&
+    todChanged(orig, updated)
+  ) {
     frequencyMatch = true;
     freqSameNum = true;
   }
@@ -2869,7 +2887,7 @@ if (orig.prn !== updated.prn) {
 } else if (
   orig.prn &&
   updated.prn &&
-  orig.prnCondition !== updated.prnCondition &&
+  normalizeIndication(orig.prnCondition) !== normalizeIndication(updated.prnCondition) &&
   !changes.includes('Indication changed')
 ) {
   changes.push('Indication changed');
