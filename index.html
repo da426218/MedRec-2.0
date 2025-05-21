@@ -2960,6 +2960,7 @@ if (indicationDiff) {
 // 2) **Indication-only**
   if (
     drugNameMatchStrict && // Use the strict substance name match
+    tokensEqual(orig.brandTokens, updated.brandTokens) && // ensure no brand swap
     doseTotalMatch &&     // Use total dose for comparison
     doseUnitMatch &&
     qtyMatch &&           // Check quantity
