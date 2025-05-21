@@ -104,7 +104,7 @@ addTest('Metformin evening vs nightly time change', () => {
 addTest('Vitamin D brand/generic without formulation change', () => {
   const before = 'Cholecalciferol 5000 IU softgel - One weekly';
   const after = 'Vitamin D3 2000 units capsule - One daily';
-  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Form changed');
+  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Brand/Generic changed, Form changed');
 });
 
 addTest('Fluticasone spray dose total', () => {
@@ -158,7 +158,7 @@ addTest('Alprazolam PRN change detected', () => {
 addTest('Vitamin D change list enumerated', () => {
   const before = 'Cholecalciferol 5000 IU softgel – One weekly';
   const after = 'Vitamin D3 2000 units capsule – One daily';
-  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Form changed');
+  expect(diff(before, after)).toBe('Dose changed, Frequency changed, Brand/Generic changed, Form changed');
 });
 
 addTest('Clonidine enumerate changes', () => {
@@ -180,7 +180,7 @@ addTest('Spiriva brand/generic flag', () => {
     'Tiotropium Bromide (Spiriva HandiHaler) 18mcg capsule - Inhale contents of one capsule via HandiHaler once daily';
   const after =
     'Spiriva Respimat 2.5mcg/actuation - 2 inhalations once daily';
-  expect(diff(before, after)).toBe('Dose changed, Form changed');
+  expect(diff(before, after)).toBe('Dose changed, Brand/Generic changed, Form changed');
 });
 
 addTest('HCTZ abbreviation no brand flag', () => {

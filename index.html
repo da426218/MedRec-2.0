@@ -2543,6 +2543,30 @@ function getChangeReason(orig, updated) {
       add('Brand/Generic changed');
     }
   }
+  // Detect brand substitution when both sides specify different brand tokens
+  if (
+    generic1 === generic2 &&
+    leftHasBrand &&
+    rightHasBrand
+  ) {
+    const set1 = new Set((orig.brandTokens || []).map(t => t.toLowerCase()));
+    const set2 = new Set((updated.brandTokens || []).map(t => t.toLowerCase()));
+    let brandDiff = false;
+    if (set1.size !== set2.size) {
+      brandDiff = true;
+    } else {
+      for (const t of set1) {
+        if (!set2.has(t)) { brandDiff = true; break; }
+      }
+    }
+    if (brandDiff) {
+      const lt = (orig.brandTokens || [])[0] || '';
+      const rt = (updated.brandTokens || [])[0] || '';
+      if (!benignBrandSet.has(lt) && !benignBrandSet.has(rt)) {
+        add('Brand/Generic changed');
+      }
+    }
+  }
   const same = (a,b) => (!a && !b) || a===b;
   const sameRoute = (r1, r2) => {
     const normalize = s => (s || '').toLowerCase().trim();
