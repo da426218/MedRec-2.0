@@ -93,6 +93,18 @@ describe('todChanged', () => {
   });
 });
 
+describe('normalizeTimeOfDay', () => {
+  test('"noon" normalizes to noon', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeTimeOfDay('noon')).toBe('noon');
+  });
+
+  test('"midday" normalizes to noon', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeTimeOfDay('midday')).toBe('noon');
+  });
+});
+
 describe('canonFormulation comparisons', () => {
   test('ER vs extended release not flagged', () => {
     const ctx = loadAppContext();

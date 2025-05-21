@@ -2211,7 +2211,10 @@ function normalizeTimeOfDay(t) {
     nightly: 'bedtime',
     'at bedtime': 'bedtime',
     'at night': 'bedtime',
-    'every night': 'bedtime'
+    'every night': 'bedtime',
+    noon: 'noon',
+    'midday': 'noon',
+    'at noon': 'noon'
   };
   t = t.toLowerCase().trim();
   if (aliases[t]) return aliases[t];
@@ -2224,7 +2227,9 @@ function normalizeTimeOfDay(t) {
 // Determine if one side explicitly specifies a time of day while the other does not
 function todChanged(o, u) {
   const tag = s =>
-    /(?:\b(am|pm|morning|evening|bedtime|q(?:am|pm|hs))\b)/i.test(s || '');
+    /(?:\b(am|pm|noon|midday|morning|evening|bedtime|q(?:am|pm|hs))\b)/i.test(
+      s || ''
+    );
   const explicit = ord =>
     tag(ord.frequency) || normalizeTimeOfDay(ord.timeOfDay) !== '';
   return explicit(o) !== explicit(u);
@@ -3531,6 +3536,8 @@ const timeOfDayMappings = [
   // General "morning" - its frequency will be defaulted to 'daily' later if not set by a more specific rule above
   { regex: /\b(in\s+the\s+)?morning\b/i, timeOfDay: 'morning', originalTermRegexPos: 0 },
 
+  { regex: /\b(?:at\s+)?(?:noon|midday)\b/i, timeOfDay: 'noon', frequency: 'daily', originalTermRegexPos: 0 },
+
   { regex: /\bqpm\b/i, timeOfDay: 'evening', frequency: 'daily', originalTerm: 'qpm' },
   { regex: /\bevery\s+evening\b/i, timeOfDay: 'evening', frequency: 'daily', originalTermRegexPos: 0 },
   // General "evening" - its frequency will be defaulted to 'daily' later
@@ -4134,7 +4141,53 @@ instructionWords.forEach(word => {
           }
       }
 // Remove common route/frequency/formulation remnants if they are at the very end or beginning
-const trailingRemnants = ['po', 'by mouth', 'oral', 'sublingual', 'sl', 'iv', 'im', 'sc', 'subq', 'topical', 'daily', 'bid', 'tid', 'qid', 'qhs', 'prn', 'er', 'xr', 'sr', 'dr', 'odt', 'solution', 'suspension', 'ointment', 'cream', 'gel', 'patch', 'inhaler', 'for', 'with', 'at', 'and', 'as needed', 'if needed', 'in morning', 'in evening', 'at bedtime', 'unit', 'units', 'mcg', 'mg', 'ml', 'meq', 'iu'];
+const trailingRemnants = [
+  'po',
+  'by mouth',
+  'oral',
+  'sublingual',
+  'sl',
+  'iv',
+  'im',
+  'sc',
+  'subq',
+  'topical',
+  'daily',
+  'bid',
+  'tid',
+  'qid',
+  'qhs',
+  'prn',
+  'er',
+  'xr',
+  'sr',
+  'dr',
+  'odt',
+  'solution',
+  'suspension',
+  'ointment',
+  'cream',
+  'gel',
+  'patch',
+  'inhaler',
+  'for',
+  'with',
+  'at',
+  'and',
+  'as needed',
+  'if needed',
+  'in morning',
+  'in evening',
+  'at bedtime',
+  'at noon',
+  'unit',
+  'units',
+  'mcg',
+  'mg',
+  'ml',
+  'meq',
+  'iu'
+];
 trailingRemnants.forEach(remnant => {
     // Regex to match whole word at start or end, mindful of multi-word remnants
     const remnantPatternStart = new RegExp(`^${remnant.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s+|\\b|$)`, 'i');
