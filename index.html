@@ -2198,12 +2198,14 @@ function normalizeTimeOfDay(t) {
     'in the morning': 'morning',
     'daily in morning': 'morning',
     evening: 'evening',
+    evenings: 'evening',
     pm: 'evening',
     qpm: 'evening',
     'every evening': 'evening',
     'daily in evening': 'evening',
     'in evening': 'evening',
     'in the evening': 'evening',
+    'in the evenings': 'evening',
     'in the pm': 'evening',
     bedtime: 'bedtime',
     night: 'bedtime',
@@ -2967,6 +2969,10 @@ if (
   normalizeFrequency(orig.frequency) === normalizeFrequency(updated.frequency) &&
   todChanged(orig, updated)
 ) {
+  freqChange = false;
+}
+// If the schedules are numerically the same, never call it a frequency change
+if (sameFrequency(orig.frequency, updated.frequency)) {
   freqChange = false;
 }
 if (freqChange) add('Frequency changed');
