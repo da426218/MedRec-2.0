@@ -67,4 +67,12 @@ describe('issue regressions', () => {
     expect(r).toMatch(/Time of day changed/);
     expect(/Frequency changed/.test(r)).toBe(false);
   });
+
+  test('Warfarin vs Coumadin keeps TOD flag (no bogus Frequency)', () => {
+    const o = 'Warfarin 2.5 mg \u2013 1 tablet PO daily';
+    const u = 'Coumadin 2.5 mg \u2013 1 tablet PO daily in the evening';
+    const r = getChangeReason(parseOrder(o), parseOrder(u));
+    expect(r).toMatch(/Time of day changed/);
+    expect(r).not.toMatch(/Frequency changed/);
+  });
 });

@@ -45,6 +45,11 @@ global.expect = actual => ({
       if (actual === expected) {
         throw new Error(`Expected value not to be ${expected}`);
       }
+    },
+    toMatch: regex => {
+      if (regex.test(String(actual))) {
+        throw new Error(`Expected ${actual} not to match ${regex}`);
+      }
     }
   }
 });
@@ -90,6 +95,10 @@ function diffRowsList(beforeList, afterList) {
 global.diffRowsList = diffRowsList;
 global.diffRows = diffRowsList;
 global.loadAppContext = loadAppContext;
+// Expose core helpers for convenience in tests
+global.parseOrder = (...args) => loadAppContext().parseOrder(...args);
+global.getChangeReason = (...args) =>
+  loadAppContext().getChangeReason(...args);
 
 require('./medDiff.test');
 require('./helpers.test');
