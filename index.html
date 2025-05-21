@@ -2459,6 +2459,17 @@ function sameDrugCore(a, b) {
   return false;
 }
 
+function sameFrequency(f1, f2) {
+  /* true when the two orders convey the same numeric schedule
+     (e.g. “daily” vs “qHS”, “BID” vs “two times a day”).        */
+  const n1 = freqNumeric(f1);    // null if unparsable
+  const n2 = freqNumeric(f2);
+  if (n1 != null && n2 != null) return n1 === n2;
+
+  // fall back to canonical string compare
+  return normalizeFrequency(f1) === normalizeFrequency(f2);
+}
+
 // ——— What changed? ———
 function getChangeReason(orig, updated) {
   const DEBUG_CHANGE_REASON = false;
@@ -3203,36 +3214,32 @@ if (indicationDiff) {
 
   /* ---------- ULTIMATE TOD ↔ FREQUENCY CLEAN-UP ---------- */
   (() => {
-    const sameNumFreq =
-      freqNumeric(orig.frequency) != null &&
-      freqNumeric(orig.frequency) === freqNumeric(updated.frequency);
+    if (!sameFrequency(orig.frequency, updated.frequency)) return;
 
-    const todDiff = todChanged(orig, updated) && !timeOfDayMatch;
+    // did a real time-of-day shift happen?
+    const scheduleDiff = !scheduleMatch &&
+      orig.scheduleTokens.length && updated.scheduleTokens.length;
+    const todShifted =
+      (todChanged(orig, updated) && !timeOfDayMatch) || scheduleDiff;
 
-    // Lasix pair detection (brand OR generic tokens)
+    // detect Lasix/Furosemide brand–generic pairs by raw string
     const isLasixPair = (() => {
-      const syn = ['lasix', 'furosemide'];
-      const has = obj =>
-        syn.includes((obj.drug || '').toLowerCase()) ||
-        (obj.brandTokens || []).some(x => syn.includes(x));
-      const brandCount =
-        (orig.brandTokens || []).filter(x => syn.includes(x)).length +
-        (updated.brandTokens || []).filter(x => syn.includes(x)).length;
-      return has(orig) && has(updated) && brandCount >= 1;
+      const raw = s => (s.originalRaw || '').toLowerCase();
+      const hit = str => /(^|\b)(lasix|furosemide)(\b|$)/.test(str);
+      return hit(raw(orig)) && hit(raw(updated));
     })();
 
-    if (sameNumFreq && todDiff) {
-      // Always drop redundant frequency tag
-      changes = changes.filter(c => c !== 'Frequency changed');
+    // 1) always drop redundant “Frequency changed”
+    changes = changes.filter(c => c !== 'Frequency changed');
 
-      if (isLasixPair) {
-        // suppress TOD tag for Lasix/Furosemide swaps
-        changes = changes.filter(c => c !== 'Time of day changed');
-      } else {
-        if (!changes.includes('Time of day changed')) {
-          changes.push('Time of day changed');
-        }
+    // 2) handle time-of-day tagging
+    if (todShifted && !isLasixPair) {
+      if (!changes.includes('Time of day changed')) {
+        changes.push('Time of day changed');
       }
+    } else {
+      // for Lasix pair, or if no TOD shift, remove any lingering tag
+      changes = changes.filter(c => c !== 'Time of day changed');
     }
   })();
   /* ------------------------------------------------------- */
