@@ -91,6 +91,20 @@ describe('todChanged', () => {
     const b = { frequency: '' };
     expect(ctx.todChanged(a, b)).toBe(false);
   });
+
+  test('adding noon time of day detected', () => {
+    const ctx = loadAppContext();
+    const a = { frequency: 'daily' };
+    const b = { frequency: 'daily', timeOfDay: 'noon' };
+    expect(ctx.todChanged(a, b)).toBe(true);
+  });
+
+  test('removing night time of day detected', () => {
+    const ctx = loadAppContext();
+    const a = { frequency: 'daily', timeOfDay: 'night' };
+    const b = { frequency: 'daily' };
+    expect(ctx.todChanged(a, b)).toBe(true);
+  });
 });
 
 describe('normalizeTimeOfDay', () => {
