@@ -409,11 +409,11 @@ footer a:hover {
 
   </style>
 
-<!-- === PDF LIBRARIES === -->
+<!-- === PDF LIBRARIES === -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
-<!-- === END PDF LIBRARIES === -->
+<!-- === END PDF LIBRARIES === -->
 
 </head>
 <body>
@@ -2473,16 +2473,7 @@ function getChangeReason(orig, updated) {
     console.log('DEBUG getChangeReason: updated Parsed=', JSON.stringify(updated));
   }
 
-// DEBUG getChangeReason: updated Parsed=', JSON.stringify(updated));
-// ── core/tail extractors for indication check ── // KEEP THIS COMMENT IF YOU WANT
-// const core = n => normalizeMedicationName(n).split(' ')[0]; // REMOVE OR COMMENT OUT
-// const tail = n => { ... }; // REMOVE OR COMMENT OUT
-// const isWord = s => ...; // REMOVE OR COMMENT OUT
-// const origTail = tail(orig.drug); // REMOVE OR COMMENT OUT
-// const updTail  = tail(updated.drug); // REMOVE OR COMMENT OUT
-// const tailDiff = ...; // REMOVE OR COMMENT OUT
-
-  if (!orig || !updated) return 'Misc. Change';
+  if (!orig || !updated) return 'Misc. Change';
 
   let changes = [];
   const add = lbl => { if (!changes.includes(lbl)) changes.push(lbl); };
@@ -2881,68 +2872,63 @@ if (indicationDiff) {
 }
  
 // 2) **Indication-only**
-  if (
-    drugNameMatchStrict && // Use the strict substance name match
-    doseTotalMatch &&     // Use total dose for comparison
-    doseUnitMatch &&
+  if (
+    drugNameMatchStrict && // Use the strict substance name match
+    doseTotalMatch &&     // Use total dose for comparison
+    doseUnitMatch &&
     qtyMatch &&           // Check quantity
-    frequencyMatch &&
-    timeOfDayMatch &&
-    formMatch &&
+    frequencyMatch &&
+    timeOfDayMatch &&
+    formMatch &&
     formulationMatch &&   // Check formulation
-    routeMatch &&
-    prnMatch &&
+    routeMatch &&
+    prnMatch &&
     startDateMatch &&     // Check start date
     endDateMatch &&       // Check end date
-    indicationDiff        // And indication IS different (and was the only difference)
-  ) {
+    indicationDiff        // And indication IS different (and was the only difference)
+  ) {
   if (DEBUG_CHANGE_REASON) console.log('DEBUG: Matched Indication-only block (all other key fields identical).');
     // If ONLY the indication is different and everything else critical matches,
     // this specific block ensures 'Indication changed' is the primary (or only) reason.
     changes = ['Indication changed']; 
-  } else { 
+  } else { 
     // This 'else' is for the if statement immediately above.
     // It means it wasn't a strict "Indication-only" change according to these specific criteria.
     // The broader change detection logic that ran before this block would have already added various changes.
     if (DEBUG_CHANGE_REASON) console.log('DEBUG: Did NOT match strict Indication-only block; other changes might apply or already captured.');
 }
 
-   // ——— 3) Time-of-day-only, but allow QOD→daily ———
-// THIS IS YOUR EXISTING DEFINITION - KEEP IT AS IS
-const isQodToDaily =
-  canon(orig.frequency) === 'every other day' &&
-  canon(updated.frequency) === 'daily';
+  // ——— 3) Time-of-day-only, but allow QOD→daily ———
+  const isQodToDaily =
+    canon(orig.frequency) === 'every other day' &&
+    canon(updated.frequency) === 'daily';
 
-// THIS IS YOUR EXISTING IF STATEMENT FOR BLOCK #3:
-// Modify it by adding the console.log inside the if, and adding the else block.
-if (
-  !timeOfDayMatch &&
-  drugNameMatchStrict &&  // <-- CHANGE
-  doseTotalMatch &&     // <-- CHANGE (from doseValueMatch)
-  doseUnitMatch &&
-  qtyMatch &&           // <-- ADD
-  (frequencyMatch || isQodToDaily) &&
-  formMatch &&
-  formulationMatch &&   // <-- ADD
-  routeMatch &&
-  prnMatch &&
-  startDateMatch &&     // <-- ADD
-  endDateMatch &&       // <-- ADD
-  normalizeIndication(orig.indication) === normalizeIndication(updated.indication)
-) {
-  if (DEBUG_CHANGE_REASON) console.log("--- BLOCK #3 CONDITION MET --- Returning 'Time of day changed'");
-  if (changes.length === 0) {
-    changes = ['Time of day changed'];
-  } else if (!changes.includes('Time of day changed')) {
-    changes.push('Time of day changed');
+  if (
+    !timeOfDayMatch &&
+    drugNameMatchStrict &&
+    doseTotalMatch &&
+    doseUnitMatch &&
+    qtyMatch &&
+    (frequencyMatch || isQodToDaily) &&
+    formMatch &&
+    formulationMatch &&
+    routeMatch &&
+    prnMatch &&
+    startDateMatch &&
+    endDateMatch &&
+    normalizeIndication(orig.indication) === normalizeIndication(updated.indication)
+  ) {
+    if (DEBUG_CHANGE_REASON)
+      console.log("--- BLOCK #3 CONDITION MET --- Returning 'Time of day changed'");
+    if (changes.length === 0) {
+      changes = ['Time of day changed'];
+    } else if (!changes.includes('Time of day changed')) {
+      changes.push('Time of day changed');
+    }
+  } else {
+    if (DEBUG_CHANGE_REASON)
+      console.log('--- BLOCK #3 CONDITION FAILED for explicit Time of Day return ---');
   }
-//  return 'Time of day changed'; // Old return
-}
-else {
-  if (DEBUG_CHANGE_REASON) console.log("--- BLOCK #3 CONDITION FAILED for explicit Time of Day return ---");
-}
-
-// if Block #3's condition was false.
 
   if (changes.includes('Dose changed') && coumBrand) {
     if (doseTotalMatch || sameMgStrength(origDrugNameRaw, updatedDrugNameRaw)) {
@@ -2989,18 +2975,24 @@ else {
   }
 
 // --- New Rule for Stat/Immediately vs. Timed Dosing ---
-const origFreqIsImmediately = norm(orig.frequency) === 'immediately';
-const updatedFreqIsDaily = canon(updated.frequency) === 'daily';
-const origTODIsEmpty = norm(orig.timeOfDay) === '';
-const updatedTODIsSet = norm(updated.timeOfDay) !== '';
+  const origFreqIsImmediately = norm(orig.frequency) === 'immediately';
+  const updatedFreqIsDaily = canon(updated.frequency) === 'daily';
+  const origTODIsEmpty = norm(orig.timeOfDay) === '';
+  const updatedTODIsSet = norm(updated.timeOfDay) !== '';
 
-if (changes.includes('Frequency changed') && changes.includes('Time of day changed') &&
-    origFreqIsImmediately && updatedFreqIsDaily && origTODIsEmpty && updatedTODIsSet) {
-  changes = changes.filter(c => c !== 'Time of day changed');
-    if (normalizeIndication(orig.indication) === 'immediately' && normalizeIndication(updated.indication) === '') {
-    changes = changes.filter(c => c !== 'Indication changed');
+  if (
+    changes.includes('Frequency changed') &&
+    changes.includes('Time of day changed') &&
+    origFreqIsImmediately &&
+    updatedFreqIsDaily &&
+    origTODIsEmpty &&
+    updatedTODIsSet
+  ) {
+    changes = changes.filter(c => c !== 'Time of day changed');
+    if (sameIndication(orig.indication, updated.indication)) {
+      changes = changes.filter(c => c !== 'Indication changed');
+    }
   }
-} 
 // --- End of New Rule ---
   const refillsDiff = orig.refills != null && updated.refills != null && orig.refills !== updated.refills;
   if (refillsDiff) add("Refills changed");
@@ -4097,8 +4089,8 @@ function findContraIndications(allOrders) {
   }
 
   // 1) drug name and formulation
-  const { name: normDrugA } = normalizeMedicationName(a.drug); // Substance name
-  const { name: normDrugB } = normalizeMedicationName(b.drug); // Substance name
+  const { name: normDrugA } = normalizeMedicationName(a.drug); // Substance name
+  const { name: normDrugB } = normalizeMedicationName(b.drug); // Substance name
   const formulationA = norm(a.formulation);
   const formulationB = norm(b.formulation);
 
@@ -4694,7 +4686,7 @@ const coreDrugName = n => {
 
 function compareAndShowResults() {
     let { unchanged, removed, added } = compareOrders(meds1, meds2);
-        
+        
 //=== STEP-MERGE-REMOVED-ADDED (enhanced) ======================
 const merged = [];
 const addedMap = Object.create(null);
