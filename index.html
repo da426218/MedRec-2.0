@@ -2485,7 +2485,9 @@ function getChangeReason(orig, updated) {
       /(?:before|with) meals/.test(f) ||
       /before breakfast lunch dinner/.test(f) ||
       /(?:before|with) meals/.test(rawNorm) ||
-      /before breakfast lunch dinner/.test(rawNorm)
+      /before breakfast lunch dinner/.test(rawNorm) ||
+      /with food/.test(f) ||
+      /with food/.test(rawNorm)
     ) {
       const stripped = rawNorm
         .replace(/(?:before|with) meals/g, '')
