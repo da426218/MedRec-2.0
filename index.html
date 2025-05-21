@@ -3062,6 +3062,25 @@ if (indicationDiff) {
       console.log('--- BLOCK #3 CONDITION FAILED for explicit Time of Day return ---');
   }
 
+  /* ---------- TIME-OF-DAY vs SAME-FREQUENCY GUARD ---------- */
+  {
+    const sameNumFreq = (() => {
+      const n1 = freqNumeric(orig.frequency);
+      const n2 = freqNumeric(updated.frequency);
+      return n1 != null && n1 === n2;
+    })();
+
+    if (sameNumFreq && todChanged(orig, updated) && !timeOfDayMatch) {
+      /* Ensure TOD tag is present */
+      if (!changes.includes('Time of day changed')) {
+        changes.push('Time of day changed');
+      }
+      /* …and drop the redundant freq tag */
+      changes = changes.filter(c => c !== 'Frequency changed');
+    }
+  }
+  /* ---------------------------------------------------------- */
+
   if (changes.includes('Dose changed') && coumBrand) {
     if (doseTotalMatch || sameMgStrength(origDrugNameRaw, updatedDrugNameRaw)) {
       changes = changes.filter(c => c !== 'Dose changed');
