@@ -68,6 +68,26 @@ describe('freqNumeric', () => {
     const ctx = loadAppContext();
     expect(ctx.freqNumeric('')).toBe(1);
   });
+
+  test('"daily in evening" normalizes to daily', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeFrequency('daily in evening')).toBe('daily');
+  });
+
+  test('"daily in the evening" normalizes to daily', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeFrequency('daily in the evening')).toBe('daily');
+  });
+
+  test('"daily in morning" normalizes to daily', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeFrequency('daily in morning')).toBe('daily');
+  });
+
+  test('"daily at noon" normalizes to daily', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeFrequency('daily at noon')).toBe('daily');
+  });
 });
 
 describe('todChanged', () => {
@@ -116,6 +136,16 @@ describe('normalizeTimeOfDay', () => {
   test('"midday" normalizes to noon', () => {
     const ctx = loadAppContext();
     expect(ctx.normalizeTimeOfDay('midday')).toBe('noon');
+  });
+
+  test('plural evenings normalize to evening', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeTimeOfDay('evenings')).toBe('evening');
+  });
+
+  test('"in the evenings" normalizes to evening', () => {
+    const ctx = loadAppContext();
+    expect(ctx.normalizeTimeOfDay('in the evenings')).toBe('evening');
   });
 });
 
