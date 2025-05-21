@@ -2988,34 +2988,33 @@ if (indicationDiff) {
     }
 }
  
-// 2) **Indication-only**
-  if (!tokensEqual(orig.brandTokens, updated.brandTokens)) {
-    // brand or generic difference - skip this shortcut
-  } else if (
-    drugNameMatchStrict && // Use the strict substance name match
-    doseTotalMatch &&     // Use total dose for comparison
+  // 2) **Indication-only**  (keep critical tags)
+  if (
+    indicationDiff &&
+    drugNameMatchStrict &&
+    doseTotalMatch &&      // totals identical
     doseUnitMatch &&
-    qtyMatch &&           // Check quantity
+    qtyMatch &&
     frequencyMatch &&
     timeOfDayMatch &&
     formMatch &&
-    formulationMatch &&   // Check formulation
+    formulationMatch &&
     routeMatch &&
     prnMatch &&
-    startDateMatch &&     // Check start date
-    endDateMatch &&       // Check end date
-    indicationDiff        // And indication IS different (and was the only difference)
+    startDateMatch &&
+    endDateMatch
   ) {
-  if (DEBUG_CHANGE_REASON) console.log('DEBUG: Matched Indication-only block (all other key fields identical).');
-    // If ONLY the indication is different and everything else critical matches,
-    // this specific block ensures 'Indication changed' is the primary (or only) reason.
-    changes = ['Indication changed']; 
-  } else { 
-    // This 'else' is for the if statement immediately above.
-    // It means it wasn't a strict "Indication-only" change according to these specific criteria.
-    // The broader change detection logic that ran before this block would have already added various changes.
-    if (DEBUG_CHANGE_REASON) console.log('DEBUG: Did NOT match strict Indication-only block; other changes might apply or already captured.');
-}
+    /* Keep any critical change we already flagged (e.g. Brand/Generic or
+       Formulation) instead of wiping them out.  If nothing critical
+       remains, fall back to a plain “Indication changed”. */
+    const critical = new Set(['Brand/Generic changed', 'Formulation changed']);
+    changes = changes.filter(c => critical.has(c));
+
+    if (changes.length === 0) changes = ['Indication changed'];
+
+    if (DEBUG_CHANGE_REASON)
+      console.log('DEBUG: Indication-only block ->', JSON.stringify(changes));
+  }
 
   // ——— 3) Time-of-day-only, but allow QOD→daily ———
   const isQodToDaily =
