@@ -19,3 +19,10 @@ test('daily same-freq TOD only', () => {
   expect(getChangeReason(parseOrder(o), parseOrder(u)))
     .toBe('Brand/Generic changed, Time of day changed');
 });
+
+test('brand swap keeps flag', () => {
+  const o = 'Albuterol HFA 90 mcg 2 puffs q4-6h PRN wheezing';
+  const u = 'ProAir Respiclick 90 mcg inhale 2 puffs q6h PRN sob';
+  expect(getChangeReason(parseOrder(o), parseOrder(u)))
+    .toMatch(/Brand\/Generic changed/);
+});
