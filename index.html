@@ -3239,6 +3239,18 @@ if (indicationDiff) {
   })();
   /* ------------------------------------------------------- */
 
+
+  /* ---------- FINAL sanity strip for accidental freq flag ---------- */
+  (() => {
+    if (changes.includes('Frequency changed')) {
+      const sameNum = sameFrequency(orig.frequency, updated.frequency);
+      if (sameNum) {
+        changes = changes.filter(c => c !== 'Frequency changed');
+      }
+    }
+  })();
+  /* ----------------------------------------------------------------- */
+
   /* ----- final sweep: kill bogus Frequency tag after TOD shift ----- */
   (() => {
     const num1 = freqNumeric(orig.frequency);
@@ -3251,6 +3263,7 @@ if (indicationDiff) {
       changes = changes.filter(c => c !== 'Frequency changed');
     }
   })();
+
 
   if (changes.length === 0) return 'Unchanged'; // Default to Unchanged if no specific diffs were added
   if (changes.length === 1) return changes[0];
