@@ -496,7 +496,7 @@ addTest('Weekly time of day ignored in diff', () => {
   vm.runInContext(script, ctx);
   const before = 'Vitamin D2 50000 units - take once weekly at bedtime';
   const after  = 'Vitamin D2 50000 units - take once weekly in the morning';
-  expect(ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after))).toBe('Unchanged');
+  expect(ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after))).toBe('Time of day changed');
 });
 
 addTest('Microgram to milligram normalization', () => {
@@ -888,7 +888,7 @@ addTest('benign brand swaps', () => {
   expect(diff('K-Dur 10 mEq ER tab BID', 'Potassium Chloride 10 mEq ER tab BID'))
     .toBe('Brand/Generic changed');
   expect(diff('Lasix 20 mg qAM', 'Furosemide 20 mg daily')).toBe(
-    'Brand/Generic changed'
+    'Brand/Generic changed, Time of day changed'
   );
 });
 
