@@ -73,22 +73,22 @@ describe('freqNumeric', () => {
 describe('todChanged', () => {
   test('different times of day detected', () => {
     const ctx = loadAppContext();
-    const a = { timeOfDay: 'pm' };
-    const b = { timeOfDay: 'nightly' };
+    const a = { frequency: 'pm' };
+    const b = { frequency: 'nightly' };
     expect(ctx.todChanged(a, b)).toBe(true);
   });
 
   test('equivalent times of day not flagged', () => {
     const ctx = loadAppContext();
-    const a = { timeOfDay: 'am' };
-    const b = { timeOfDay: 'in the morning' };
+    const a = { frequency: 'am' };
+    const b = { frequency: 'in the morning' };
     expect(ctx.todChanged(a, b)).toBe(false);
   });
 
   test('missing time of day not flagged', () => {
     const ctx = loadAppContext();
-    const a = { timeOfDay: '' };
-    const b = { timeOfDay: '' };
+    const a = { frequency: '' };
+    const b = { frequency: '' };
     expect(ctx.todChanged(a, b)).toBe(false);
   });
 });
