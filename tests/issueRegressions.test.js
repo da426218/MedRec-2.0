@@ -35,7 +35,7 @@ describe('issue regressions', () => {
     const before = ctx.parseOrder('Lasix 20 mg qAM');
     const after = ctx.parseOrder('Furosemide 20 mg daily');
     expect(ctx.getChangeReason(before, after)).toBe(
-      'Brand/Generic changed, Time of day changed'
+      'Brand/Generic changed'
     );
   });
 
@@ -85,7 +85,24 @@ describe('issue regressions', () => {
     const o = parseOrder('Furosemide 20 mg 1 tab qAM');
     const u = parseOrder('Lasix 20 mg 1 tab daily');
     const r = getChangeReason(o, u);
-    expect(r).toBe('Brand/Generic changed, Time of day changed');
+    expect(r).toBe('Brand/Generic changed');
+  });
+});
+
+describe('specific TOD / freq edge-cases', () => {
+  test('Warfarin daily -> daily evening', () => {
+    const o = 'Warfarin 2.5 mg take 1 tab daily';
+    const u = 'Coumadin 2.5 mg take 1 tab daily in the evening';
+    const r = [].concat(getChangeReason(parseOrder(o), parseOrder(u))).join(', ');
+    expect(r).toMatch(/Time of day changed/);
+    expect(r).not.toMatch(/Frequency changed/);
+  });
+
+  test('Lasix qAM vs Furosemide daily', () => {
+    const o = 'Lasix 20 mg 1 tab qAM';
+    const u = 'Furosemide 20 mg 1 tab daily';
+    const r = [].concat(getChangeReason(parseOrder(o), parseOrder(u)));
+    expect(r).toEqual(['Brand/Generic changed']);
   });
 });
 

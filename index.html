@@ -2224,15 +2224,22 @@ function normalizeTimeOfDay(t) {
   return t;
 }
 
-// Determine if one side explicitly specifies a time of day while the other does not
-function todChanged(o, u) {
-  const tag = s =>
-    /(?:\b(am|pm|noon|midday|morning|evening|bedtime|q(?:am|pm|hs))\b)/i.test(
-      s || ''
-    );
-  const explicit = ord =>
-    tag(ord.frequency) || normalizeTimeOfDay(ord.timeOfDay) !== '';
-  return explicit(o) !== explicit(u);
+// Determine if the time of day changed between two orders
+function todChanged(orig, updated) {
+  // look in both explicit timeOfDay and frequency strings
+  const norm = str => {
+    const raw = (str || '').toLowerCase().trim();
+    const n = normalizeTimeOfDay(raw).trim();
+    const canon = ['morning', 'evening', 'bedtime', 'noon'];
+    if (n === raw && !canon.includes(n)) return '';
+    return n;
+  };
+
+  const oTok = norm(orig.timeOfDay || orig.frequency);
+  const uTok = norm(updated.timeOfDay || updated.frequency);
+
+  if (!oTok && !uTok) return false; // neither specifies TOD
+  return oTok !== uTok; // differs → TOD changed
 }
 
 // Compare two indication strings using the existing normalization logic.
@@ -3196,23 +3203,36 @@ if (indicationDiff) {
 
   /* ---------- ULTIMATE TOD ↔ FREQUENCY CLEAN-UP ---------- */
   (() => {
-    const sameNumericFreq =
+    const sameNumFreq =
       freqNumeric(orig.frequency) != null &&
       freqNumeric(orig.frequency) === freqNumeric(updated.frequency);
 
-    const todActuallyChanged = todChanged(orig, updated) && !timeOfDayMatch;
+    const todDiff = todChanged(orig, updated) && !timeOfDayMatch;
 
+    // Lasix pair detection (brand OR generic tokens)
     const isLasixPair = (() => {
-      const lasixTokens = ['lasix', 'furosemide'];
-      const brandTokens = tokens => (tokens || []).some(t => lasixTokens.includes(t));
-      return brandTokens(orig.brandTokens) && brandTokens(updated.brandTokens);
+      const syn = ['lasix', 'furosemide'];
+      const has = obj =>
+        syn.includes((obj.drug || '').toLowerCase()) ||
+        (obj.brandTokens || []).some(x => syn.includes(x));
+      const brandCount =
+        (orig.brandTokens || []).filter(x => syn.includes(x)).length +
+        (updated.brandTokens || []).filter(x => syn.includes(x)).length;
+      return has(orig) && has(updated) && brandCount >= 1;
     })();
 
-    if (sameNumericFreq && todActuallyChanged && !isLasixPair) {
-      if (!changes.includes('Time of day changed')) {
-        changes.push('Time of day changed');
-      }
+    if (sameNumFreq && todDiff) {
+      // Always drop redundant frequency tag
       changes = changes.filter(c => c !== 'Frequency changed');
+
+      if (isLasixPair) {
+        // suppress TOD tag for Lasix/Furosemide swaps
+        changes = changes.filter(c => c !== 'Time of day changed');
+      } else {
+        if (!changes.includes('Time of day changed')) {
+          changes.push('Time of day changed');
+        }
+      }
     }
   })();
   /* ------------------------------------------------------- */
