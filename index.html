@@ -2333,6 +2333,12 @@ function freqNumeric(freqStr) {
   return map[f] != null ? map[f] : null;
 }
 
+// Numeric occurrences per day helper (wrapper around freqNumeric)
+const perDay = f => {
+  const n = freqNumeric(f);
+  return n == null ? null : n;
+};
+
 /* ---------- simple word→number helper (one-ten) ---------- */
 function numericWord(w) {
   return (
@@ -2419,8 +2425,10 @@ const coreName = n => (n||'')
 
 // Compare two raw drug strings using brandToGenericMap and normalized core names
 function sameDrugCore(a, b) {
-  const x = coreName(a);
-  const y = coreName(b);
+  const stripStrength = s =>
+    (s || '').replace(/\b\d+(?:\.\d+)?\s*(?:mg|mcg|g|mEq|iu|units?|unit|ml)\b/gi, '').trim();
+  const x = coreName(stripStrength(a));
+  const y = coreName(stripStrength(b));
   if (x === y) return true;
   if (brandToGenericMap[x] && brandToGenericMap[x] === y) return true;
   if (brandToGenericMap[y] && brandToGenericMap[y] === x) return true;
@@ -2441,17 +2449,23 @@ function getChangeReason(orig, updated) {
   let changes = [];
   const add = lbl => { if (!changes.includes(lbl)) changes.push(lbl); };
 
-  const generic1 = brandToGenericMap[orig.drug.toLowerCase()] || coreDrugName(orig.drug);
-  const generic2 = brandToGenericMap[updated.drug.toLowerCase()] || coreDrugName(updated.drug);
+  const stripStrength = s =>
+    s.toLowerCase().replace(/\b\d+(?:\.\d+)?\s*(?:mg|mcg|g|mEq|iu|units?|unit|ml)\b/g, '').trim();
+
+  const base1 = stripStrength(orig.drug);
+  const base2 = stripStrength(updated.drug);
+
+  const generic1 = brandToGenericMap[base1] || coreDrugName(base1);
+  const generic2 = brandToGenericMap[base2] || coreDrugName(base2);
 
   if (generic1 === generic2 &&
-      orig.drug.toLowerCase() !== updated.drug.toLowerCase() &&
+      base1 !== base2 &&
       !changes.includes('Brand/Generic changed')) {
     changes.push('Brand/Generic changed');
   }
 
-  const gen1 = coreName(orig.drug);
-  const gen2 = coreName(updated.drug);
+  const gen1 = coreName(base1);
+  const gen2 = coreName(base2);
   if (
     sameDrugCore(orig.drug, updated.drug) &&
     gen1 !== gen2 &&
@@ -2547,8 +2561,8 @@ function getChangeReason(orig, updated) {
     canonUnit(orig.rawUnit || orig.dose?.unit) ===
     canonUnit(updated.rawUnit || updated.dose?.unit);
   const frequencyMatch = canon(orig.frequency) === canon(updated.frequency);
-  const freqNum1 = freqNumeric(orig.frequency);
-  const freqNum2 = freqNumeric(updated.frequency);
+  const freqNum1 = perDay(orig.frequency);
+  const freqNum2 = perDay(updated.frequency);
   const freqSameNum =
     freqNum1 !== null && freqNum2 !== null && freqNum1 === freqNum2;
   const tokensEqual = (a,b) => {
