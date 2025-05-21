@@ -3249,6 +3249,15 @@ if (indicationDiff) {
   })();
   /* ------------------------------------------------------- */
 
+  // ── FINAL Coumadin/Warfarin frequency guard ─────────────
+  if (coumBrand && changes.includes('Frequency changed')) {
+    const n1 = freqNumeric(orig.frequency);
+    const n2 = freqNumeric(updated.frequency);
+    if (n1 != null && n2 != null && n1 === n2) {
+      changes = changes.filter(c => c !== 'Frequency changed');
+    }
+  }
+  // ─────────────────────────────────────────────────────────
 
   /* ---------- FINAL sanity strip for accidental freq flag ---------- */
   (() => {
