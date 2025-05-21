@@ -2234,6 +2234,15 @@ function todChanged(o, u) {
   return normalizeTimeOfDay(o.timeOfDay) !== normalizeTimeOfDay(u.timeOfDay);
 }
 
+// Compare two indication strings using the existing normalization logic.
+// If either side is blank after normalization, they're considered equal.
+function sameIndication(a, b) {
+  const i1 = normalizeIndication(a);
+  const i2 = normalizeIndication(b);
+  if (!i1 || !i2) return true;
+  return i1 === i2;
+}
+
 function getFrequencyMap() {
   return {
     'once daily': 'daily',
@@ -2338,6 +2347,13 @@ function freqNumeric(freqStr) {
   const times = /(\d+)\s*times?\s*(?:a|per)?\s*day\b/.exec(f);
   if (times) return Number(times[1]);
   return map[f] != null ? map[f] : null;
+}
+
+// Wrapper used by some new code; converts a frequency string to the
+// equivalent number of doses per day.  Simply delegates to freqNumeric
+// to keep logic consistent.
+function freqToPerDay(freqStr) {
+  return freqNumeric(freqStr);
 }
 
 /* ---------- simple word→number helper (one-ten) ---------- */
