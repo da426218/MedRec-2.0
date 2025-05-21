@@ -94,6 +94,7 @@ global.loadAppContext = loadAppContext;
 require('./medDiff.test');
 require('./helpers.test');
 require('./changeReason.test');
+require('./getChangeReason.test');
 require('./issueRegressions.test');
 
 addTest('Metformin evening vs nightly time change', () => {
