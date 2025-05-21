@@ -50,4 +50,12 @@ describe('issue regressions', () => {
     expect(reason.includes('Time of day changed')).toBe(true);
     expect(reason.includes('Frequency changed')).toBe(false);
   });
+
+  test('Warfarin bedtime switch keeps TOD flag', () => {
+    const ctx = loadAppContext();
+    const o = 'Warfarin 2.5 mg tablet take 1 PO every morning';
+    const u = 'Coumadin 2.5 mg tablet take 1 PO daily in the evening';
+    const r = ctx.getChangeReason(ctx.parseOrder(o), ctx.parseOrder(u));
+    expect(r).toMatch(/Time of day changed/);
+  });
 });
