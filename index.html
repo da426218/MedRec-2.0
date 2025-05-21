@@ -2419,7 +2419,7 @@ const brandPairs = {
   coumadin: 'warfarin',
   lipitor: 'atorvastatin',
   proair: 'albuterol',
-  kdur: 'potassium chloride',
+  'k dur': 'potassium chloride',
   basaglar: 'insulin glargine',
   humalog: 'insulin lispro',
   novolog: 'insulin aspart'
@@ -2428,8 +2428,10 @@ const benignBrandSet = new Set(['k-dur']);
 
 const coreName = n => (n||'')
   .toLowerCase()
-  .replace(/[^a-z0-9\s]/g,'')         // strip punctuation
-  .replace(/\b(?:tablet|tab|capsule|cap|hfa|inhaler|respiclick|pen)\b/g,'')
+  .replace(/[\/-]/g, ' ')
+  .replace(/[^a-z0-9\s]/g, '')         // strip punctuation
+  .replace(/\b(?:tablet|tab|capsule|cap|hfa|inhaler|respiclick|pen)\b/g, '')
+  .replace(/\s+/g, ' ')
   .trim();
 
 // Compare two raw drug strings using brandPairs and normalized core names
