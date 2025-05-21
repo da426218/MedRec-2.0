@@ -3174,6 +3174,16 @@ if (indicationDiff) {
   // and the formulation is part of the brand name (e.g. Metoprolol Tartrate vs Lopressor),
   // "Brand/Generic changed" might be sufficient. This is complex, for now, list both if detected.
 
+  /* ——— FINAL sweep: drop a bogus Frequency-changed when canonical
+       frequencies are identical ——— */
+  if (
+    changes.includes('Frequency changed') &&
+    normalizeFrequency(orig.frequency) ===
+      normalizeFrequency(updated.frequency)
+  ) {
+    changes = changes.filter(c => c !== 'Frequency changed');
+  }
+
   if (changes.length === 0) return 'Unchanged'; // Default to Unchanged if no specific diffs were added
   if (changes.length === 1) return changes[0];
   if (changes.length <= 4) { // List up to 4 specific changes
