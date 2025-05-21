@@ -2198,12 +2198,14 @@ function normalizeTimeOfDay(t) {
     'in the morning': 'morning',
     'daily in morning': 'morning',
     evening: 'evening',
+    evenings: 'evening',
     pm: 'evening',
     qpm: 'evening',
     'every evening': 'evening',
     'daily in evening': 'evening',
     'in evening': 'evening',
     'in the evening': 'evening',
+    'in the evenings': 'evening',
     'in the pm': 'evening',
     bedtime: 'bedtime',
     night: 'bedtime',
@@ -2947,7 +2949,13 @@ if (!freqSameNum) {
     freqChange = true;
   }
 } else if (
-  normalizeFrequency(orig.frequency) !== normalizeFrequency(updated.frequency) &&
+  /* Skip wording-only frequency flags unless BOTH sides already
+     have a non-blank frequency string.  If either side is blank
+     (implicit daily) but the numeric schedules are equal, handle
+     it purely as a time-of-day shift. */
+  orig.frequency && updated.frequency &&
+  normalizeFrequency(orig.frequency) !==
+  normalizeFrequency(updated.frequency) &&
   todChanged(orig, updated)
 ) {
   freqChange = true;
