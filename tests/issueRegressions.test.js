@@ -34,6 +34,13 @@ describe('issue regressions', () => {
     expect(ctx.getChangeReason(o, u)).toMatch(/Brand\/Generic changed/);
   });
 
+  test('Lasix vs Furosemide brand only', () => {
+    const ctx = loadAppContext();
+    const before = ctx.parseOrder('Lasix 20 mg qAM');
+    const after = ctx.parseOrder('Furosemide 20 mg daily');
+    expect(ctx.getChangeReason(before, after)).toBe('Brand/Generic changed');
+  });
+
   test('Inhaler brand swap flags brand and indication change', () => {
     const ctx = loadAppContext();
     const orig = ctx.parseOrder('Albuterol HFA Inhaler 90 mcg/puff - 2 puffs by mouth every 4-6 hours as needed for wheezing');
