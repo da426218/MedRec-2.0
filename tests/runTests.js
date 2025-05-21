@@ -361,6 +361,12 @@ addTest('Twice daily with meals equals BID', () => {
   expect(diff(b, a)).toMatch(/brand\/generic changed/i);
 });
 
+addTest('BID with meals equals BID', () => {
+  const before = 'Metformin 500 mg BID with meals';
+  const after = 'Metformin 500 mg BID';
+  expect(diff(before, after)).toBe('');
+});
+
 addTest('Claritin vs loratadine brand only', () => {
   const b = 'Claritin 10 mg tab po daily prn allergies';
   const a = 'Loratadine 10 mg tab po daily as needed for allergies';

@@ -2476,11 +2476,25 @@ function getChangeReason(orig, updated) {
 
   const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
   // --- 2. Frequency: normalise “daily” variants ---
-  const canon = f => {
+  const canon = (f, raw = '') => {
     f = norm(f);
+    const rawNorm = norm(raw);
     if (f === '' || f === 'daily' || f === 'q24h') return 'daily';
     if (['tid', 'tidac', 'three times daily'].includes(f)) return 'tid';
-    if (/(?:before|with) meals/.test(f) || /before breakfast lunch dinner/.test(f)) return 'tid';
+    if (
+      /(?:before|with) meals/.test(f) ||
+      /before breakfast lunch dinner/.test(f) ||
+      /(?:before|with) meals/.test(rawNorm) ||
+      /before breakfast lunch dinner/.test(rawNorm)
+    ) {
+      const stripped = rawNorm
+        .replace(/(?:before|with) meals/g, '')
+        .replace(/before breakfast lunch dinner/g, '')
+        .trim();
+      const nf = normalizeFrequency(stripped);
+      if (stripped && nf !== stripped) return nf;
+      return 'tid';
+    }
     return f;
   };
 
@@ -2560,9 +2574,10 @@ function getChangeReason(orig, updated) {
   const doseUnitMatch =
     canonUnit(orig.rawUnit || orig.dose?.unit) ===
     canonUnit(updated.rawUnit || updated.dose?.unit);
-  let frequencyMatch = canon(orig.frequency) === canon(updated.frequency);
-  const freqNum1 = perDay(orig.frequency);
-  const freqNum2 = perDay(updated.frequency);
+  let frequencyMatch = canon(orig.frequency, orig.originalRaw) ===
+    canon(updated.frequency, updated.originalRaw);
+  const freqNum1 = perDay(canon(orig.frequency, orig.originalRaw));
+  const freqNum2 = perDay(canon(updated.frequency, updated.originalRaw));
   let freqSameNum =
     freqNum1 !== null && freqNum2 !== null && freqNum1 === freqNum2;
   const tokensEqual = (a,b) => {
@@ -2577,7 +2592,10 @@ function getChangeReason(orig, updated) {
   const containsMeals = tokens => (tokens||[]).map(norm).some(t => mealsTokens.includes(t));
   let timeOfDayMatch =
     normalizeTimeOfDay(orig.timeOfDay) === normalizeTimeOfDay(updated.timeOfDay);
-  if (canon(orig.frequency) === 'weekly' && canon(updated.frequency) === 'weekly') {
+  if (
+    canon(orig.frequency, orig.originalRaw) === 'weekly' &&
+    canon(updated.frequency, updated.originalRaw) === 'weekly'
+  ) {
     timeOfDayMatch = true;
   }
   const timeOfDayRawMatch = same(
@@ -2677,7 +2695,11 @@ function getChangeReason(orig, updated) {
     console.log('  doseTotalMatch:', doseTotalMatch, `(orig: ${orig.dose?.total ?? orig.dose?.value} vs upd: ${updated.dose?.total ?? updated.dose?.value})`);
     console.log('  doseUnitMatch:', doseUnitMatch, `(orig: ${orig.dose?.unit} vs upd: ${updated.dose?.unit})`);
     console.log('  qtyMatch:', qtyMatch, `(orig: ${(orig.qty ?? 1)} vs upd: ${(updated.qty ?? 1)})`);
-    console.log('  frequencyMatch:', frequencyMatch, `(orig: ${canon(orig.frequency)} vs upd: ${canon(updated.frequency)})`);
+    console.log(
+      '  frequencyMatch:',
+      frequencyMatch,
+      `(orig: ${canon(orig.frequency, orig.originalRaw)} vs upd: ${canon(updated.frequency, updated.originalRaw)})`
+    );
     console.log('  timeOfDayMatch:', timeOfDayMatch, `(orig: ${norm(orig.timeOfDay)} vs upd: ${norm(updated.timeOfDay)})`);
     console.log('  timeOfDayRawMatch:', timeOfDayRawMatch, `(orig: ${norm(orig.timeOfDayOriginal)} vs upd: ${norm(updated.timeOfDayOriginal)})`);
     console.log('  formMatch:', formMatch, `(orig: ${norm(orig.form)} vs upd: ${norm(updated.form)})`);
@@ -2799,7 +2821,12 @@ if (!freqSameNum) {
   !tokensEqual(orig.frequencyTokens, updated.frequencyTokens) &&
   (containsMeals(orig.frequencyTokens) || containsMeals(updated.frequencyTokens))
 ) {
-  if (!(canon(orig.frequency) === 'tid' && canon(updated.frequency) === 'tid')) {
+  if (
+    !(
+      canon(orig.frequency, orig.originalRaw) === 'tid' &&
+      canon(updated.frequency, updated.originalRaw) === 'tid'
+    )
+  ) {
     freqChange = true;
   }
 } else if (
@@ -2890,8 +2917,8 @@ if (indicationDiff) {
 
   // ——— 3) Time-of-day-only, but allow QOD→daily ———
   const isQodToDaily =
-    canon(orig.frequency) === 'every other day' &&
-    canon(updated.frequency) === 'daily';
+    canon(orig.frequency, orig.originalRaw) === 'every other day' &&
+    canon(updated.frequency, updated.originalRaw) === 'daily';
 
   if (
     !timeOfDayMatch &&
@@ -2952,8 +2979,8 @@ if (indicationDiff) {
   }
   if (
     changes.includes('Time of day changed') &&
-    canon(orig.frequency) === 'daily' &&
-    canon(updated.frequency) === 'daily' &&
+    canon(orig.frequency, orig.originalRaw) === 'daily' &&
+    canon(updated.frequency, updated.originalRaw) === 'daily' &&
     ((orig.brandTokens || []).includes('lasix') ||
       (updated.brandTokens || []).includes('lasix'))
   ) {
@@ -2966,7 +2993,8 @@ if (indicationDiff) {
 
 // --- New Rule for Stat/Immediately vs. Timed Dosing ---
   const origFreqIsImmediately = norm(orig.frequency) === 'immediately';
-  const updatedFreqIsDaily = canon(updated.frequency) === 'daily';
+  const updatedFreqIsDaily =
+    canon(updated.frequency, updated.originalRaw) === 'daily';
   const origTODIsEmpty = norm(orig.timeOfDay) === '';
   const updatedTODIsSet = norm(updated.timeOfDay) !== '';
 
@@ -3817,6 +3845,12 @@ if (!order.frequency) {
   if (
     order.frequency === 'tid' &&
     /twice\s+(?:a|per)?\s*day\s+with\s+meals/i.test(originalRaw)
+  ) {
+    order.frequency = 'bid';
+  }
+  if (
+    order.frequency === 'tid' &&
+    /\bbid\s+with\s+meals/i.test(originalRaw)
   ) {
     order.frequency = 'bid';
   }
