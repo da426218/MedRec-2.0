@@ -106,4 +106,18 @@ describe('issue regressions', () => {
     expect(r).toMatch(/Time of day changed/);
     expect(r).not.toMatch(/Frequency changed/);
   });
+
+  test('daily \u2192 daily in evening triggers todChanged()', () => {
+    const ctx = loadAppContext();
+    const o = ctx.parseOrder('Warfarin 2.5 mg 1 tab daily');
+    const u = ctx.parseOrder('Warfarin 2.5 mg 1 tab daily in the evening');
+    expect(ctx.todChanged(o, u)).toBe(true);
+  });
+
+  test('Lasix brand swap shows only Brand/Generic', () => {
+    const o = parseOrder('Furosemide 20 mg 1 tab qAM');
+    const u = parseOrder('Lasix 20 mg 1 tab daily');
+    const r = getChangeReason(o, u);
+    expect(r).toBe('Brand/Generic changed');
+  });
 });
