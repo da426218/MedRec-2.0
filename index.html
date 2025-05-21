@@ -2975,6 +2975,10 @@ if (
 ) {
   freqChange = false;
 }
+// If the schedules are numerically the same, never call it a frequency change
+if (sameFrequency(orig.frequency, updated.frequency)) {
+  freqChange = false;
+}
 if (freqChange) add('Frequency changed');
 
 // --- Time of Day Change ---
