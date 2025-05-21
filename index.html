@@ -2337,6 +2337,10 @@ function freqNumeric(freqStr) {
     hs: 1,
     nightly: 1
   };
+
+  /* every N hours or N-M hours → treat first number as the interval */
+  const ev = f.match(/\bevery\s*(\d+)(?:\s*-\s*(\d+))?\s*hours?\b/i);
+  if (ev) return 24 / parseInt(ev[1], 10);
   const range = /^q(\d+)-(\d+)h$/i.exec(f);
   if (range) {
     const min = Number(range[1]);
@@ -2949,6 +2953,12 @@ if (!freqSameNum) {
     freqChange = true;
   }
 } else if (
+  /* Only count a wording-only difference when *both* sides
+     actually specify a frequency string.  This prevents a
+     spurious "Frequency changed" when one side is blank
+     (implicitly daily) and the other says "daily in the evening". */
+  orig.frequency &&
+  updated.frequency &&
   normalizeFrequency(orig.frequency) !== normalizeFrequency(updated.frequency) &&
   todChanged(orig, updated)
 ) {
@@ -2969,6 +2979,10 @@ if (
   normalizeFrequency(orig.frequency) === normalizeFrequency(updated.frequency) &&
   todChanged(orig, updated)
 ) {
+  freqChange = false;
+}
+// If the schedules are numerically the same, never call it a frequency change
+if (sameFrequency(orig.frequency, updated.frequency)) {
   freqChange = false;
 }
 if (freqChange) add('Frequency changed');
@@ -3244,6 +3258,31 @@ if (indicationDiff) {
     }
   }
   // ─────────────────────────────────────────────────────────
+
+  /* ---------- FINAL sanity strip for accidental freq flag ---------- */
+  (() => {
+    if (changes.includes('Frequency changed')) {
+      const sameNum = sameFrequency(orig.frequency, updated.frequency);
+      if (sameNum) {
+        changes = changes.filter(c => c !== 'Frequency changed');
+      }
+    }
+  })();
+  /* ----------------------------------------------------------------- */
+
+  /* ----- final sweep: kill bogus Frequency tag after TOD shift ----- */
+  (() => {
+    const num1 = freqNumeric(orig.frequency);
+    const num2 = freqNumeric(updated.frequency);
+    const numericUnchanged =
+      num1 === num2 ||
+      ((num1 === 1 || num2 === 1) && (num1 == null || num2 == null));
+
+    if (todChanged(orig, updated) && numericUnchanged) {
+      changes = changes.filter(c => c !== 'Frequency changed');
+    }
+  })();
+
 
   if (changes.length === 0) return 'Unchanged'; // Default to Unchanged if no specific diffs were added
   if (changes.length === 1) return changes[0];

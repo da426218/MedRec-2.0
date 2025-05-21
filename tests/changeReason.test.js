@@ -77,7 +77,7 @@ test('Inhaler vs Respiclick brand swap flagged correctly', () => {
         prnCondition: 'shortness of breath'
       }
     );
-    expect(diff).toBe('Frequency changed, Brand/Generic changed');
+    expect(diff).toBe('Brand/Generic changed');
   });
 
   test('Warfarin vs Coumadin \u2013 time-of-day only', () => {
