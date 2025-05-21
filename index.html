@@ -3235,6 +3235,19 @@ if (indicationDiff) {
   })();
   /* ------------------------------------------------------- */
 
+  /* ----- final sweep: kill bogus Frequency tag after TOD shift ----- */
+  (() => {
+    const num1 = freqNumeric(orig.frequency);
+    const num2 = freqNumeric(updated.frequency);
+    const numericUnchanged =
+      num1 === num2 ||
+      ((num1 === 1 || num2 === 1) && (num1 == null || num2 == null));
+
+    if (todChanged(orig, updated) && numericUnchanged) {
+      changes = changes.filter(c => c !== 'Frequency changed');
+    }
+  })();
+
   if (changes.length === 0) return 'Unchanged'; // Default to Unchanged if no specific diffs were added
   if (changes.length === 1) return changes[0];
   if (changes.length <= 4) { // List up to 4 specific changes
