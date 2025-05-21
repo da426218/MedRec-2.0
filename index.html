@@ -2198,12 +2198,14 @@ function normalizeTimeOfDay(t) {
     'in the morning': 'morning',
     'daily in morning': 'morning',
     evening: 'evening',
+    evenings: 'evening',
     pm: 'evening',
     qpm: 'evening',
     'every evening': 'evening',
     'daily in evening': 'evening',
     'in evening': 'evening',
     'in the evening': 'evening',
+    'in the evenings': 'evening',
     'in the pm': 'evening',
     bedtime: 'bedtime',
     night: 'bedtime',
@@ -3232,6 +3234,16 @@ if (indicationDiff) {
     }
   })();
   /* ------------------------------------------------------- */
+
+  // ── FINAL Coumadin/Warfarin frequency guard ─────────────
+  if (coumBrand && changes.includes('Frequency changed')) {
+    const n1 = freqNumeric(orig.frequency);
+    const n2 = freqNumeric(updated.frequency);
+    if (n1 != null && n2 != null && n1 === n2) {
+      changes = changes.filter(c => c !== 'Frequency changed');
+    }
+  }
+  // ─────────────────────────────────────────────────────────
 
   if (changes.length === 0) return 'Unchanged'; // Default to Unchanged if no specific diffs were added
   if (changes.length === 1) return changes[0];
