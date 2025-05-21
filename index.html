@@ -2582,6 +2582,20 @@ function getChangeReason(orig, updated) {
   const freqNum2 = perDay(canon(updated.frequency, updated.originalRaw));
   let freqSameNum =
     freqNum1 !== null && freqNum2 !== null && freqNum1 === freqNum2;
+  // Allow inhaler brand swaps and daily orders with only a time-of-day change
+  // to mark frequencies as equivalent before evaluating frequency changes.
+  if (inhaled(orig) && inhaled(updated)) {
+    frequencyMatch = true;
+    freqSameNum = true;
+  }
+  if (
+    canon(orig.frequency, orig.originalRaw) === 'daily' &&
+    canon(updated.frequency, updated.originalRaw) === 'daily' &&
+    todChanged(orig, updated)
+  ) {
+    frequencyMatch = true;
+    freqSameNum = true;
+  }
   const tokensEqual = (a,b) => {
     a = (a || []).map(norm).sort();
     b = (b || []).map(norm).sort();
@@ -2884,11 +2898,12 @@ if (orig.administration && updated.administration &&
 // --- PRN logic ---
 if (orig.prn !== updated.prn) {
   changes.push('PRN changed');
-} else if (
+}
+if (
   orig.prn &&
   updated.prn &&
-  normalizeIndication(orig.prnCondition) !== normalizeIndication(updated.prnCondition) &&
-  !changes.includes('Indication changed')
+  normalizeIndication(orig.prnCondition) !==
+    normalizeIndication(updated.prnCondition)
 ) {
   changes.push('Indication changed');
 }
