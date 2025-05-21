@@ -30,7 +30,7 @@ describe('getChangeReason', () => {
       route: ''
     };
     const result = ctx.getChangeReason(before, after);
-    expect(result.includes('Frequency changed')).toBe(false);
+    expect(result).toBe('Frequency changed, Brand/Generic changed');
   });
 
   test('Inhaler brand swap not flagged as frequency change', () => {
@@ -77,7 +77,7 @@ test('Inhaler vs Respiclick brand swap flagged correctly', () => {
         prnCondition: 'shortness of breath'
       }
     );
-    expect(diff).toBe('Brand/Generic changed');
+    expect(diff).toBe('Frequency changed, Brand/Generic changed');
   });
 
   test('Warfarin vs Coumadin \u2013 time-of-day only', () => {
