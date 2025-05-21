@@ -3203,33 +3203,23 @@ if (indicationDiff) {
     changes = changes.filter(c => c !== 'Frequency changed');
   }
 
-  /* ---------- FINAL TOD vs FREQ SANITY PASS ---------- */
-  {
-    const sameNumericFreq = (() => {
+
+  /* ---------- FINAL TOD ↔ FREQUENCY CLEAN-UP (must be last) ---------- */
+  (() => {
+    const sameNum = (() => {
       const n1 = freqNumeric(orig.frequency);
       const n2 = freqNumeric(updated.frequency);
       return n1 != null && n1 === n2;
     })();
 
-    if (sameNumericFreq && todChanged(orig, updated) && !timeOfDayMatch) {
-      const lasixException =
-        canon(orig.frequency, orig.originalRaw) === 'daily' &&
-        canon(updated.frequency, updated.originalRaw) === 'daily' &&
-        ((orig.brandTokens || []).includes('lasix') ||
-          (updated.brandTokens || []).includes('lasix'));
-
-      if (!lasixException) {
-        // Ensure TOD tag present
-        if (!changes.includes('Time of day changed')) {
-          changes.push('Time of day changed');
-        }
+    if (sameNum && todChanged(orig, updated)) {
+      if (!changes.includes("Time of day changed")) {
+        changes.push("Time of day changed");
       }
-      // Drop redundant frequency tag
-      changes = changes.filter(c => c !== 'Frequency changed');
+      changes = changes.filter(c => c !== "Frequency changed");
     }
-  }
-  /* ---------------------------------------------------- */
-
+  })();
+  /* -------------------------------------------------------------------- */
   if (changes.length === 0) return 'Unchanged'; // Default to Unchanged if no specific diffs were added
   if (changes.length === 1) return changes[0];
   if (changes.length <= 4) { // List up to 4 specific changes
