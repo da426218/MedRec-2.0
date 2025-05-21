@@ -2893,6 +2893,16 @@ if (!freqSameNum) {
 ) {
   freqChange = true;
 }
+if (
+  freqChange &&
+  freqSameNum &&
+  normalizeFrequency(orig.frequency) ===
+    normalizeFrequency(updated.frequency) &&
+  todChanged(orig, updated) &&
+  tokensEqual(orig.frequencyTokens, updated.frequencyTokens)
+) {
+  freqChange = false;
+}
 if (freqChange) add('Frequency changed');
 
 // --- Time of Day Change ---
