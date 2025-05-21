@@ -108,3 +108,13 @@ describe('current diff fixture', () => {
     }
   });
 });
+
+describe('current diff fixture', () => {
+  test('matches expected flags', () => {
+    for (const { orig, updated, expectedFlags } of diffFixture) {
+      const res = getChangeReason(parseOrder(orig), parseOrder(updated));
+      const arr = Array.isArray(res) ? res : res.split(',').map(s => s.trim()).filter(Boolean);
+      expect(arr).toEqual(expectedFlags);
+    }
+  });
+});
