@@ -3221,7 +3221,18 @@ if (indicationDiff) {
     if (sameNumericFreq && todChanged(orig, updated) && !timeOfDayMatch) {
       const isLasixPair = (() => {
         const lasixish = d => /\b(lasix|furosemide)\b/i.test(d || '');
-        return lasixish(orig.drug) && lasixish(updated.drug);
+        if (!(lasixish(orig.drug) && lasixish(updated.drug))) return false;
+
+        const todHint = ord => {
+          const fromFreq = normalizeTimeOfDay(ord.frequency);
+          const fromTod = normalizeTimeOfDay(ord.timeOfDay);
+          return fromFreq || fromTod;
+        };
+
+        const oHint = todHint(orig);
+        const uHint = todHint(updated);
+
+        return !oHint || !uHint || oHint === uHint;
       })();
 
       if (!isLasixPair) {
