@@ -2333,13 +2333,6 @@ function freqNumeric(freqStr) {
   return map[f] != null ? map[f] : null;
 }
 
-// Wrapper used by some new code; converts a frequency string to the
-// equivalent number of doses per day.  Simply delegates to freqNumeric
-// to keep logic consistent.
-function freqToPerDay(freqStr) {
-  return freqNumeric(freqStr);
-}
-
 /* ---------- simple word→number helper (one-ten) ---------- */
 function numericWord(w) {
   return (
