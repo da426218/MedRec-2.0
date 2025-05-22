@@ -2172,10 +2172,6 @@ function normalizeIndication(txt) {
 
   txt = txt
     .toLowerCase()
-    // Preserve common INR monitoring instructions before stripping
-    .replace(/\badjust\s+(?:per\s+)?inr\b/, 'adjust inr instruction')
-    .replace(/\bcheck\s+inr\s+weekly\b/, 'check inr weekly instruction')
-    .replace(/\bcheck\s+inr\b(?!\s+weekly)/, 'check inr instruction')
     .replace(/\b(type\s*2\s*)?diabetes\b/g, 'diabetes')
     .replace(/\b(htn|hypertension|high blood pressure)\b/g, 'hypertension')
     .replace(/\bhigh cholesterol\b/g, 'cholesterol')
@@ -2203,7 +2199,21 @@ function normalizeIndication(txt) {
     neuropathy: 'neuropathy'
   };
   if (synonyms[txt]) txt = synonyms[txt];
-  return txt;
+
+  // Map common INR monitoring instructions to unique tokens
+  let processedTxt = txt.toLowerCase();
+  if (/\badjust\s+(?:per\s+)?inr\b/.test(processedTxt)) {
+    processedTxt = processedTxt.replace(/\badjust\s+(?:per\s+)?inr\b/g, '_unique_inr_adjust_protocol_');
+  }
+  if (/\bcheck\s+inr\s+weekly\b/.test(processedTxt)) {
+    processedTxt = processedTxt.replace(/\bcheck\s+inr\s+weekly\b/g, '_unique_inr_check_weekly_protocol_');
+  } else if (/\bcheck\s+inr\b/.test(processedTxt)) {
+    processedTxt = processedTxt.replace(/\bcheck\s+inr\b/g, '_unique_inr_check_protocol_');
+  }
+
+  txt = processedTxt;
+
+  return txt.replace(/\s+/g, ' ').trim();
 }
 
 function normalizeTimeOfDay(t) {
