@@ -3623,6 +3623,38 @@ const timeOfDayMappings = [
 ];
 
 let todProcessed = false;
+// ── NEW: explicit clock-time → TOD mapping ──
+if (!order.timeOfDay) {
+  // match “at 9 PM”, “9 pm”, “21:00”, “2100”
+  const clockRE = /\b(?:at\s*)?(\d{1,2})(?::\d{2})?\s*(am|pm)\b|\b(\d{4})\b/i;
+  const t = orderStr.match(clockRE);
+  if (t) {
+    let hr;
+    if (t[3]) {
+      hr = parseInt(t[3].slice(0, 2), 10);
+    } else {
+      hr = parseInt(t[1], 10);
+      if (t[2].toLowerCase() === 'pm' && hr < 12) hr += 12;
+      if (t[2].toLowerCase() === 'am' && hr === 12) hr = 0;
+    }
+    if (hr >= 20 && hr <= 23) {
+      order.timeOfDay = 'bedtime';
+      order.timeOfDayOriginal = t[0].toLowerCase().trim();
+      if (!order.frequency) order.frequency = 'daily';
+      orderStr = orderStr.replace(t[0], '').trim();
+    } else if (hr >= 6 && hr <= 9) {
+      order.timeOfDay = 'morning';
+      order.timeOfDayOriginal = t[0].toLowerCase().trim();
+      if (!order.frequency) order.frequency = 'daily';
+      orderStr = orderStr.replace(t[0], '').trim();
+    } else if (hr >= 18 && hr < 20) {
+      order.timeOfDay = 'evening';
+      order.timeOfDayOriginal = t[0].toLowerCase().trim();
+      if (!order.frequency) order.frequency = 'daily';
+      orderStr = orderStr.replace(t[0], '').trim();
+    }
+  }
+}
 for (const mapping of timeOfDayMappings) {
   const match = orderStr.match(mapping.regex);
   if (match) {
