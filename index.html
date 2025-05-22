@@ -4487,6 +4487,41 @@ order.brandTokens = brandTok;
     }
   }
 
+  // Additional check for INR-related instructions if indication still empty
+  if (!order.indication || order.indication.trim() === '') {
+    const orderStrLower = orderStr.toLowerCase();
+
+    let inrInstruction = '';
+    let matchedPattern = null;
+
+    const adjustInrPattern = /\badjust\s+(?:per\s+)?inr\b/i;
+    const checkInrWeeklyPattern = /\bcheck\s+inr\s+weekly\b/i;
+    const checkInrPattern = /\bcheck\s+inr\b/i;
+
+    if (adjustInrPattern.test(orderStrLower)) {
+      inrInstruction = 'Adjust per INR';
+      matchedPattern = adjustInrPattern;
+    } else if (checkInrWeeklyPattern.test(orderStrLower)) {
+      inrInstruction = 'Check INR weekly';
+      matchedPattern = checkInrWeeklyPattern;
+    } else if (checkInrPattern.test(orderStrLower)) {
+      inrInstruction = 'Check INR';
+      matchedPattern = checkInrPattern;
+    }
+
+    if (inrInstruction) {
+      order.indication = inrInstruction;
+      const matchResult = orderStr.match(matchedPattern);
+      if (matchResult && matchResult[0]) {
+        if (DEBUG)
+          console.log(
+            `parseOrder: Extracted INR instruction "${matchResult[0]}" into order.indication as "${order.indication}"`
+          );
+        orderStr = orderStr.replace(matchResult[0], '').trim();
+      }
+    }
+  }
+
 // If order.drug ended up empty from the above, try a last resort from initialCleanedDrugString
 if (!order.drug && initialCleanedDrugString) {
     let fallbackDrug = initialCleanedDrugString;
