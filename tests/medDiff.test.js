@@ -10,7 +10,7 @@ describe('Medication comparison', () => {
     expect(result).toBe('Dose changed, Brand/Generic changed, Form changed');
   });
 
-  test('adding nerve pain indication ignored when original blank', () => {
+  test('adding nerve pain indication flagged when original blank', () => {
     const ctx = loadAppContext();
     const before = 'Gabapentin 300mg capsule - take 1 cap po tid';
     const after = 'Gabapentin 300mg capsule - take 1 cap po tid for nerve pain';
@@ -18,7 +18,7 @@ describe('Medication comparison', () => {
     const p2 = ctx.parseOrder(after);
     expect(p2.indication).toBe('neuropathy');
     const result = ctx.getChangeReason(p1, p2);
-    expect(result).toBe('Unchanged');
+    expect(result).toBe('Indication changed');
   });
 
   test('normalizeIndicationText maps wheezing', () => {

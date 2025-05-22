@@ -2781,7 +2781,7 @@ function getChangeReason(orig, updated) {
   const prnMatch = same(orig.prn, updated.prn);
   const ind1 = normalizeIndication(orig.indication);
   const ind2 = normalizeIndication(updated.indication);
-  const indicationDiff = ind1 && ind2 && ind1 !== ind2;
+  const indicationDiff = ind1 !== ind2;
   if (indicationDiff) add('Indication changed');
   const startDateMatch = same(orig.startDate, updated.startDate);
   const endDateMatch = same(orig.endDate, updated.endDate);
