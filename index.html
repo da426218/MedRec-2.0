@@ -3593,6 +3593,9 @@ const timeOfDayMappings = [
   { regex: /\bevery\s+other\s+morning\b/i, timeOfDay: 'morning', frequency: 'every other day', originalTermRegexPos: 0 },
   { regex: /\bevery\s+other\s+evening\b/i, timeOfDay: 'evening', frequency: 'every other day', originalTermRegexPos: 0 },
   { regex: /\bevery\s+other\s+night\b/i, timeOfDay: 'bedtime', frequency: 'every other day', originalTermRegexPos: 0 },
+  { regex: /\bdaily\s+in\s+(the\s+)?evening\b/i, timeOfDay: 'evening', frequency: 'daily', originalTermRegexPos: 0 },
+  { regex: /\bdaily\s+(at\s+)?night\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTermRegexPos: 0 },
+  { regex: /\bdaily\s+(at\s+)?bedtime\b/i, timeOfDay: 'bedtime', frequency: 'daily', originalTermRegexPos: 0 },
 
   { regex: /\bdaily\s+in\s+(the\s+)?morning\b/i, timeOfDay: 'morning', frequency: 'daily', originalTermRegexPos: 0 },
   { regex: /\bqam\b/i, timeOfDay: 'morning', frequency: 'daily', originalTerm: 'qam' },
@@ -3625,15 +3628,16 @@ for (const mapping of timeOfDayMappings) {
   if (match) {
     order.timeOfDay = mapping.timeOfDay;
     order.timeOfDayOriginal = (mapping.originalTerm || match[0]).toLowerCase().trim();
-    
-// Determine the exact string that was matched to replace it accurately
-    orderStr = orderStr.replace(match[0], '').trim(); // Replace the entire matched part
+    const entirePhraseToRemove = match[0];
+    orderStr = orderStr.replace(entirePhraseToRemove, "").trim();
 
-    if (mapping.frequency && !order.frequency) { // Only set frequency if not already set by a more specific term
+    if (mapping.frequency && !order.frequency) {
       order.frequency = mapping.frequency;
+    } else if (!mapping.frequency && !order.frequency && /\bdaily\b/i.test(entirePhraseToRemove) && !/\bevery\s+other\b/i.test(entirePhraseToRemove)) {
+      order.frequency = 'daily';
     }
     todProcessed = true;
-    // console.log(`DEBUG parseOrder Step 1 (TimeShorthand): tod="<span class="math-inline">\{order\.timeOfDay\}", freq\="</span>{order.frequency}", orderStr="${orderStr}"`);
+    // console.log(`DEBUG parseOrder Step 1 (TimeShorthand): tod="${order.timeOfDay}", freq="${order.frequency}", orderStr="${orderStr}"`);
     break; // Processed one, move on
   }
 }
