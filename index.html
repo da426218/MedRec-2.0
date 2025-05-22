@@ -27,21 +27,23 @@
       background-color: #007bff;
       color: white;
       text-align: center;
-      padding: 15px;
+      padding: 10px 15px;
       position: sticky;
       top: 0;
       z-index: 1000;
-      height: 200px;
+      height: 125px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       box-sizing: border-box;
+      width: 100%;
     }
 
     @media (max-width: 600px) {
       header {
-        height: 180px;
+        height: 110px;
+        padding: 5px 15px;
       }
     }
     main {
@@ -398,9 +400,18 @@ table.changes-table th {
     }
     #medrec-logo {
       display: block;
-      height: 120px;
+      height: 70px;
       width: auto;
-      margin: 0 auto 10px auto;
+      margin-left: auto;
+      margin-right: auto;
+      margin-bottom: 5px;
+    }
+
+    @media (max-width: 600px) {
+      #medrec-logo {
+        height: 60px;
+        margin-bottom: 5px;
+      }
     }
     /* New styles for text input */
     .text-input-container {
@@ -420,7 +431,7 @@ table.changes-table th {
       border-radius: 5px;
       resize: none;
       font-family: Arial, sans-serif;
-      font-size: 0.9rem;
+      font-size: 16px;
     }
     textarea:focus {
       outline: none;
@@ -4860,6 +4871,12 @@ for (let i = removed.length - 1; i >= 0; i--) {
     }
 
     function showScreen(screenId) {
+      // Attempt to blur active text inputs to help with mobile zoom reset
+      const ta1 = document.getElementById('photo1-text-input');
+      if (ta1) ta1.blur();
+      const ta2 = document.getElementById('photo2-text-input');
+      if (ta2) ta2.blur();
+
       document.getElementById('error-message').textContent = '';
       document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
       document.getElementById(screenId).classList.add('active');
