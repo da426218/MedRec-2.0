@@ -4134,7 +4134,26 @@ if (!order.frequency && immediatelyPattern.test(orderStr)) {
       }
     }
   }
-if (!order.frequency) {
+
+  // — Prefer the main dose frequency over monitoring verbs —
+  // Look for daily / bid / tid / qid that are linked to the *take* clause;
+  // ignore ones attached to ‘check / monitor / adjust’.
+  if (!order.frequency) {
+    const primaryFreqRE =
+      /(?:\b(?:take|give|inject|inhale|apply|use|po|by\s+mouth|orally)\s+)?\b(daily|bid|tid|qid)\b(?!\s+(?:for|if|until|check|monitor|adjust)\b)/i;
+    const m = orderStr.match(primaryFreqRE);
+    if (m) {
+      const preceding = orderStr.slice(0, m.index).trim();
+      const numWordRE = /(once|twice|thrice|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s*(?:x|times?|time)?\s*$/i;
+      if (!numWordRE.test(preceding)) {
+        const map = { daily: 'daily', bid: 'bid', tid: 'tid', qid: 'qid' };
+        order.frequency = map[m[1].toLowerCase()];
+        order.frequencyTokens.push(m[0].toLowerCase().trim());
+        orderStr = orderStr.replace(m[0], '').trim();
+      }
+    }
+  }
+  if (!order.frequency) {
   
   const qhMatch = orderStr.match(/\bq(\d+)h\b/i);
   if (qhMatch) {
