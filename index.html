@@ -3307,6 +3307,14 @@ if (indicationDiff) {
     }
   })();
 
+  // FINAL guard – numeric schedule identical, only TOD shifted
+  if (changes.includes('Frequency changed')) {
+    const numSame = sameFrequency(orig.frequency, updated.frequency);
+    if (numSame && todChanged(orig, updated)) {
+      changes = changes.filter(c => c !== 'Frequency changed');
+    }
+  }
+
 
   if (changes.length === 0) return 'Unchanged'; // Default to Unchanged if no specific diffs were added
   if (changes.length === 1) return changes[0];
