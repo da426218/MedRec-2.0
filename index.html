@@ -2170,8 +2170,17 @@ function normalizeIndicationText(txt = '') {
 function normalizeIndication(txt) {
   if (!txt) return '';
 
+  txt = txt.toLowerCase();
+
+  const painDescriptors = ['mild pain', 'moderate pain', 'severe pain'];
+  const tokens = {};
+  painDescriptors.forEach(desc => {
+    const token = `_pain_${desc.replace(/\s+/g, '_')}_`;
+    tokens[desc] = token;
+    txt = txt.replace(new RegExp(`\\b${desc}\\b`, 'g'), token);
+  });
+
   txt = txt
-    .toLowerCase()
     .replace(/\b(type\s*2\s*)?diabetes\b/g, 'diabetes')
     .replace(/\b(htn|hypertension|high blood pressure)\b/g, 'hypertension')
     .replace(/\bhigh cholesterol\b/g, 'cholesterol')
@@ -2212,6 +2221,10 @@ function normalizeIndication(txt) {
   }
 
   txt = processedTxt;
+
+  Object.entries(tokens).forEach(([desc, token]) => {
+    txt = txt.replace(new RegExp(token, 'g'), desc);
+  });
 
   return txt.replace(/\s+/g, ' ').trim();
 }
