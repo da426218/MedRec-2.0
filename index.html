@@ -3317,33 +3317,31 @@ if (indicationDiff) {
 
 
   if (changes.length === 0) return 'Unchanged'; // Default to Unchanged if no specific diffs were added
+  // --- format final tag list ---
   if (changes.length === 1) return changes[0];
-  if (changes.length <= 4) { // List up to 4 specific changes
-      // Prioritize more significant changes if too many minor ones
-      const priorityOrder = [
-        'Dose changed',
-        'Frequency changed',
-        'Formulation changed',
-        'Brand/Generic changed',
-        'Quantity changed',
-        'Route changed',
-        'Form changed',
-        'Time of day changed',
-        'Administration changed',
-        'Indication changed',
-        'Date changed',
-        'End Date changed'
-      ];
-      changes.sort((a, b) => {
-          let idxA = priorityOrder.indexOf(a);
-          let idxB = priorityOrder.indexOf(b);
-          if (idxA === -1) idxA = priorityOrder.length; // put unknown at end
-          if (idxB === -1) idxB = priorityOrder.length;
-          return idxA - idxB;
-      });
-      return changes.slice(0, 4).join(', ');
-  }
-return 'Multiple changes'; // For 5 or more
+
+  const priority = [
+    'Dose changed',
+    'Frequency changed',
+    'Formulation changed',
+    'Brand/Generic changed',
+    'Quantity changed',
+    'Route changed',
+    'Form changed',
+    'Time of day changed',
+    'Administration changed',
+    'Indication changed',
+    'Date changed',
+    'End Date changed'
+  ];
+
+  changes.sort((a, b) =>
+    (priority.indexOf(a) === -1 ? 999 : priority.indexOf(a)) -
+    (priority.indexOf(b) === -1 ? 999 : priority.indexOf(b))
+  );
+
+  // always return the first four, joined
+  return changes.slice(0, 4).join(', ');
 }
 
   const qtyWords = [
