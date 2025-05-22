@@ -647,6 +647,12 @@ addTest('Vancomycin totals equal when qty null', () => {
   expect(diff('Vancomycin 1 g iv q12h', 'Vancomycin 1 gram iv q12h')).toBe('');
 });
 
+addTest('Clock time 9PM daily parsed as bedtime', () => {
+  const order = parseOrder('Melatonin 5 mg 9PM daily');
+  expect(order.timeOfDay).toBe('bedtime');
+  expect(order.frequency).toBe('daily');
+});
+
 addTest('Warfarin vs Coumadin INR range diff', () => {
   const b = 'Warfarin 3 mg INR 2-3';
   const a = 'Coumadin 3 mg INR 2.0-3.0';
