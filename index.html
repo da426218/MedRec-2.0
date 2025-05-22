@@ -3383,8 +3383,13 @@ if (indicationDiff) {
     (priority.indexOf(b) === -1 ? 999 : priority.indexOf(b))
   );
 
-  // always return the first four, joined
-  return changes.slice(0, 4).join(', ');
+  // If more than four changes were detected, show a generic label
+  if (changes.length > 4) {
+    return 'Multiple changes';
+  } else {
+    // Show all detected changes when there are up to four
+    return changes.join(', ');
+  }
 }
 
   const qtyWords = [
