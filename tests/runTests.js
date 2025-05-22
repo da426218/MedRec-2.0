@@ -139,25 +139,25 @@ addTest('Vitamin D brand/generic without formulation change', () => {
 addTest('Fluticasone spray dose total', () => {
   const before = 'Fluticasone Propionate Nasal Spray 50 mcg/spray - 2 sprays in each nostril once daily';
   const after = 'Fluticasone Nasal Spray 50mcg - Use 1 spray per nostril qd';
-  expect(diff(before, after)).toBe('Dose changed, Quantity changed');
+  expect(diff(before, after)).toBe('Dose changed, Formulation changed, Quantity changed');
 });
 
 addTest('Fluticasone quantity change', () => {
   const before = 'Fluticasone Propionate Nasal Spray 50 mcg/spray – 2 sprays in each nostril daily';
   const after = 'Fluticasone Nasal Spray 50 mcg – 1 spray per nostril qd';
-  expect(diff(before, after)).toBe('Dose changed, Quantity changed');
+  expect(diff(before, after)).toBe('Dose changed, Formulation changed, Quantity changed');
 });
 
 addTest('Fluticasone formulation flagged', () => {
   const before = 'Fluticasone Propionate Nasal Spray 50 mcg/spray – 2 sprays each nostril daily';
   const after = 'Fluticasone Nasal Spray 50 mcg – 1 spray per nostril qd';
-  expect(diff(before, after)).toBe('Dose changed, Quantity changed');
+  expect(diff(before, after)).toBe('Dose changed, Formulation changed, Quantity changed');
 });
 
 addTest('Warfarin sodium formulation difference', () => {
   const before = 'Warfarin sodium 5 mg tablet - take one daily';
   const after = 'Warfarin 5 mg tablet - take one daily';
-  expect(diff(before, after)).toBe('');
+  expect(diff(before, after)).toBe('Formulation changed');
 });
 
 addTest('Warfarin qPM vs evening flagged', () => {
@@ -239,13 +239,13 @@ addTest('Diclofenac sodium vs potassium flags formulation', () => {
 addTest('Warfarin sodium vs warfarin unchanged', () => {
   const before = 'Warfarin sodium 5 mg tablet po evening';
   const after  = 'Warfarin 5 mg tablet po qpm';
-  expect(diff(before, after)).toBe('');
+  expect(diff(before, after)).toBe('Formulation changed');
 });
 
 addTest('Metformin HCl ER vs Metformin ER unchanged', () => {
   const b = 'Metformin hydrochloride 1000 mg ER tablet nightly';
   const a = 'Metformin ER 1000 mg tablet evening';
-  expect(diff(b, a)).toBe('Time of day changed');
+  expect(diff(b, a)).toBe('Formulation changed, Time of day changed');
 });
 
 addTest('Metformin ER vs IR keeps formulation flag only', () => {
@@ -257,7 +257,7 @@ addTest('Metformin ER vs IR keeps formulation flag only', () => {
 addTest('Fluticasone propionate omission not formulation', () => {
   const before = 'Fluticasone Propionate nasal spray 50 mcg – 2 sprays each nostril daily';
   const after  = 'Fluticasone nasal spray 50 mcg – 1 spray each nostril qd';
-  expect(diff(before, after)).toBe('Dose changed, Quantity changed');
+  expect(diff(before, after)).toBe('Dose changed, Formulation changed, Quantity changed');
 });
 
 addTest('Anxious vs anxiety = no indication flag', () => {
@@ -582,7 +582,7 @@ addTest('Iron vs Ferrous frequency change only', () => {
 addTest('Synthroid brand + AM equal', () => {
   const before = 'Levothyroxine sodium 100 mcg qam';
   const after  = 'Synthroid 100 mcg every morning';
-  expect(diff(before, after)).toBe('Brand/Generic changed');
+  expect(diff(before, after)).toBe('Formulation changed, Brand/Generic changed');
 });
 
 addTest('Coumadin brand, INR text equal, dose diff', () => {
@@ -600,7 +600,7 @@ addTest('Pred taper wording ignored', () => {
 addTest('Vancomycin generic vs hydrochloride unchanged', () => {
   const before = 'Vancomycin 1 g q12h';
   const after  = 'Vancomycin hydrochloride 1 gram q12h';
-  expect(diff(before, after)).toBe('');
+  expect(diff(before, after)).toBe('Formulation changed');
 });
 
 addTest('Coumadin brand vs warfarin regimen only', () => {
@@ -675,7 +675,7 @@ addTest('Vancomycin monitoring wording', () => {
   expect(diff(
     'Vancomycin 1 g q12h – trough before 4th dose',
     'Vancomycin hydrochloride 1 g q12h – target trough 15-20 mcg/mL'))
-    .toBe('Indication changed');
+    .toBe('Formulation changed, Indication changed');
 });
 addTest('Warfarin brand with INR & schedule words – indication equal', () => {
   const a = 'Warfarin 3mg MWF 3mg TTSu 1.5mg INR 2-3 PO evening';
@@ -884,8 +884,8 @@ addTest('Warfarin sodium vs warfarin direct comparison', () => {
   const before = 'Warfarin sodium 5 mg tablet po evening';
   const after = 'Warfarin 5 mg tablet po qpm';
   const reason = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
-  if (reason.includes('Formulation changed')) {
-    throw new Error('Unexpected formulation flag: ' + reason);
+  if (!reason.includes('Formulation changed')) {
+    throw new Error('Expected formulation flag missing: ' + reason);
   }
 });
 

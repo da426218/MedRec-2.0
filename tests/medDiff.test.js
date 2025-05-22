@@ -228,4 +228,28 @@ describe('Medication comparison', () => {
       throw new Error('Route flag set for inhaler brand swap: ' + result);
     }
   });
+
+  test('Warfarin sodium vs warfarin flags formulation', () => {
+    const ctx = loadAppContext();
+    const before = ctx.parseOrder('Warfarin sodium 5 mg tablet - one po qPM for atrial fibrillation. Start date: 01/01/2025');
+    const after = ctx.parseOrder('Warfarin 5 mg tablet - 1 PO daily in evening for afib. Start date: 01/01/2025');
+    const result = ctx.getChangeReason(before, after);
+    expect(result).toMatch(/Formulation changed/);
+  });
+
+  test('Metformin HCl ER vs Metformin ER flags formulation', () => {
+    const ctx = loadAppContext();
+    const before = ctx.parseOrder('Metformin hydrochloride 1000mg ER - Take one tablet by mouth every evening with supper');
+    const after = ctx.parseOrder('Metformin ER 1000mg - Take 1 tab po nightly with food');
+    const result = ctx.getChangeReason(before, after);
+    expect(result).toMatch(/Formulation changed/);
+  });
+
+  test('Fluticasone propionate omission flags formulation', () => {
+    const ctx = loadAppContext();
+    const before = ctx.parseOrder('Fluticasone Propionate Nasal Spray 50 mcg/spray - 2 sprays in each nostril once daily');
+    const after = ctx.parseOrder('Fluticasone Nasal Spray 50mcg - Use 1 spray per nostril qd');
+    const result = ctx.getChangeReason(before, after);
+    expect(result).toMatch(/Formulation changed/);
+  });
 });
