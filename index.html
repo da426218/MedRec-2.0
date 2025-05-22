@@ -4115,22 +4115,18 @@ if (!order.frequency && immediatelyPattern.test(orderStr)) {
     const primaryMatch = orderStr.match(primaryFreqPattern);
 
     if (primaryMatch && primaryMatch[1]) {
-      const preceding = orderStr.slice(0, primaryMatch.index).trim();
-      const numWordRE = /(once|twice|thrice|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s*(?:x|times?|time)?\s*$/i;
-      if (!numWordRE.test(preceding)) {
-        const matchedFreq = primaryMatch[1].toLowerCase();
-        // Ensure it's a canonical frequency term before assigning
-        const canonicalMap = { daily: 'daily', bid: 'bid', tid: 'tid', qid: 'qid' };
-        if (canonicalMap[matchedFreq]) {
-          order.frequency = canonicalMap[matchedFreq];
-          // Use primaryMatch[0] for removal to remove the whole matched segment e.g., "PO daily" or just "daily"
-          if (DEBUG)
-            console.log(
-              `parseOrder Step 8 (Primary Freq Match): Matched "${primaryMatch[0]}" for frequency "${order.frequency}"`
-            );
-          order.frequencyTokens.push(primaryMatch[0].toLowerCase().trim());
-          orderStr = orderStr.replace(primaryMatch[0], '').trim();
-        }
+      const matchedFreq = primaryMatch[1].toLowerCase();
+      // Ensure it's a canonical frequency term before assigning
+      const canonicalMap = { daily: 'daily', bid: 'bid', tid: 'tid', qid: 'qid' };
+      if (canonicalMap[matchedFreq]) {
+        order.frequency = canonicalMap[matchedFreq];
+        // Use primaryMatch[0] for removal to remove the whole matched segment e.g., "PO daily" or just "daily"
+        if (DEBUG)
+          console.log(
+            `parseOrder Step 8 (Primary Freq Match): Matched "${primaryMatch[0]}" for frequency "${order.frequency}"`
+          );
+        order.frequencyTokens.push(primaryMatch[0].toLowerCase().trim());
+        orderStr = orderStr.replace(primaryMatch[0], '').trim();
       }
     }
   }
