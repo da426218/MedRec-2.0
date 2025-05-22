@@ -101,6 +101,14 @@ describe('Medication comparison', () => {
     expect(result).toBe('Indication changed');
   });
 
+  test('mild pain vs pain flagged', () => {
+    const ctx = loadAppContext();
+    const before = ctx.parseOrder('Acetaminophen 500 mg tab q6h prn pain');
+    const after = ctx.parseOrder('Acetaminophen 500 mg tab q6h prn mild pain');
+    const result = ctx.getChangeReason(before, after);
+    expect(result).toBe('Indication changed');
+  });
+
   test('fraction unicode quantity parsed', () => {
     const ctx = loadAppContext();
     const order = ctx.parseOrder('Aspirin \u00bd tab daily');
