@@ -27,36 +27,35 @@
       background-color: #007bff;
       color: white;
       text-align: center;
-      padding: 10px 15px;
+      padding: 15px;
       position: sticky;
       top: 0;
       z-index: 1000;
-      height: 120px;
+      height: 200px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       box-sizing: border-box;
     }
 
     @media (max-width: 600px) {
       header {
-        height: 110px;
-      }
-      #medrec-logo {
-        height: 45px;
+        height: 180px;
       }
     }
     main {
       flex: 1;
-      padding: 1rem;
-      max-width: 600px;
-      margin: 0 auto;
-      width: 100%;
-      box-sizing: border-box;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      align-items: center; /* Horizontal centering of .screen */
+      justify-content: center; /* Vertical centering of .screen when content is short */
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      width: 100%;
+      padding: 1rem;
+      box-sizing: border-box;
     }
     .screen {
       display: none;
@@ -399,11 +398,9 @@ table.changes-table th {
     }
     #medrec-logo {
       display: block;
+      height: 120px;
       width: auto;
-      margin-left: auto;
-      margin-right: auto;
-      margin-bottom: 10px;
-      height: 55px;
+      margin: 0 auto 10px auto;
     }
     /* New styles for text input */
     .text-input-container {
