@@ -8,7 +8,10 @@
   <style>
     /* Basic Layout */
     body {
-      font-family: Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+      font-size: 1rem;
+      color: #333;
       margin: 0;
       padding: 0;
       background-color: #f4f4f4;
@@ -16,19 +19,29 @@
       flex-direction: column;
       min-height: 100vh;
     }
+
+    p {
+      line-height: 1.6;
+    }
     header {
       background-color: #007bff;
       color: white;
       text-align: center;
-      padding: 0.5rem;
+      padding: 0.5rem 0 1rem;
       position: sticky;
       top: 0;
       z-index: 1000;
-      height: 185px;
+      height: 120px;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
+      align-items: center;
       box-sizing: border-box;
+    }
+
+    @media (max-width: 600px) {
+      header {
+        height: 100px;
+      }
     }
     main {
       flex: 1;
@@ -53,9 +66,9 @@
     .card {
       background-color: white;
       border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.07);
       border: 1px solid #ddd;
-      padding: 1rem;
+      padding: 1.5rem;
       margin: 0.5rem 0;
       width: 100%;
       box-sizing: border-box;
@@ -65,23 +78,23 @@
       background-color: #007bff;
       color: white;
       border: none;
-      padding: 0.5rem 1rem;
+      padding: 0.75rem 1.5rem;
       margin: 0.5rem 0;
       cursor: pointer;
-      border-radius: 15px;
+      border-radius: 6px;
       width: 100%;
       max-width: 300px;
       display: block;
       font-weight: 600;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-      transition: box-shadow 0.2s ease;
+      transition: background-color 0.2s ease, border-color 0.2s ease,
+        color 0.2s ease, box-shadow 0.2s ease;
     }
     button:disabled {
       background-color: #cccccc;
       cursor: not-allowed;
     }
     button:hover:not(:disabled) {
-      background-color: #0056b3;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     }
     /* Hide native file inputs */
@@ -112,6 +125,55 @@
     .disclaimer-actions button {
       width: 100%;
       max-width: 300px;
+    }
+
+    /* Secondary buttons (default for photo actions) */
+    .photo-actions button,
+    button[onclick='exportToPDF()'],
+    button[onclick='printResults()'] {
+      background-color: #fff;
+      color: #0069d9;
+      border: 1px solid #0069d9;
+    }
+
+    .photo-actions button:hover:not(:disabled),
+    button[onclick='exportToPDF()']:hover:not(:disabled),
+    button[onclick='printResults()']:hover:not(:disabled) {
+      background-color: #e6f2ff;
+    }
+
+    /* Primary action buttons */
+    .disclaimer-actions button,
+    #photo1-next,
+    #photo2-compare,
+    .text-input-container button {
+      background-color: #0069d9;
+      color: #fff;
+      border: 1px solid #0069d9;
+      background-image: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.08),
+        rgba(0, 0, 0, 0.08)
+      );
+    }
+
+    .disclaimer-actions button:hover:not(:disabled),
+    #photo1-next:hover:not(:disabled),
+    #photo2-compare:hover:not(:disabled),
+    .text-input-container button:hover:not(:disabled) {
+      background-color: #0056b3;
+    }
+
+    /* Tertiary buttons */
+    button[onclick='startOver()'] {
+      background-color: #f8f9fa;
+      color: #6c757d;
+      border: 1px solid #ced4da;
+    }
+
+    button[onclick='startOver()']:hover:not(:disabled) {
+      background-color: #e9ecef;
+      border-color: #adb5bd;
     }
     .upload-instructions {
       font-size: 0.9rem;
@@ -193,6 +255,7 @@ table.changes-table td {
   border: 1px solid #ddd;
   padding: 0.5rem;
   text-align: left;
+  line-height: 1.6;
 }
 table.changes-table th {
   background-color: #f0f0f0;
@@ -211,8 +274,9 @@ table.changes-table th {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin: 0.5rem 0;
-      margin-top: -40px;
+      margin: 0.5rem auto 0;
+      width: 90%;
+      max-width: 400px;
       position: relative;
     }
     .progress-step {
@@ -281,11 +345,22 @@ table.changes-table th {
     li {
       margin: 0.5rem 0;
     }
-    h3 {
-      margin-top: 1rem;
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
     }
+
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
     p.disclaimer-text {
-      text-align: justify;
+      text-align: left;
+      line-height: 1.6;
       max-width: 500px;
       margin: 0 auto;
     }
@@ -319,13 +394,10 @@ table.changes-table th {
       opacity: 1;
     }
     #medrec-logo {
-      height: 180px;
+      max-height: 50px;
       width: auto;
       display: block;
       margin: 0 auto;
-      position: relative;
-      top: -10px;
-      z-index: 1001;
     }
     /* New styles for text input */
     .text-input-container {
