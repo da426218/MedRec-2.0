@@ -2172,6 +2172,10 @@ function normalizeIndication(txt) {
 
   txt = txt
     .toLowerCase()
+    // Preserve common INR monitoring instructions before stripping
+    .replace(/\badjust\s+(?:per\s+)?inr\b/, 'adjust inr instruction')
+    .replace(/\bcheck\s+inr\s+weekly\b/, 'check inr weekly instruction')
+    .replace(/\bcheck\s+inr\b(?!\s+weekly)/, 'check inr instruction')
     .replace(/\b(type\s*2\s*)?diabetes\b/g, 'diabetes')
     .replace(/\b(htn|hypertension|high blood pressure)\b/g, 'hypertension')
     .replace(/\bhigh cholesterol\b/g, 'cholesterol')
