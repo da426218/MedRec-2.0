@@ -4106,6 +4106,34 @@ if (!order.frequency && immediatelyPattern.test(orderStr)) {
     // console.log(`DEBUG parseOrder Step 8a (Immediately): order.frequency="<span class="math-inline">\{order\.frequency\}", orderStr\="</span>{orderStr}"`);
 }
 // Now proceed with other frequency checks if not "immediately"
+  // Try to detect primary frequency terms before other clauses override them
+  if (!order.frequency) {
+    // Try to find primary frequencies (daily, bid, tid, qid) if they are clearly part of the main instruction
+    // This regex looks for these terms, possibly preceded by common verbs like "take", "po", "by mouth"
+    // and NOT followed by words that might indicate it's part of a different clause (like 'for', 'if', 'until', 'check', 'adjust')
+    const primaryFreqPattern = /(?:\b(?:take|give|po|by mouth|orally)\s+)?\b(daily|bid|tid|qid)\b(?!\s+(?:for|if|until|check|adjust)\b)/i;
+    const primaryMatch = orderStr.match(primaryFreqPattern);
+
+    if (primaryMatch && primaryMatch[1]) {
+      const preceding = orderStr.slice(0, primaryMatch.index).trim();
+      const numWordRE = /(once|twice|thrice|one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s*(?:x|times?|time)?\s*$/i;
+      if (!numWordRE.test(preceding)) {
+        const matchedFreq = primaryMatch[1].toLowerCase();
+        // Ensure it's a canonical frequency term before assigning
+        const canonicalMap = { daily: 'daily', bid: 'bid', tid: 'tid', qid: 'qid' };
+        if (canonicalMap[matchedFreq]) {
+          order.frequency = canonicalMap[matchedFreq];
+          // Use primaryMatch[0] for removal to remove the whole matched segment e.g., "PO daily" or just "daily"
+          if (DEBUG)
+            console.log(
+              `parseOrder Step 8 (Primary Freq Match): Matched "${primaryMatch[0]}" for frequency "${order.frequency}"`
+            );
+          order.frequencyTokens.push(primaryMatch[0].toLowerCase().trim());
+          orderStr = orderStr.replace(primaryMatch[0], '').trim();
+        }
+      }
+    }
+  }
 if (!order.frequency) {
   
   const qhMatch = orderStr.match(/\bq(\d+)h\b/i);
