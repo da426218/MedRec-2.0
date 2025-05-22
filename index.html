@@ -3001,6 +3001,14 @@ if (
 if (sameFrequency(orig.frequency, updated.frequency)) {
   freqChange = false;
 }
+// drop frequency flag when schedules are numerically equal
+// and the only difference is a TOD shift
+if (freqChange) {
+  const numSame = sameFrequency(orig.frequency, updated.frequency);
+  const todShift = todChanged(orig, updated);
+  if (numSame && todShift) freqChange = false;
+}
+if (!freqChange) changes = changes.filter(c => c !== 'Frequency changed');
 if (freqChange) add('Frequency changed');
 
 // --- Time of Day Change ---
