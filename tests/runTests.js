@@ -428,6 +428,12 @@ addTest('Tabs vs no form equal', () => {
     .toBe('Dose changed, Brand/Generic changed, Quantity changed');
 });
 
+addTest('Tylenol Extra Strength vs acetaminophen brand flag', () => {
+  const before = 'Tylenol Extra Strength 500 mg tablet po daily';
+  const after = 'Acetaminophen 500 mg tablet po daily';
+  expect(diff(before, after)).toBe('Brand/Generic changed');
+});
+
 addTest('Metoprolol XL vs ER unchanged', () => {
   const before = 'Metoprolol XL 50 mg tab daily';
   const after  = 'Metoprolol Succinate ER 50 mg tab daily';

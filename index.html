@@ -1750,6 +1750,22 @@ function hasContra(orderObj, wholeList = []) {
     }
     n = n.replace(/\s+/g, ' ').trim();
 
+    // Remove common descriptive modifiers like "extra strength" or "pm"
+    const commonModifiers = [
+        'extra strength', 'regular strength', 'maximum strength',
+        'extra', 'regular', 'maximum',
+        'pm', 'am', 'advanced', 'complete',
+        'childrens', 'infants',
+        'arthritis pain', 'cold & flu', 'cold and flu', 'sinus', 'allergy',
+        'headache', 'migraine', 'multi symptom', 'daytime', 'nighttime'
+    ];
+    commonModifiers.sort((a, b) => b.length - a.length);
+    for (const modifier of commonModifiers) {
+        const modifierRegex = new RegExp(`\\b${modifier.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`, 'gi');
+        n = n.replace(modifierRegex, ' ');
+    }
+    n = n.replace(/\s+/g, ' ').trim();
+
     /* 3 .  Remove timing / meal phrases that sneak into the name */
     n = n.replace(/\b(?:\d+\s*(?:min(?:ute)?s?|hr|hrs?|hours?)\s*)?(?:at|before|after|with|without)\s+(?:breakfast|lunch|dinner|meal(?:s)?|night|bedtime|morning|evening)\b/ig, '')
          .trim();
