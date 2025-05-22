@@ -3695,9 +3695,48 @@ if (!order.timeOfDay) {
 }
 
 // only strip “every” for time-of-day phrases
-orderStr = orderStr
-  .replace(/\bevery\s+(morning|evening|night)\b/gi, '$1')
-  .trim();
+  orderStr = orderStr
+    .replace(/\bevery\s+(morning|evening|night)\b/gi, '$1')
+    .trim();
+
+  // ── NEW: explicit clock-time → TOD mapping
+  if (!todProcessed) {
+    const clockRE =
+      /\b(?:at\s*)?(\d{1,2})(?::(\d{2}))?\s*(?:\s?[ap]m)?\b|\b(\d{4})\b/gi;
+    let cMatch = null;
+    for (const m of orderStr.matchAll(clockRE)) {
+      if (/[ap]m/i.test(m[0]) || m[0].includes(':') || m[3]) {
+        cMatch = m;
+        break;
+      }
+    }
+    if (cMatch) {
+      let hour;
+      if (cMatch[3]) {
+        const hh = parseInt(cMatch[3].slice(0, 2), 10);
+        const mm = parseInt(cMatch[3].slice(2), 10);
+        if (hh >= 0 && hh < 24 && mm >= 0 && mm < 60) {
+          hour = hh;
+        } else {
+          hour = null;
+        }
+      } else {
+        hour = parseInt(cMatch[1], 10);
+        if (/pm/i.test(cMatch[0]) && hour < 12) hour += 12;
+        if (/am/i.test(cMatch[0]) && hour === 12) hour = 0;
+      }
+      if (hour != null && (hour >= 21 || hour <= 3)) {
+        order.timeOfDay = 'bedtime';
+        order.timeOfDayOriginal = cMatch[0].toLowerCase();
+        if (!order.frequency && /\bdaily\b/i.test(orderStr)) {
+          order.frequency = 'daily';
+          orderStr = orderStr.replace(/\bdaily\b/i, '').trim();
+        }
+        orderStr = orderStr.replace(cMatch[0], '').trim();
+        todProcessed = true;
+      }
+    }
+  }
 
   // 2. Extract Administration (with/without food/water)
   const adminMatch = orderStr.match(
