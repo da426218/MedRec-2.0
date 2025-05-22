@@ -91,6 +91,16 @@ describe('Medication comparison', () => {
     expect(result).toBe('Indication changed');
   });
 
+  test('distinct INR instructions flagged', () => {
+    const ctx = loadAppContext();
+    const before = ctx.parseOrder('Warfarin 2 mg tablet - take 1 tab daily');
+    before.indication = 'Adjust per INR';
+    const after = ctx.parseOrder('Warfarin 2 mg tablet - take 1 tab daily');
+    after.indication = 'Check INR weekly';
+    const result = ctx.getChangeReason(before, after);
+    expect(result).toBe('Indication changed');
+  });
+
   test('fraction unicode quantity parsed', () => {
     const ctx = loadAppContext();
     const order = ctx.parseOrder('Aspirin \u00bd tab daily');
