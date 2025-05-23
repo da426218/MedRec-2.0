@@ -216,6 +216,14 @@ describe('keepOrderLines + parseOrder', () => {
     const order = ctx.parseOrder(lines[0]);
     expect(order.drug.toLowerCase()).toMatch(/timolol/);
   });
+
+  test('Potassium chloride keeps potassium in drug name', () => {
+    const ctx = loadAppContext();
+    const order = ctx.parseOrder(
+      'Potassium Chloride 10 mEq ER tab - take one tablet twice daily'
+    );
+    expect(order.drug).toBe('potassium chloride');
+  });
 });
 
 describe('normalizeMedicationName', () => {

@@ -1768,7 +1768,7 @@ function hasContra(orderObj, wholeList = []) {
   });
 
 
-  const ignoreSalts = /\b(hydrochloride|sulfate|phosphate|acetate|carbonate|maleate|succinate|tartrate|mesylate|besylate|camsylate|gluconate|bitartrate|edisylate|propionate|sodium|potassium|calcium|magnesium|fumarate)\b/gi;
+  const ignoreSalts = /\b(hydrochloride|sulfate|phosphate|acetate|carbonate|maleate|succinate|tartrate|mesylate|besylate|camsylate|gluconate|bitartrate|edisylate|propionate|sodium|potassium(?!\s*chloride)|calcium|magnesium|fumarate)\b/gi;
   const trivialSalts = /\b(sodium|sulfate|phosphate|acetate|carbonate|succinate|maleate|tartrate|mesylate|besylate|camsylate|gluconate|bitartrate|edisylate|propionate|calcium|magnesium|fumarate|hydrochloride)\b/gi;
 
   const importantSaltPairs = [
@@ -1833,7 +1833,10 @@ function hasContra(orderObj, wholeList = []) {
     ];
     commonSalts.sort((a,b) => b.length - a.length);
     for (const salt of commonSalts) {
-      const saltRegex = new RegExp(salt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      let saltRegex = new RegExp(salt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      if (salt === 'potassium') {
+        saltRegex = /\bpotassium\b(?!\s*chloride)/gi;
+      }
       n = n.replace(saltRegex, ' ');
     }
     n = n.replace(/\s+/g, ' ').trim();
