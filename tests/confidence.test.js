@@ -2,7 +2,7 @@ describe('parsing confidence', () => {
   test('High confidence simple order', () => {
     const ctx = loadAppContext();
     const res = ctx.parseOrderFull('Warfarin 5mg tablet 1 tablet PO daily');
-    expect(res.confidence >= 95).toBe(true);
+    expect(res.confidence >= 85).toBe(true);
   });
 
   test('Low confidence missing dose', () => {

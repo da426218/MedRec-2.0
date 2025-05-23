@@ -4724,7 +4724,7 @@ applyFinalNormalizations(order, troughNote, originalRaw);
     parsingConfidence -= 20;
   }
   if (!order.frequency && !order.prn) {
-    parsingConfidence -= 20;
+    parsingConfidence -= 10;
   }
   if (!order.route) {
     parsingConfidence -= 15;
@@ -4733,10 +4733,10 @@ applyFinalNormalizations(order, troughNote, originalRaw);
   const origLen = (originalRaw || '').replace(/\s+/g, '').length || 1;
   const leftoverLen = (orderStr || '').replace(/\s+/g, '').length;
   const ratio = leftoverLen / origLen;
-  if (ratio > 0.25) {
-    parsingConfidence -= 30;
-  } else if (ratio > 0.1) {
-    parsingConfidence -= 15;
+  if (ratio > 0.3) {
+    parsingConfidence -= 25;
+  } else if (ratio > 0.15) {
+    parsingConfidence -= 10;
   }
 
   if (ocrConfidenceValue !== undefined && ocrConfidenceValue !== null) {
