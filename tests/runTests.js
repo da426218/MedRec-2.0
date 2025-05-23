@@ -93,6 +93,11 @@ function loadAppContext() {
   };
   vm.createContext(context);
   vm.runInContext(script, context);
+  const origParse = context.parseOrder;
+  context.parseOrderFull = origParse;
+  context.parseOrder = function(...args) {
+    return origParse(...args).parsed;
+  };
   cachedContext = context;
   return context;
 }
@@ -115,6 +120,7 @@ global.diffRows = diffRowsList;
 global.loadAppContext = loadAppContext;
 // Expose core helpers for convenience in tests
 global.parseOrder = (...args) => loadAppContext().parseOrder(...args);
+global.parseOrderWithConfidence = (...args) => loadAppContext().parseOrderFull(...args);
 global.getChangeReason = (...args) =>
   loadAppContext().getChangeReason(...args);
 
@@ -303,6 +309,9 @@ addTest('Normalize twice daily with meals', () => {
   };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   expect(ctx.normalizeFrequency('twice daily with meals')).toBe('bid');
 });
 
@@ -317,6 +326,9 @@ addTest('Normalize numeric times per day', () => {
   };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   expect(ctx.normalizeFrequency('3 times a day')).toBe('tid');
   expect(ctx.normalizeFrequency('5 times a day')).toBe('5 times a day');
 });
@@ -332,6 +344,9 @@ addTest('Normalize 2 times a day', () => {
   };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   expect(ctx.normalizeFrequency('2 times a day')).toBe('bid');
 });
 
@@ -346,6 +361,9 @@ addTest('Normalize 3 times a day', () => {
   };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   expect(ctx.normalizeFrequency('3 times a day')).toBe('tid');
 });
 
@@ -360,6 +378,9 @@ addTest('Normalize every morning to daily', () => {
   };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   expect(ctx.normalizeFrequency('every morning')).toBe('daily');
 });
 
@@ -374,6 +395,9 @@ addTest('normalizeAdministration canonical forms', () => {
   };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   expect(ctx.normalizeAdministration('with orange juice')).toBe('with food');
   expect(ctx.normalizeAdministration('with supper')).toBe('with food');
   expect(ctx.normalizeAdministration('with dinner')).toBe('with food');
@@ -449,6 +473,9 @@ addTest('Once weekly frequency detected', () => {
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   const order = ctx.parseOrder('Vitamin D2 50000 units - take once weekly at bedtime');
   expect(order.frequency).toBe('weekly');
   expect(order.timeOfDay).toBe('bedtime');
@@ -460,6 +487,9 @@ addTest('Every Sunday morning parsed as weekly', () => {
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   const order = ctx.parseOrder('Alendronate 70 mg tablet - take every Sunday morning');
   expect(order.frequency).toBe('weekly');
   expect(order.timeOfDay).toBe('morning');
@@ -471,6 +501,9 @@ addTest('Brand token captured in array', () => {
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   const order = ctx.parseOrder('Lipitor 40 mg tablet daily');
   expect(order.brandTokens).toEqual(['lipitor']);
 });
@@ -481,6 +514,9 @@ addTest('Duplicate brand names deduped', () => {
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({ }), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   const order = ctx.parseOrder('Lipitor Lipitor 40 mg tablet daily');
   expect(order.brandTokens).toEqual(['lipitor']);
 });
@@ -491,6 +527,9 @@ addTest('Duplicate brand synonyms deduped', () => {
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({ }), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   const order = ctx.parseOrder('Coumadin Coumadin 5 mg daily');
   expect(order.brandTokens).toEqual(['coumadin']);
 });
@@ -501,6 +540,9 @@ addTest('Mixed brand/generic only first captured', () => {
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({ }), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   const order = ctx.parseOrder('Coumadin (generic) Coumadin 5 mg');
   expect(order.brandTokens).toEqual(['coumadin']);
 });
@@ -511,6 +553,9 @@ addTest('Generic name has no brand tokens', () => {
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   const order = ctx.parseOrder('atorvastatin 40 mg tablet daily');
   expect(order.brandTokens).toEqual([]);
 });
@@ -521,6 +566,9 @@ addTest('Weekly time of day ignored in diff', () => {
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   const before = 'Vitamin D2 50000 units - take once weekly at bedtime';
   const after  = 'Vitamin D2 50000 units - take once weekly in the morning';
   expect(ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after))).toBe('Unchanged');
@@ -532,6 +580,9 @@ addTest('Microgram to milligram normalization', () => {
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   const order = ctx.parseOrder('Levothyroxine 100 mcg tablet daily');
   expect(order.dose.value).toBe(0.1);
   expect(order.dose.unit).toBe('mg');
@@ -547,6 +598,9 @@ addTest('Vancomycin gram vs g unchanged', () => {
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   const p1 = ctx.parseOrder(before);
   const p2 = ctx.parseOrder(after);
   expect(p1.rawUnit).toBe('mg');
@@ -793,6 +847,9 @@ addTest('2 times a day normalized to bid', () => {
   };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   const order = ctx.parseOrder('Metformin 500 mg tablet - take 1 tab 2 times a day');
   expect(order.frequency).toBe('bid');
 });
@@ -884,6 +941,9 @@ addTest('Warfarin sodium vs warfarin direct comparison', () => {
   };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   const before = 'Warfarin sodium 5 mg tablet po evening';
   const after = 'Warfarin 5 mg tablet po qpm';
   const reason = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
@@ -903,6 +963,9 @@ addTest('Benign salt swap is ignored', () => {
   };
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
+  const orig = ctx.parseOrder;
+  ctx.parseOrderFull = orig;
+  ctx.parseOrder = (...args) => orig(...args).parsed;
   const before = 'Amlodipine 5 mg tab – 1 PO daily';
   const after = 'Amlodipine besylate 5 mg tab – 1 PO daily';
   const reason = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
