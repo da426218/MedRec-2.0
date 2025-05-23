@@ -245,10 +245,26 @@ describe('Medication comparison', () => {
     expect(result).toBe('Unchanged');
   });
 
-  test('Fluticasone propionate omission flags formulation', () => {
+  test('Fluticasone propionate omission flags quantity only', () => {
     const ctx = loadAppContext();
     const before = ctx.parseOrder('Fluticasone Propionate Nasal Spray 50 mcg/spray - 2 sprays in each nostril once daily');
     const after = ctx.parseOrder('Fluticasone Nasal Spray 50mcg - Use 1 spray per nostril qd');
+    const result = ctx.getChangeReason(before, after);
+    expect(result).toBe('Quantity changed');
+  });
+
+  test('Trivial propionate difference ignored', () => {
+    const ctx = loadAppContext();
+    const before = ctx.parseOrder('Drugname Propionate 10mg tablet');
+    const after = ctx.parseOrder('Drugname 10mg tablet');
+    const result = ctx.getChangeReason(before, after);
+    expect(result).toBe('Unchanged');
+  });
+
+  test('ER formulation difference still flagged', () => {
+    const ctx = loadAppContext();
+    const before = ctx.parseOrder('Drugname Propionate 10mg ER tablet');
+    const after = ctx.parseOrder('Drugname Propionate 10mg tablet');
     const result = ctx.getChangeReason(before, after);
     expect(result).toMatch(/Formulation changed/);
   });
