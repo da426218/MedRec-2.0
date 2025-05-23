@@ -215,7 +215,7 @@ addTest('Spiriva brand/generic flag', () => {
 addTest('HCTZ abbreviation no brand flag', () => {
   const before = 'Lisinopril/HCTZ 20-12.5mg PO daily';
   const after  = 'Lisinopril 20mg / Hydrochlorothiazide 12.5mg PO daily';
-  expect(diff(before, after)).toBe('Dose changed, Brand/Generic changed');
+  expect(diff(before, after)).toBe('Brand/Generic changed');
 });
 
 addTest('Insulin TIDAC equals before meals (no freq flag)', () => {

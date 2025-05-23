@@ -252,4 +252,12 @@ describe('Medication comparison', () => {
     const result = ctx.getChangeReason(before, after);
     expect(result).toMatch(/Formulation changed/);
   });
+
+  test('Lisinopril/HCTZ combo dose should not flag dose change if components and qty are same', () => {
+    const ctx = loadAppContext();
+    const before = ctx.parseOrder('Lisinopril/HCTZ 20-12.5mg - 1 tab daily');
+    const after = ctx.parseOrder('Lisinopril 20mg / Hydrochlorothiazide 12.5mg combination tablet - 1 tablet PO daily');
+    const result = ctx.getChangeReason(before, after);
+    expect(result.includes('Dose changed')).toBe(false);
+  });
 });
