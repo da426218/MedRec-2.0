@@ -390,6 +390,7 @@ table.changes-table th {
       bottom: 125%;
       left: 50%;
       transform: translateX(-50%);
+      white-space: normal;
       opacity: 0;
       transition: opacity 0.3s;
     }
@@ -5728,7 +5729,7 @@ if (!match) {
                     <th>Original Order (Facility)</th>
                     <th>New Order (Hospital)</th>
                     <th>Suspected Change</th>
-                    <th title="System's confidence in parsing and comparison. High: Likely correct. Medium: Some uncertainty, review. Low: Parsing challenges detected, verify order details carefully.">Confidence <span class="tooltip">? <span class="tooltip-text">System's confidence in parsing accuracy. Lower scores warrant closer review.</span></span></th>
+                    <th title="System's confidence in parsing and comparison. High: Likely correct. Medium: Some uncertainty, review. Low: Parsing challenges detected, verify order details carefully.">Confidence <span class="tooltip">? <span class="tooltip-text">System's confidence in its parsing and comparison for this row. High: Likely correct. Medium: Some uncertainty or minor notes, review. Low: Parsing challenges or missing data likely, verify order details carefully.</span></span></th>
                 </tr>
             </thead>
             <tbody>`;
