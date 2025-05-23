@@ -2982,7 +2982,7 @@ function getChangeReason(orig, updated) {
       (leftFull.includes(a) && rightFull.includes(b)) ||
       (leftFull.includes(b) && rightFull.includes(a))
     );
-    if (saltSwap && !changes.includes('Formulation changed')) {
+    if (!formulationMatch && saltSwap && !changes.includes('Formulation changed')) {
       changes.push('Formulation changed');
     }
   }
