@@ -493,6 +493,20 @@ footer a:hover {
   background-color: #fffbe6;          /* pale yellow that prints as light grey */
 }
 
+.confidence-high {
+  background-color: #e6ffed;
+  color: #006421;
+}
+.confidence-medium {
+  background-color: #fff8e1;
+  color: #6B4F02;
+}
+.confidence-low {
+  background-color: #ffebee;
+  color: #b71c1c;
+  font-weight: bold;
+}
+
   </style>
 
 <!-- === PDF LIBRARIES === -->
@@ -1904,7 +1918,8 @@ function hasContra(orderObj, wholeList = []) {
       const result = await processFile(file); // result.text is raw OCR text from one image
       // keepOrderLines processes raw text from one image into an array of order strings
       const orderStringsFromFile = keepOrderLines(result.text);
-      allCombinedOrderStrings = allCombinedOrderStrings.concat(orderStringsFromFile);
+      const entries = orderStringsFromFile.map(t => ({ text: t, confidence: result.confidence }));
+      allCombinedOrderStrings = allCombinedOrderStrings.concat(entries);
 
       if (result.confidence < 0.8) {
         lowConfidence = true;
@@ -1918,8 +1933,16 @@ function hasContra(orderObj, wholeList = []) {
   if (lowConfidence) {
     showError("Warning: Some OCR text was unclear and may not be accurate. Please review manually.");
   }
-  // Return a flat array of unique processed order strings from all images
-  return [...new Set(allCombinedOrderStrings.filter(line => line && line.trim() !== ''))];
+  // Return a flat array of unique processed order objects from all images
+  const unique = [];
+  const seen = new Set();
+  allCombinedOrderStrings.forEach(entry => {
+    const t = (entry.text || '').trim();
+    if (!t || seen.has(t)) return;
+    seen.add(t);
+    unique.push(entry);
+  });
+  return unique;
 }
 
 function processFile(file) {
@@ -3686,10 +3709,11 @@ if (indicationDiff) {
   }
 
 
-    function parseOrder(orderStr) {
+    function parseOrder(orderStr, ocrConfidenceValue) {
   // Keep a copy of the original input for debugging if needed at the very end
   // const originalInputToParseOrder = orderStr;
   const originalRaw = orderStr;   // keep untouched copy
+  let parsingConfidence = 100;
   orderStr = orderStr.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
   orderStr = normalizeText(orderStr); // Normalizes "qhs" to "at bedtime", etc.
   // Capture trailing trough monitoring notes before removing them
@@ -4674,8 +4698,44 @@ if (!order.drug && initialCleanedDrugString &&
 }
 
 applyFinalNormalizations(order, troughNote, originalRaw);
+  // calculate parsing confidence
+  if (!order.drug || /^(medication|tablet)$/i.test(order.drug)) {
+    parsingConfidence -= 35;
+  }
+  if (order.dose.value === null) {
+    parsingConfidence -= 30;
+  }
+  if (order.dose.value !== null && !order.dose.unit) {
+    parsingConfidence -= 15;
+  }
+  if (!order.frequency && !order.prn) {
+    parsingConfidence -= 15;
+  }
+  if (!order.route) {
+    parsingConfidence -= 10;
+  }
+
+  const origLen = (originalRaw || '').replace(/\s+/g, '').length || 1;
+  const leftoverLen = (orderStr || '').replace(/\s+/g, '').length;
+  const ratio = leftoverLen / origLen;
+  if (ratio > 0.3) {
+    parsingConfidence -= 25;
+  } else if (ratio > 0.15) {
+    parsingConfidence -= 15;
+  }
+
+  if (ocrConfidenceValue !== undefined && ocrConfidenceValue !== null) {
+    if (ocrConfidenceValue < 0.6) {
+      parsingConfidence -= 20;
+    } else if (ocrConfidenceValue < 0.8) {
+      parsingConfidence -= 10;
+    }
+  }
+
+  parsingConfidence = Math.max(0, Math.min(100, Math.round(parsingConfidence)));
+
   // console.log('FINAL DEBUG Parsed order:', { parsed: order });
-  return order;
+  return { parsed: order, confidence: parsingConfidence, originalRaw };
 }
 
     function levenshteinDistance(a, b) {
@@ -5176,15 +5236,15 @@ for (let i = removed.length - 1; i >= 0; i--) {
 
   meds1 = processedOrderStrings.map(medStr => {
     try {
-      const parsed = parseOrder(medStr); // parseOrder gets a hopefully complete string
-      if (!parsed || typeof parsed !== 'object') {
+      const result = parseOrder(medStr);
+      if (!result || typeof result !== 'object') {
         console.warn('Parse failed for (handleTextInput1):', medStr, 'returning default object');
-        return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
+        return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' }, confidence: 0 };
       }
-      return { original: medStr, parsed: parsed };
+      return { original: medStr, parsed: result.parsed, confidence: result.confidence };
     } catch (e) {
       console.error('Error parsing line (handleTextInput1):', medStr, e.stack || e);
-      return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
+      return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' }, confidence: 0 };
     }
   });
 
@@ -5223,15 +5283,15 @@ for (let i = removed.length - 1; i >= 0; i--) {
 
   meds2 = processedOrderStrings.map(medStr => {
     try {
-      const parsed = parseOrder(medStr);
-      if (!parsed || typeof parsed !== 'object') {
+      const result = parseOrder(medStr);
+      if (!result || typeof result !== 'object') {
         console.warn('Parse failed for (handleTextInput2):', medStr, 'returning default object');
-        return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
+        return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' }, confidence: 0 };
       }
-      return { original: medStr, parsed: parsed };
+      return { original: medStr, parsed: result.parsed, confidence: result.confidence };
     } catch (e) {
       console.error('Error parsing line (handleTextInput2):', medStr, e.stack || e);
-      return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
+      return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' }, confidence: 0 };
     }
   });
 
@@ -5256,7 +5316,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
       if (!hasTextInput1) {
         showLoading('Processing first image(s)...');
         try {
-      // processFiles now returns an array of fully processed order strings
+      // processFiles now returns an array of objects { text, confidence }
       let processedOrderStrings = await processFiles(photo1Files);
 
       if (DEBUG) console.log('goToPhoto2 - Processed Order Strings from OCR:', processedOrderStrings);
@@ -5267,17 +5327,18 @@ for (let i = removed.length - 1; i >= 0; i--) {
         return;
       }
 
-      meds1 = processedOrderStrings.map(medStr => {
+      meds1 = processedOrderStrings.map(obj => {
+        const medStr = obj.text;
         try {
-          const parsed = parseOrder(medStr);
-          if (!parsed || typeof parsed !== 'object') {
+          const result = parseOrder(medStr, obj.confidence);
+          if (!result || typeof result !== 'object') {
             console.warn('Parse failed for (goToPhoto2 OCR):', medStr, 'returning default object');
-            return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
+            return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' }, confidence: 0 };
           }
-          return { original: medStr, parsed: parsed };
+          return { original: medStr, parsed: result.parsed, confidence: result.confidence };
         } catch (e) {
           console.error('Error parsing line (goToPhoto2 OCR):', medStr, e.stack || e);
-          return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
+          return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' }, confidence: 0 };
         }
       });
 
@@ -5301,7 +5362,7 @@ for (let i = removed.length - 1; i >= 0; i--) {
       if (!hasTextInput2) {
         showLoading('Processing second image(s)...');
         try {
-      // processFiles now returns an array of fully processed order strings
+      // processFiles now returns an array of objects { text, confidence }
       let processedOrderStrings = await processFiles(photo2Files);
 
       if (DEBUG) console.log('comparePhotos - Processed Order Strings from OCR:', processedOrderStrings);
@@ -5312,17 +5373,18 @@ for (let i = removed.length - 1; i >= 0; i--) {
         return;
       }
 
-      meds2 = processedOrderStrings.map(medStr => {
+      meds2 = processedOrderStrings.map(obj => {
+        const medStr = obj.text;
         try {
-          const parsed = parseOrder(medStr);
-          if (!parsed || typeof parsed !== 'object') {
+          const result = parseOrder(medStr, obj.confidence);
+          if (!result || typeof result !== 'object') {
             console.warn('Parse failed for (comparePhotos OCR):', medStr, 'returning default object');
-            return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
+            return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' }, confidence: 0 };
           }
-          return { original: medStr, parsed: parsed };
+          return { original: medStr, parsed: result.parsed, confidence: result.confidence };
         } catch (e) {
           console.error('Error parsing line (comparePhotos OCR):', medStr, e.stack || e);
-          return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' } };
+          return { original: medStr, parsed: { drug: medStr, dose: { value: null, unit: '', total: null }, route: '', frequency: '', prn: false, startDate: '', form: '', indication: '' }, confidence: 0 };
         }
       });
 
@@ -5476,6 +5538,7 @@ const finalResults = [];
 
 // ‑‑‑ FIRST: show the neatly‑merged pairs ‑‑‑
 merged.forEach(pair => {
+  const rowConfidence = Math.min(pair.orig.confidence, pair.new.confidence);
   finalResults.push({
     orig: pair.orig,
     new: pair.new,
@@ -5483,7 +5546,8 @@ merged.forEach(pair => {
     critical: isCriticalOrder(pair.new) && pair.reason !== 'Unchanged',
     ci: ciSet.has(coreDrugName(pair.orig.parsed.drug)) ||
         ciSet.has(coreDrugName(pair.new.parsed.drug)),
-    changes: pair.reason === 'Unchanged' ? [] : [pair.reason]
+    changes: pair.reason === 'Unchanged' ? [] : [pair.reason],
+    rowConfidence
   });
 });
     
@@ -5538,14 +5602,15 @@ if (!match) {
      if (ind1 !== ind2) {
        reasons.push('Indication changed');
      }
-            finalResults.push({
+           finalResults.push({
               orig: r,
               new: match,
               label: reasons.join(', '),
               critical: false,
               ci: ciSet.has(coreDrugName(r.parsed.drug)) ||
                   (match && ciSet.has(coreDrugName(match.parsed.drug))),
-              changes: reasons
+              changes: reasons,
+              rowConfidence: Math.min(r.confidence, match.confidence)
             });
      added = added.filter(a => a !== match);
      if (DEBUG) console.groupEnd();
@@ -5556,13 +5621,14 @@ if (!match) {
         if (match) {
             // Use getChangeReason to determine the specific change
             const reason = getChangeReason(r.parsed, match.parsed);
-            finalResults.push({
+           finalResults.push({
                 orig: r,
                 new: match,
                 label: reason,
                 critical: crit,
                 ci: false,
-                changes: reason === 'Unchanged' ? [] : [reason]
+                changes: reason === 'Unchanged' ? [] : [reason],
+                rowConfidence: Math.min(r.confidence, match.confidence)
             });
             added = added.filter(a => a !== match);
             if (DEBUG) console.groupEnd();
@@ -5575,13 +5641,14 @@ if (!match) {
         );
         if (sameDrug) {
             const reason = getChangeReason(r.parsed, sameDrug.parsed);
-            finalResults.push({
+           finalResults.push({
                 orig: r,
                 new: sameDrug,
                 label: reason,
                 critical: crit,
                 ci: false,
-                changes: reason === 'Unchanged' ? [] : [reason]
+                changes: reason === 'Unchanged' ? [] : [reason],
+                rowConfidence: Math.min(r.confidence, sameDrug.confidence)
             });
             added = added.filter(a => a !== sameDrug);
             if (DEBUG) console.groupEnd();
@@ -5589,35 +5656,37 @@ if (!match) {
         }
 
         // 7) Pure removal
-        finalResults.push({
+       finalResults.push({
             orig: r,
             new: null,
             label: 'Removed',
             critical: crit,
             ci: false,
-            changes: ['Removed']
+            changes: ['Removed'],
+            rowConfidence: r.confidence
         });
         if (DEBUG) console.groupEnd();
     });
 
     // Unchanged ‑‑→ now re‑evaluate for brand/generic etc.
-    unchanged.forEach(u => {
-       const reason = getChangeReason(u.orig.parsed, u.new.parsed);
-       const label  = (reason === 'Misc. Change') ? 'Unchanged' : reason;
+   unchanged.forEach(u => {
+      const reason = getChangeReason(u.orig.parsed, u.new.parsed);
+      const label  = (reason === 'Misc. Change') ? 'Unchanged' : reason;
 
-       finalResults.push({
-         orig: u.orig,
-         new: u.new,
-         label,
-         critical: label !== 'Unchanged' && (isCriticalOrder(u.orig) || isCriticalOrder(u.new)),
-         ci: ciSet.has(coreDrugName(u.orig.parsed.drug)) ||
-             ciSet.has(coreDrugName(u.new.parsed.drug)),
-         changes: label === 'Unchanged' ? [] : [label]
-       });
+      finalResults.push({
+        orig: u.orig,
+        new: u.new,
+        label,
+        critical: label !== 'Unchanged' && (isCriticalOrder(u.orig) || isCriticalOrder(u.new)),
+        ci: ciSet.has(coreDrugName(u.orig.parsed.drug)) ||
+            ciSet.has(coreDrugName(u.new.parsed.drug)),
+        changes: label === 'Unchanged' ? [] : [label],
+        rowConfidence: Math.min(u.orig.confidence, u.new.confidence)
       });
+     });
 
         // Added orders
-    added.forEach(a => {
+   added.forEach(a => {
       const crit = isCriticalOrder(a);
       finalResults.push({
         orig: null,
@@ -5625,7 +5694,8 @@ if (!match) {
         label: 'Added',
         critical: crit,
         ci: ciSet.has(coreDrugName(a.parsed.drug)),
-        changes: ['Added']
+        changes: ['Added'],
+        rowConfidence: a.confidence
       });
     });
 
@@ -5644,17 +5714,22 @@ if (!match) {
                     <th>Original Order (Facility)</th>
                     <th>New Order (Hospital)</th>
                     <th>Suspected Change</th>
+                    <th>Confidence <span class="tooltip">? <span class="tooltip-text">System's confidence in parsing accuracy. Lower scores warrant closer review.</span></span></th>
                 </tr>
             </thead>
             <tbody>`;
 
     finalResults.forEach((row, i) => {
+      const confClass = row.rowConfidence >= 85 ? 'confidence-high'
+                        : row.rowConfidence >= 60 ? 'confidence-medium'
+                        : 'confidence-low';
       html += `
         <tr class="${row.critical ? 'critical' : ''} ${row.ci ? 'ci-row' : ''}">
           <td>${i + 1}</td>
           <td>${row.orig ? row.orig.original : ''}</td>
           <td>${row.new ? row.new.original : ''}</td>
           <td>${row.label}</td>
+          <td class="${confClass}">${row.rowConfidence}%</td>
         </tr>`;
     });
 
