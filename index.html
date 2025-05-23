@@ -2250,11 +2250,13 @@ function normalizeText(str) {
 function normalizeIndicationText(txt = '') {
   let s = txt.toLowerCase()
              .replace(/[.;,]+/g, ' ')
-               .replace(/\bstart\s*date.*$/g,'')
-              .replace(/\b(?:start|date)\b/g,'')
-              .replace(/\b(?:spray|inject|inhale|use|apply|puff|inhalations?|contents|device|handihaler|respimat|flexpen|each|per|in|via|of|one|two)\b/gi,'')
-             .replace(/\s+/g,' ')
-             .trim();
+              .replace(/\bstart\s*date.*$/g,'')
+             .replace(/\b(?:start|date)\b/g,'')
+             .replace(/\b(?:spray|inject|inhale|use|apply|puff|inhalations?|contents|device|handihaler|respimat|flexpen|each|per|in|via|of|one|two)\b/gi,'')
+            .replace(/\s+/g,' ')
+            .trim();
+
+  s = s.replace(/\b(?:pain relief strategy|pain management(?: plan| strategy)?|pain control(?: strategy)?|pain plan)\b.*$/,'').trim();
 
   const synonyms = {
     'afib': 'atrial fibrillation',
@@ -2307,6 +2309,10 @@ function normalizeIndication(txt) {
   txt = txt
     .replace(fillerRE, ' ')
     .replace(/\s+/g, ' ')
+    .trim();
+
+  txt = txt
+    .replace(/\b(?:pain relief strategy|pain management(?: plan| strategy)?|pain control(?: strategy)?|pain plan)\b.*$/, '')
     .trim();
   const synonyms = {
     'shortness of breath': 'breathing difficulty',
