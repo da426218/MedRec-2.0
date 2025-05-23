@@ -157,7 +157,7 @@ addTest('Fluticasone formulation flagged', () => {
 addTest('Warfarin sodium formulation difference', () => {
   const before = 'Warfarin sodium 5 mg tablet - take one daily';
   const after = 'Warfarin 5 mg tablet - take one daily';
-  expect(diff(before, after)).toBe('Formulation changed');
+  expect(diff(before, after)).toBe('');
 });
 
 addTest('Warfarin qPM vs evening flagged', () => {
@@ -201,7 +201,7 @@ addTest('Clonidine enumerate changes', () => {
 addTest('AF abbreviation normalized', () => {
   const before = 'Metoprolol 50 mg tablet - take 1 tab daily for af';
   const after = 'Metoprolol 50 mg tablet - take 1 tab daily for atrial fibrillation';
-  expect(diff(before, after)).toBe('Indication changed');
+  expect(diff(before, after)).toBe('');
 });
 
 addTest('Spiriva brand/generic flag', () => {
@@ -239,7 +239,7 @@ addTest('Diclofenac sodium vs potassium flags formulation', () => {
 addTest('Warfarin sodium vs warfarin unchanged', () => {
   const before = 'Warfarin sodium 5 mg tablet po evening';
   const after  = 'Warfarin 5 mg tablet po qpm';
-  expect(diff(before, after)).toBe('Formulation changed');
+  expect(diff(before, after)).toBe('');
 });
 
 addTest('Metformin HCl ER vs Metformin ER unchanged', () => {
@@ -582,7 +582,7 @@ addTest('Iron vs Ferrous frequency change only', () => {
 addTest('Synthroid brand + AM equal', () => {
   const before = 'Levothyroxine sodium 100 mcg qam';
   const after  = 'Synthroid 100 mcg every morning';
-  expect(diff(before, after)).toBe('Formulation changed, Brand/Generic changed');
+  expect(diff(before, after)).toBe('Brand/Generic changed');
 });
 
 addTest('Coumadin brand, INR text equal, dose diff', () => {
@@ -884,8 +884,8 @@ addTest('Warfarin sodium vs warfarin direct comparison', () => {
   const before = 'Warfarin sodium 5 mg tablet po evening';
   const after = 'Warfarin 5 mg tablet po qpm';
   const reason = ctx.getChangeReason(ctx.parseOrder(before), ctx.parseOrder(after));
-  if (!reason.includes('Formulation changed')) {
-    throw new Error('Expected formulation flag missing: ' + reason);
+  if (reason.includes('Formulation changed')) {
+    throw new Error('Unexpected formulation flag: ' + reason);
   }
 });
 

@@ -53,7 +53,7 @@ describe('Medication comparison', () => {
     const p1 = ctx.parseOrder(before);
   const p2 = ctx.parseOrder(after);
   const result = ctx.getChangeReason(p1, p2);
-  expect(result).toBe('Indication changed');
+  expect(result).toBe('Unchanged');
 });
 
   test('taper wording ignored in indications', () => {
@@ -229,12 +229,12 @@ describe('Medication comparison', () => {
     }
   });
 
-  test('Warfarin sodium vs warfarin flags formulation', () => {
+  test('Warfarin sodium vs warfarin time shift only', () => {
     const ctx = loadAppContext();
     const before = ctx.parseOrder('Warfarin sodium 5 mg tablet - one po qPM for atrial fibrillation. Start date: 01/01/2025');
     const after = ctx.parseOrder('Warfarin 5 mg tablet - 1 PO daily in evening for afib. Start date: 01/01/2025');
     const result = ctx.getChangeReason(before, after);
-    expect(result).toMatch(/Formulation changed/);
+    expect(result).toBe('Unchanged');
   });
 
   test('Metformin HCl ER vs Metformin ER flags formulation', () => {

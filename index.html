@@ -1754,7 +1754,7 @@ function hasContra(orderObj, wholeList = []) {
 
 
   const ignoreSalts = /\b(hydrochloride|sulfate|phosphate|acetate|carbonate|maleate|succinate|tartrate|mesylate|besylate|camsylate|gluconate|bitartrate|edisylate|propionate|sodium|potassium|calcium|magnesium|fumarate)\b/gi;
-  const trivialSalts = /\b(sulfate|phosphate|acetate|carbonate|succinate|maleate|tartrate|mesylate|besylate|camsylate|gluconate|bitartrate|edisylate|calcium|magnesium|fumarate)\b/gi;
+  const trivialSalts = /\b(sodium|sulfate|phosphate|acetate|carbonate|succinate|maleate|tartrate|mesylate|besylate|camsylate|gluconate|bitartrate|edisylate|calcium|magnesium|fumarate)\b/gi;
 
   const importantSaltPairs = [
     ['diclofenac sodium',      'diclofenac potassium'],
@@ -2243,7 +2243,10 @@ function normalizeIndicationText(txt = '') {
 function normalizeIndication(txt) {
   if (!txt) return '';
 
-  txt = txt.toLowerCase();
+  txt = txt
+    .toLowerCase()
+    .replace(/[.;,]+/g, ' ')
+    .replace(/\bstart\s*date.*$/i, '');
 
   const painDescriptors = ['mild pain', 'moderate pain', 'severe pain'];
   const tokens = {};
@@ -2278,7 +2281,11 @@ function normalizeIndication(txt) {
     sob: 'breathing difficulty',
     wheezing: 'breathing difficulty',
     'nerve pain': 'neuropathy',
-    neuropathy: 'neuropathy'
+    neuropathy: 'neuropathy',
+    afib: 'atrial fibrillation',
+    af: 'atrial fibrillation',
+    'a fib': 'atrial fibrillation',
+    'atrial fib': 'atrial fibrillation'
   };
   if (synonyms[txt]) txt = synonyms[txt];
 
