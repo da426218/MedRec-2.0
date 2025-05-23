@@ -79,6 +79,11 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
+const mapsCode = fs.readFileSync(
+  path.join(__dirname, '..', 'src', 'frequencyMaps.js'),
+  'utf8'
+);
+
 let cachedContext = null;
 
 function loadAppContext() {
@@ -97,6 +102,7 @@ function loadAppContext() {
     firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
   };
   vm.createContext(context);
+  vm.runInContext(mapsCode, context);
   vm.runInContext(helpers, context);
   vm.runInContext(script, context);
   const origParse = context.parseOrder;
@@ -315,6 +321,7 @@ addTest('Normalize twice daily with meals', () => {
     firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
   };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -332,6 +339,7 @@ addTest('Normalize numeric times per day', () => {
     firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
   };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -350,6 +358,7 @@ addTest('Normalize 2 times a day', () => {
     firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
   };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -367,6 +376,7 @@ addTest('Normalize 3 times a day', () => {
     firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
   };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -384,6 +394,7 @@ addTest('Normalize every morning to daily', () => {
     firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
   };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -401,6 +412,7 @@ addTest('normalizeAdministration canonical forms', () => {
     firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
   };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -479,6 +491,7 @@ addTest('Once weekly frequency detected', () => {
   const script = ctxHtml.split('<script>')[2].split('</script>')[0];
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -493,6 +506,7 @@ addTest('Every Sunday morning parsed as weekly', () => {
   const script = ctxHtml.split('<script>')[2].split('</script>')[0];
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -507,6 +521,7 @@ addTest('Brand token captured in array', () => {
   const script = html.split('<script>')[2].split('</script>')[0];
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -520,6 +535,7 @@ addTest('Duplicate brand names deduped', () => {
   const script = html.split('<script>')[2].split('</script>')[0];
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({ }), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -533,6 +549,7 @@ addTest('Duplicate brand synonyms deduped', () => {
   const script = html.split('<script>')[2].split('</script>')[0];
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({ }), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -546,6 +563,7 @@ addTest('Mixed brand/generic only first captured', () => {
   const script = html.split('<script>')[2].split('</script>')[0];
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({ }), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -559,6 +577,7 @@ addTest('Generic name has no brand tokens', () => {
   const script = html.split('<script>')[2].split('</script>')[0];
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -572,6 +591,7 @@ addTest('Weekly time of day ignored in diff', () => {
   const script = html.split('<script>')[2].split('</script>')[0];
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -586,6 +606,7 @@ addTest('Microgram to milligram normalization', () => {
   const script = html.split('<script>')[2].split('</script>')[0];
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -604,6 +625,7 @@ addTest('Vancomycin gram vs g unchanged', () => {
   const script = ctxHtml.split('<script>')[2].split('</script>')[0];
   const ctx = { console: { log: () => {}, warn: () => {}, error: () => {} }, window: {}, document: { querySelectorAll: () => [], getElementById: () => ({}), addEventListener: () => {} }, firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) } };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -853,6 +875,7 @@ addTest('2 times a day normalized to bid', () => {
     firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
   };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -947,6 +970,7 @@ addTest('Warfarin sodium vs warfarin direct comparison', () => {
     firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
   };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
@@ -969,6 +993,7 @@ addTest('Benign salt swap is ignored', () => {
     firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
   };
   vm.createContext(ctx);
+  vm.runInContext(mapsCode, ctx);
   vm.runInContext(script, ctx);
   const orig = ctx.parseOrder;
   ctx.parseOrderFull = orig;
