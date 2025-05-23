@@ -4551,6 +4551,8 @@ orderStr = orderStr.replace(/^[.,;]/, '').trim();  // Remove leading punctuation
 orderStr = orderStr.replace(/\s\s+/g, ' ').trim(); // Collapse multiple spaces
 // Remove stray leading or trailing hyphens introduced by formatting
 orderStr = orderStr.replace(/^\s*-\s*/, '').replace(/\s*-\s*$/, '').trim();
+// Drop trailing "- 1" or similar count artifacts before final drug extraction
+orderStr = orderStr.replace(/-\s*\d+(?:\.\d+)?\s*$/, '').trim();
 // Remove trailing solitary prepositions like "in" or "at"
 orderStr = orderStr.replace(/\b(?:in|at|on)\s*$/i, '').trim();
 
