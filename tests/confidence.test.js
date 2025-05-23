@@ -83,6 +83,18 @@ describe('parsing confidence', () => {
     expect(res.confidence >= 85).toBe(true);
   });
 
+  test('Amoxicillin added order high confidence', () => {
+    const ctx = loadAppContext();
+    const res = ctx.parseOrderFull('Amoxicillin 500mg capsule - take 1 cap tid');
+    expect(res.confidence >= 85).toBe(true);
+  });
+
+  test('Potassium Chloride added order high confidence', () => {
+    const ctx = loadAppContext();
+    const res = ctx.parseOrderFull('Potassium Chloride 10 mEq ER tab - take one tablet twice daily');
+    expect(res.confidence >= 85).toBe(true);
+  });
+
   test('Clonidine patch added order high confidence', () => {
     const ctx = loadAppContext();
     const res = ctx.parseOrderFull('Clonidine 0.1mg patch - Apply 1 patch topically every 7 days for BP');
