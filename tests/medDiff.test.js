@@ -237,7 +237,7 @@ describe('Medication comparison', () => {
     expect(result).toBe('Unchanged');
   });
 
-  test('Metformin HCl ER vs Metformin ER flags formulation', () => {
+  test('Metformin Row 3 regression test for formulation, time, and administration', () => {
     const ctx = loadAppContext();
     const before = ctx.parseOrder('Metformin hydrochloride 1000mg ER - Take one tablet by mouth every evening with supper');
     const after = ctx.parseOrder('Metformin ER 1000mg - Take 1 tab po nightly with food');
