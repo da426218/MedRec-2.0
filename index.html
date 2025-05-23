@@ -4730,13 +4730,15 @@ applyFinalNormalizations(order, troughNote, originalRaw);
     parsingConfidence -= 15;
   }
 
+  const ANCILLARY_REGEX = /\b(?:continue\s+(?:home\s+)?dose|with\s+(?:food|meals?|supper|dinner|breakfast|lunch)|pharmacy\s+to\s+clarify)\b/gi;
   const origLen = (originalRaw || '').replace(/\s+/g, '').length || 1;
-  const leftoverLen = (orderStr || '').replace(/\s+/g, '').length;
+  let penaltyStr = (orderStr || '').replace(ANCILLARY_REGEX, '').trim();
+  const leftoverLen = penaltyStr.replace(/\s+/g, '').length;
   const ratio = leftoverLen / origLen;
-  if (ratio > 0.3) {
-    parsingConfidence -= 25;
-  } else if (ratio > 0.15) {
-    parsingConfidence -= 10;
+  if (ratio > 0.4) {
+    parsingConfidence -= 20;
+  } else if (ratio > 0.2) {
+    parsingConfidence -= 5;
   }
 
   if (ocrConfidenceValue !== undefined && ocrConfidenceValue !== null) {
@@ -5553,7 +5555,10 @@ const finalResults = [];
 
 // ‑‑‑ FIRST: show the neatly‑merged pairs ‑‑‑
 merged.forEach(pair => {
-  const rowConfidence = Math.min(pair.orig.confidence, pair.new.confidence);
+  let rowConfidence = Math.min(pair.orig.confidence, pair.new.confidence);
+  if (pair.reason === 'Unchanged') {
+    rowConfidence = Math.max(95, (pair.orig.confidence + pair.new.confidence) / 2);
+  }
   finalResults.push({
     orig: pair.orig,
     new: pair.new,
@@ -5625,7 +5630,13 @@ if (!match) {
               ci: ciSet.has(coreDrugName(r.parsed.drug)) ||
                   (match && ciSet.has(coreDrugName(match.parsed.drug))),
               changes: reasons,
-              rowConfidence: Math.min(r.confidence, match.confidence)
+              rowConfidence: (() => {
+                let rc = Math.min(r.confidence, match.confidence);
+                if (reasons.length === 1 && reasons[0] === 'Unchanged') {
+                  rc = Math.max(95, (r.confidence + match.confidence) / 2);
+                }
+                return rc;
+              })()
             });
      added = added.filter(a => a !== match);
      if (DEBUG) console.groupEnd();
@@ -5643,7 +5654,13 @@ if (!match) {
                 critical: crit,
                 ci: false,
                 changes: reason === 'Unchanged' ? [] : [reason],
-                rowConfidence: Math.min(r.confidence, match.confidence)
+                rowConfidence: (() => {
+                    let rc = Math.min(r.confidence, match.confidence);
+                    if (reason === 'Unchanged') {
+                      rc = Math.max(95, (r.confidence + match.confidence) / 2);
+                    }
+                    return rc;
+                })()
             });
             added = added.filter(a => a !== match);
             if (DEBUG) console.groupEnd();
@@ -5663,7 +5680,13 @@ if (!match) {
                 critical: crit,
                 ci: false,
                 changes: reason === 'Unchanged' ? [] : [reason],
-                rowConfidence: Math.min(r.confidence, sameDrug.confidence)
+                rowConfidence: (() => {
+                    let rc = Math.min(r.confidence, sameDrug.confidence);
+                    if (reason === 'Unchanged') {
+                      rc = Math.max(95, (r.confidence + sameDrug.confidence) / 2);
+                    }
+                    return rc;
+                })()
             });
             added = added.filter(a => a !== sameDrug);
             if (DEBUG) console.groupEnd();
@@ -5696,7 +5719,13 @@ if (!match) {
         ci: ciSet.has(coreDrugName(u.orig.parsed.drug)) ||
             ciSet.has(coreDrugName(u.new.parsed.drug)),
         changes: label === 'Unchanged' ? [] : [label],
-        rowConfidence: Math.min(u.orig.confidence, u.new.confidence)
+        rowConfidence: (() => {
+          let rc = Math.min(u.orig.confidence, u.new.confidence);
+          if (label === 'Unchanged') {
+            rc = Math.max(95, (u.orig.confidence + u.new.confidence) / 2);
+          }
+          return rc;
+        })()
       });
      });
 

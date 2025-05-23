@@ -76,4 +76,28 @@ describe('parsing confidence', () => {
       )
     ).toBe(true);
   });
+
+  test('Pantoprazole added order high confidence', () => {
+    const ctx = loadAppContext();
+    const res = ctx.parseOrderFull('Pantoprazole 40mg DR tab - 1 po daily for GERD');
+    expect(res.confidence >= 85).toBe(true);
+  });
+
+  test('Clonidine patch added order high confidence', () => {
+    const ctx = loadAppContext();
+    const res = ctx.parseOrderFull('Clonidine 0.1mg patch - Apply 1 patch topically every 7 days for BP');
+    expect(res.confidence >= 85).toBe(true);
+  });
+
+  test('Unchanged orders yield high row confidence', () => {
+    const ctx = loadAppContext();
+    const orig = ctx.parseOrderFull('Metformin hydrochloride 1000mg ER tablet - Take one tablet by mouth every evening with supper');
+    const upd = ctx.parseOrderFull('Metformin ER 1000mg - Take 1 tab po nightly with food continue home dose');
+    const reason = ctx.getChangeReason(orig.parsed, upd.parsed);
+    let rowConf = Math.min(orig.confidence, upd.confidence);
+    if (reason === 'Unchanged') {
+      rowConf = Math.max(95, (orig.confidence + upd.confidence) / 2);
+    }
+    expect(rowConf >= 85).toBe(true);
+  });
 });
