@@ -494,16 +494,15 @@ footer a:hover {
 }
 
 .confidence-high {
-  background-color: #e6ffed;
-  color: #006421;
+  color: green;
+  font-weight: bold;
 }
 .confidence-medium {
-  background-color: #fff8e1;
-  color: #6B4F02;
+  color: orange;
+  font-weight: bold;
 }
 .confidence-low {
-  background-color: #ffebee;
-  color: #b71c1c;
+  color: red;
   font-weight: bold;
 }
 
@@ -5732,13 +5731,16 @@ if (!match) {
       const confClass = row.rowConfidence >= 85 ? 'confidence-high'
                         : row.rowConfidence >= 60 ? 'confidence-medium'
                         : 'confidence-low';
+      const label = row.rowConfidence >= 85 ? 'High'
+                    : row.rowConfidence >= 60 ? 'Medium'
+                    : 'Low';
       html += `
         <tr class="${row.critical ? 'critical' : ''} ${row.ci ? 'ci-row' : ''}">
           <td>${i + 1}</td>
           <td>${row.orig ? row.orig.original : ''}</td>
           <td>${row.new ? row.new.original : ''}</td>
           <td>${row.label}</td>
-          <td class="${confClass}">${row.rowConfidence}%</td>
+          <td class="${confClass}">${label}</td>
         </tr>`;
     });
 
