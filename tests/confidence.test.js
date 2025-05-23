@@ -58,4 +58,22 @@ describe('parsing confidence', () => {
     expect(container.innerHTML.includes('Medium')).toBe(true);
     expect(container.innerHTML.includes('Low')).toBe(true);
   });
+
+  test('compareAndShowResults renders header with confidence tooltip', () => {
+    const ctx = loadAppContext();
+    ctx.meds1 = [];
+    ctx.meds2 = [];
+
+    const container = { innerHTML: '' };
+    ctx.document.getElementById = id => (id === 'results-content' ? container : {});
+    ctx.showScreen = () => {};
+
+    ctx.compareAndShowResults();
+
+    expect(
+      container.innerHTML.includes(
+        "title=\"System's confidence in parsing and comparison."
+      )
+    ).toBe(true);
+  });
 });
