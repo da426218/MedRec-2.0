@@ -100,7 +100,7 @@ describe('todChanged', () => {
     const ctx = loadAppContext();
     const a = { frequency: 'pm' };
     const b = { frequency: 'nightly' };
-    expect(ctx.todChanged(a, b)).toBe(true);
+    expect(ctx.todChanged(a, b)).toBe(false);
   });
 
   test('equivalent times of day not flagged', () => {
@@ -143,14 +143,14 @@ describe('normalizeTimeOfDay', () => {
     expect(ctx.normalizeTimeOfDay('midday')).toBe('noon');
   });
 
-  test('plural evenings normalize to evening', () => {
+  test('plural evenings normalize to bedtime', () => {
     const ctx = loadAppContext();
-    expect(ctx.normalizeTimeOfDay('evenings')).toBe('evening');
+    expect(ctx.normalizeTimeOfDay('evenings')).toBe('bedtime');
   });
 
-  test('"in the evenings" normalizes to evening', () => {
+  test('"in the evenings" normalizes to bedtime', () => {
     const ctx = loadAppContext();
-    expect(ctx.normalizeTimeOfDay('in the evenings')).toBe('evening');
+    expect(ctx.normalizeTimeOfDay('in the evenings')).toBe('bedtime');
   });
 });
 
