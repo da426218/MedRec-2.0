@@ -2538,7 +2538,7 @@ function canonFormulation(f) {
 function normalizeAdministration(str) {
   if (!str) return '';
   str = str.toLowerCase().replace(/\s+/g, ' ').trim();
-  if (/\bwith\s+(orange\s*juice|food|meal)s?\b/.test(str)) {
+  if (/\bwith\s+(?:orange\s*juice|food|meals?|dinner|supper)\b/.test(str)) {
     return 'with food';
   }
   if (/\b(between\s+meals|without\s+(food|meal)s?|empty\s*stomach)\b/.test(str)) {
