@@ -245,7 +245,7 @@ addTest('Warfarin sodium vs warfarin unchanged', () => {
 addTest('Metformin HCl ER vs Metformin ER unchanged', () => {
   const b = 'Metformin hydrochloride 1000 mg ER tablet nightly';
   const a = 'Metformin ER 1000 mg tablet evening';
-  expect(diff(b, a)).toBe('Formulation changed, Time of day changed');
+  expect(diff(b, a)).toBe('Time of day changed');
 });
 
 addTest('Metformin ER vs IR keeps formulation flag only', () => {
@@ -600,7 +600,7 @@ addTest('Pred taper wording ignored', () => {
 addTest('Vancomycin generic vs hydrochloride unchanged', () => {
   const before = 'Vancomycin 1 g q12h';
   const after  = 'Vancomycin hydrochloride 1 gram q12h';
-  expect(diff(before, after)).toBe('Formulation changed');
+  expect(diff(before, after)).toBe('');
 });
 
 addTest('Coumadin brand vs warfarin regimen only', () => {
@@ -675,7 +675,7 @@ addTest('Vancomycin monitoring wording', () => {
   expect(diff(
     'Vancomycin 1 g q12h – trough before 4th dose',
     'Vancomycin hydrochloride 1 g q12h – target trough 15-20 mcg/mL'))
-    .toBe('Formulation changed, Indication changed');
+    .toBe('Indication changed');
 });
 addTest('Warfarin brand with INR & schedule words – indication equal', () => {
   const a = 'Warfarin 3mg MWF 3mg TTSu 1.5mg INR 2-3 PO evening';
