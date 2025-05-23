@@ -139,6 +139,16 @@ describe('Medication comparison', () => {
     expect(order.indication).toBe('neuropathy');
   });
 
+  test('nerve pain vs neuropathy pain relief strategy normalized equal', () => {
+    const ctx = loadAppContext();
+    const before = ctx.parseOrder('Gabapentin 300 mg capsule - take 1 cap tid for nerve pain');
+    const after = ctx.parseOrder('Gabapentin 300 mg capsule - take 1 cap tid for neuropathy pain relief strategy');
+    expect(before.indication).toBe('neuropathy');
+    expect(after.indication).toBe('neuropathy');
+    const result = ctx.getChangeReason(before, after);
+    expect(result).toBe('Unchanged');
+  });
+
   test('administration difference flagged', () => {
     const ctx = loadAppContext();
     const before = 'Metformin 500 mg tablet - take 1 tablet with food daily';
