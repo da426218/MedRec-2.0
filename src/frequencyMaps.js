@@ -1,0 +1,88 @@
+(function(global) {
+  const TIME_OF_DAY_ALIASES = {
+    morning: 'morning',
+    qam: 'morning',
+    am: 'morning',
+    'every am': 'morning',
+    'every morning': 'morning',
+    'in morning': 'morning',
+    'in the morning': 'morning',
+    'daily in morning': 'morning',
+    evening: 'bedtime',
+    evenings: 'bedtime',
+    pm: 'bedtime',
+    qpm: 'bedtime',
+    'every evening': 'bedtime',
+    'daily in evening': 'bedtime',
+    'in evening': 'bedtime',
+    'in the evening': 'bedtime',
+    'in the evenings': 'bedtime',
+    'in the pm': 'bedtime',
+    bedtime: 'bedtime',
+    night: 'bedtime',
+    qhs: 'bedtime',
+    nightly: 'bedtime',
+    'at bedtime': 'bedtime',
+    'at night': 'bedtime',
+    'every night': 'bedtime',
+    noon: 'noon',
+    midday: 'noon',
+    'at noon': 'noon'
+  };
+
+  const FREQUENCY_MAP = {
+    'once daily': 'daily',
+    'once a day': 'daily',
+    '1 times daily': 'daily',
+    daily: 'daily',
+    od: 'daily',
+    qd: 'daily',
+    'every morning': 'daily',
+    'daily in morning': 'daily',
+    'daily in the morning': 'daily',
+    'daily in evening': 'daily',
+    'daily in the evening': 'daily',
+    'daily at noon': 'daily',
+    'daily in noon': 'daily',
+    'twice daily': 'bid',
+    '2 times daily': 'bid',
+    '2 times a day': 'bid',
+    'two times daily': 'bid',
+    'two times a day': 'bid',
+    'twice a day': 'bid',
+    bid: 'bid',
+    'twice a day with meals': 'bid',
+    'twice daily with meals': 'bid',
+    'three times daily': 'tid',
+    'three times a day': 'tid',
+    '3 times daily': 'tid',
+    tid: 'tid',
+    tidac: 'tid',
+    'before meals': 'tid',
+    'with meals': 'tid',
+    'before breakfast lunch dinner': 'tid',
+    'four times daily': 'qid',
+    'four times a day': 'qid',
+    '4 times daily': 'qid',
+    qid: 'qid',
+    'every other day': 'every other day',
+    qod: 'every other day',
+    'every 4-6 hours': 'q4-6h',
+    'every 4 to 6 hours': 'q4-6h',
+    stat: 'immediately',
+    now: 'immediately',
+    immediately: 'immediately',
+    weekly: 'weekly',
+    'once a week': 'weekly',
+    'once per week': 'weekly',
+    monthly: 'monthly',
+    'once a month': 'monthly'
+  };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { TIME_OF_DAY_ALIASES, FREQUENCY_MAP };
+  } else {
+    global.TIME_OF_DAY_ALIASES = TIME_OF_DAY_ALIASES;
+    global.FREQUENCY_MAP = FREQUENCY_MAP;
+  }
+})(this);

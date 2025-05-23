@@ -86,6 +86,10 @@ function loadAppContext() {
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const parts = html.split('<script>');
   const script = parts[parts.length - 1].split('</script>')[0];
+  const maps = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'frequencyMaps.js'),
+    'utf8'
+  );
   const helpers = fs.readFileSync(
     path.join(__dirname, '..', 'src', 'orderParsingHelpers.js'),
     'utf8'
@@ -97,6 +101,7 @@ function loadAppContext() {
     firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
   };
   vm.createContext(context);
+  vm.runInContext(maps, context);
   vm.runInContext(helpers, context);
   vm.runInContext(script, context);
   const origParse = context.parseOrder;
