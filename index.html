@@ -680,7 +680,7 @@ footer a:hover {
       'naltrexone', 'naloxone', 'flumazenil', 'desmopressin', 'octreotide', 'erythropoietin', 'filgrastim',
       'calcitriol', 'ergocalciferol', 'cholecalciferol', 'pyridostigmine', 'propranolol', 'labetalol',
       'isosorbide', 'nicardipine', 'nitroprusside', 'ivabradine', 'sacubitril', 'valsartan',
-      'atorvastatin', 'rosuvastatin', 'simvastatin', 'Norco', 'oxycodone/acetaminophen', 'hydrocodone/acetaminophen', 'codeine/acetaminophen', 'tramadol/acetaminophen', 'acetaminophen/caffeine/dihydrocodeine', 'aspirin/caffeine/dihydrocodeine', 'aspirin/codeine', 'ibuprofen/oxycodone', 'acetaminophen/butalbital/caffeine', 'aspirin/butalbital/caffeine', 'acetaminophen/butalbital', 'methylphenidate', 'amphetamine/dextroamphetamine', 'hydrocodone/pseudoephedrine', 'hydrocodone/chlorpheniramine', 'hydrocodone/homatropine', 'busulfan', 'doxorubicin', 'adalimumab', 'acetaminophen/isometheptene/dichloralphenazone', 'ultracet', 'percocet', 'roxicet', 'endocet', 'tylenol #3', 'zamicet', 'vicodin', 'lortab', 'panlor ss', 'trezix', 'synalgos-dc', 'empirin with codeine', 'combunox', 'fioricet', 'esgic', 'zebutal', 'fiorinal', 'bupap', 'rezira', 'tussionex', 'hycomine', 'hydromet', 'midrin','chlorpropamide', 'acarbose', 'miglitol', 'argatroban', 'bivalirudin', 'fondaparinux', 'methylergonovine', 'carboplatin', 'cyclophosphamide', 'promethazine'
+      'atorvastatin', 'rosuvastatin', 'simvastatin', 'Norco', 'oxycodone/acetaminophen', 'hydrocodone/acetaminophen', 'codeine/acetaminophen', 'tramadol/acetaminophen', 'acetaminophen/caffeine/dihydrocodeine', 'aspirin/caffeine/dihydrocodeine', 'aspirin/codeine', 'ibuprofen/oxycodone', 'acetaminophen/butalbital/caffeine', 'aspirin/butalbital/caffeine', 'acetaminophen/butalbital', 'methylphenidate', 'amphetamine/dextroamphetamine', 'hydrocodone/pseudoephedrine', 'hydrocodone/chlorpheniramine', 'hydrocodone/homatropine', 'busulfan', 'doxorubicin', 'adalimumab', 'acetaminophen/isometheptene/dichloralphenazone', 'ultracet', 'percocet', 'roxicet', 'endocet', 'tylenol #3', 'zamicet', 'vicodin', 'lortab', 'panlor ss', 'trezix', 'synalgos-dc', 'empirin with codeine', 'combunox', 'fioricet', 'esgic', 'zebutal', 'fiorinal', 'bupap', 'rezira', 'tussionex', 'hycomine', 'hydromet', 'midrin','chlorpropamide', 'acarbose', 'miglitol', 'argatroban', 'bivalirudin', 'fondaparinux', 'methylergonovine', 'carboplatin', 'cyclophosphamide', 'promethazine', 'timolol'
 
     ].map(med => med.toLowerCase());
 
@@ -2166,12 +2166,21 @@ function keepOrderLines(rawText) {
 
   // 5. Final filter for valid-looking order lines
   const finalFilteredLines = processedLines.filter(line => {
-    const keep =
-      line.trim() && // Ensure line is not just whitespace after all processing
-      isLikelyOrderLine(line) &&
-      (containsKnownMedication(line) ||
-        /\d+\s*(mg|mcg|g|mL|units|tablet|capsule|puff|drop)\b/i.test(line)) &&
-      /\d/.test(line);
+    const likely = isLikelyOrderLine(line);
+    const known = containsKnownMedication(line);
+    const unitMatch = /\d+\s*(mg|mcg|g|mL|mEq|IU|units|tablet|capsule|puff|drop|gtt|gtts)\b/i.test(line);
+    const hasDigit = /\d/.test(line);
+    const keep = line.trim() && likely && (known || unitMatch) && hasDigit;
+
+    if (/timolol/i.test(line)) {
+      console.log('DEBUG keepOrderLines Timolol line:', line);
+      console.log('  isLikelyOrderLine:', likely);
+      console.log('  containsKnownMedication:', known);
+      if (!known) console.log('  dose+unit regex match:', unitMatch);
+      console.log('  contains digit:', hasDigit);
+      console.log('  keep decision:', keep);
+    }
+
     if (!keep && DEBUG_JUNK && line.trim()) console.log('🗑️ Final filter dropping line:', line);
     return keep;
   });
