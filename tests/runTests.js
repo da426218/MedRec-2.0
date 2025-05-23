@@ -84,7 +84,12 @@ let cachedContext = null;
 function loadAppContext() {
   if (cachedContext) return cachedContext;
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-  const script = html.split('<script>')[2].split('</script>')[0];
+  const parts = html.split('<script>');
+  const script = parts[parts.length - 1].split('</script>')[0];
+  const helpers = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'orderParsingHelpers.js'),
+    'utf8'
+  );
   const context = {
     console: { log: () => {}, warn: () => {}, error: () => {} },
     window: {},
@@ -92,6 +97,7 @@ function loadAppContext() {
     firebase: { initializeApp: () => ({}), functions: () => ({ httpsCallable: () => () => ({}) }) }
   };
   vm.createContext(context);
+  vm.runInContext(helpers, context);
   vm.runInContext(script, context);
   const origParse = context.parseOrder;
   context.parseOrderFull = origParse;
@@ -129,6 +135,7 @@ require('./helpers.test');
 require('./changeReason.test');
 require('./getChangeReason.test');
 require('./issueRegressions.test');
+require('./orderParsingHelpers.test');
 
 addTest('Metformin evening vs nightly time change', () => {
   const before = 'Metformin 500 mg tablet po BID';
