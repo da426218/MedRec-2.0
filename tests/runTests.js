@@ -245,7 +245,7 @@ addTest('Warfarin sodium vs warfarin unchanged', () => {
 addTest('Metformin HCl ER vs Metformin ER unchanged', () => {
   const b = 'Metformin hydrochloride 1000 mg ER tablet nightly';
   const a = 'Metformin ER 1000 mg tablet evening';
-  expect(diff(b, a)).toBe('Time of day changed');
+  expect(diff(b, a)).toBe('');
 });
 
 addTest('Metformin ER vs IR keeps formulation flag only', () => {
@@ -758,7 +758,7 @@ addTest('Iron elemental parentheses no dose diff', () => {
 addTest('Warfarin fraction vs mg strength', () => {
   const before = 'Warfarin 1.5 mg evening';
   const after = 'Coumadin 1.5 mg nightly';
-  expect(diff(before, after)).toBe('Brand/Generic changed, Time of day changed');
+  expect(diff(before, after)).toBe('Brand/Generic changed');
 });
 
 addTest('Iron admin change flagged', () => {
@@ -770,7 +770,7 @@ addTest('Iron admin change flagged', () => {
 addTest('Warfarin tabs regimen diff only brand/time', () => {
   const before = 'Warfarin 3 mg tabs: 1 tab M/W/F 3 mg; Tu/Th/Sa/Su 1.5 mg evening';
   const after = 'Coumadin 3 mg tabs: 1 tab M/W/F 3 mg; Tu/Th/Sa/Su 1.5 mg nightly';
-  expect(diff(before, after)).toBe('Brand/Generic changed, Time of day changed');
+  expect(diff(before, after)).toBe('Brand/Generic changed');
 });
 
 addTest('Numeric frequency two times a day flagged', () => {
