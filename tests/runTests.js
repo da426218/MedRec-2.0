@@ -375,6 +375,9 @@ addTest('normalizeAdministration canonical forms', () => {
   vm.createContext(ctx);
   vm.runInContext(script, ctx);
   expect(ctx.normalizeAdministration('with orange juice')).toBe('with food');
+  expect(ctx.normalizeAdministration('with supper')).toBe('with food');
+  expect(ctx.normalizeAdministration('with dinner')).toBe('with food');
+  expect(ctx.normalizeAdministration('with meals')).toBe('with food');
   expect(ctx.normalizeAdministration('empty stomach')).toBe('between meals');
 });
 
