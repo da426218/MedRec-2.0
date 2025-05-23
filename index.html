@@ -1754,7 +1754,7 @@ function hasContra(orderObj, wholeList = []) {
 
 
   const ignoreSalts = /\b(hydrochloride|sulfate|phosphate|acetate|carbonate|maleate|succinate|tartrate|mesylate|besylate|camsylate|gluconate|bitartrate|edisylate|propionate|sodium|potassium|calcium|magnesium|fumarate)\b/gi;
-  const trivialSalts = /\b(sodium|sulfate|phosphate|acetate|carbonate|succinate|maleate|tartrate|mesylate|besylate|camsylate|gluconate|bitartrate|edisylate|calcium|magnesium|fumarate|hydrochloride)\b/gi;
+  const trivialSalts = /\b(sodium|sulfate|phosphate|acetate|carbonate|succinate|maleate|tartrate|mesylate|besylate|camsylate|gluconate|bitartrate|edisylate|propionate|calcium|magnesium|fumarate|hydrochloride)\b/gi;
 
   const importantSaltPairs = [
     ['diclofenac sodium',      'diclofenac potassium'],
