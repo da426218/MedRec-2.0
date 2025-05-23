@@ -4637,6 +4637,13 @@ const { name: drugName, brandTok } = normalizeMedicationName(drugStr);
 order.drug = drugName;
 order.brandTokens = brandTok;
 
+  // Remove the parsed drug text from the remaining string for leftover scoring
+  const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (finalDrugName) {
+    const drugPattern = new RegExp(`\\b${escapeRegex(finalDrugName)}\\b`, 'i');
+    orderStr = orderStr.replace(drugPattern, '').trim();
+  }
+
 // --- Indication catcher (only if the token 'for' is present) ---
   const indMatch = orderStr.match(/\bfor\s+(.+?)$/i);
   if (indMatch) {
@@ -4732,8 +4739,8 @@ applyFinalNormalizations(order, troughNote, originalRaw);
 
   const ANCILLARY_REGEX = /\b(?:continue\s+(?:home\s+)?dose|with\s+(?:food|meals?|supper|dinner|breakfast|lunch)|pharmacy\s+to\s+clarify)\b/gi;
   const origLen = (originalRaw || '').replace(/\s+/g, '').length || 1;
-  let penaltyStr = (orderStr || '').replace(ANCILLARY_REGEX, '').trim();
-  const leftoverLen = penaltyStr.replace(/\s+/g, '').length;
+  const penaltyBase = (orderStr || '').replace(ANCILLARY_REGEX, '').trim();
+  const leftoverLen = penaltyBase.replace(/\s+/g, '').length;
   const ratio = leftoverLen / origLen;
   if (ratio > 0.4) {
     parsingConfidence -= 20;
