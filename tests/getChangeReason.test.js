@@ -26,4 +26,36 @@ describe('getChangeReason', () => {
     expect(r).toMatch(/Frequency changed/);
     expect(r).toMatch(/Time of day changed/);
   });
+
+  test('Lisinopril/HCTZ wording difference is Unchanged', () => {
+    const ctx = loadAppContext();
+    const o = ctx.parseOrder('Lisinopril/HCTZ 20-12.5mg - 1 tab daily');
+    const u = ctx.parseOrder('Lisinopril 20mg / Hydrochlorothiazide 12.5mg combination tablet - 1 tablet PO daily');
+    const r = ctx.getChangeReason(o, u);
+    expect(r).toBe('Unchanged');
+  });
+
+  test('Brand to generic triggers Brand/Generic changed', () => {
+    const ctx = loadAppContext();
+    const o = ctx.parseOrder('Zestoretic 20-12.5mg - 1 tab daily');
+    const u = ctx.parseOrder('Lisinopril/HCTZ 20-12.5mg - 1 tab daily');
+    const r = ctx.getChangeReason(o, u);
+    expect(r).toMatch(/Brand\/Generic changed/);
+  });
+
+  test('Generic to brand triggers Brand/Generic changed', () => {
+    const ctx = loadAppContext();
+    const o = ctx.parseOrder('Lisinopril/HCTZ 20-12.5mg - 1 tab daily');
+    const u = ctx.parseOrder('Zestoretic 20-12.5mg - 1 tab daily');
+    const r = ctx.getChangeReason(o, u);
+    expect(r).toMatch(/Brand\/Generic changed/);
+  });
+
+  test('Amlodipine vs besylate not flagged as change', () => {
+    const ctx = loadAppContext();
+    const o = ctx.parseOrder('Amlodipine tablet 5mg - 1 PO daily');
+    const u = ctx.parseOrder('Amlodipine besylate tablet 5mg - 1 PO daily');
+    const r = ctx.getChangeReason(o, u);
+    expect(r).toBe('Unchanged');
+  });
 });
