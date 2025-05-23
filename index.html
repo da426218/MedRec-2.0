@@ -3007,19 +3007,21 @@ function getChangeReason(orig, updated) {
   // total differs without a quantity change. This prevents "Dose changed" when
   // the strength per spray/tablet is identical but the quantity varies.
 
-  let actualDoseDifference = false;
-  if (!doseUnitMatch || !doseValueMatch) {
-    actualDoseDifference = true;
-  } else {
-    if (Array.isArray(orig.dose?.value)) {
-      if (!qtyMatch) actualDoseDifference = true;
-    } else if (!doseTotalMatch) {
+  if (!quantityOnlyDiff) {
+    let actualDoseDifference = false;
+    if (!doseUnitMatch || !doseValueMatch) {
       actualDoseDifference = true;
+    } else {
+      if (Array.isArray(orig.dose?.value)) {
+        if (!qtyMatch) actualDoseDifference = true;
+      } else if (!doseTotalMatch) {
+        actualDoseDifference = true;
+      }
     }
-  }
 
-  if (actualDoseDifference) {
-    add('Dose changed');
+    if (actualDoseDifference) {
+      add('Dose changed');
+    }
   }
 
   // If totals are equal (quantity defaults to 1) and we added the dose flag, it
