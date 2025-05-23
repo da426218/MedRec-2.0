@@ -5,10 +5,13 @@
   "main": "index.js",
   "scripts": {
     "test": "node tests/runTests.js",
-    "lint": "echo \"No lint configured\""
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write ."
   },
   "devDependencies": {
-    "firebase": "^10.12.5"
+    "firebase": "^10.12.5",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5"
   },
   "keywords": [],
   "author": "",
