@@ -217,3 +217,11 @@ describe('keepOrderLines + parseOrder', () => {
     expect(order.drug.toLowerCase()).toMatch(/timolol/);
   });
 });
+
+describe('normalizeMedicationName', () => {
+  test('strips dosage form words like caps', () => {
+    const ctx = loadAppContext();
+    const result = ctx.normalizeMedicationName('amoxicillin caps');
+    expect(result.name).toBe('amoxicillin');
+  });
+});

@@ -1860,7 +1860,7 @@ function hasContra(orderObj, wholeList = []) {
 
     /* 4. Remove common leftover instructional/form words and numbers from name string */
     n = n.replace(/\b\d+(?:\.\d+)?\b/g, '');
-    n = n.replace(/\b(?:tablet|tablets|tab|tabs|cap|capsule|capsules|caplet|oral|po|subq|sc|im|iv|id|pr|sl|os|od|au|oin|oint|ophth|neb|inh|inj|inject|supp|sol|solution|susp|elix|syr|tr|tinct|lot|crm|crm.|ung|gel|aero|conc|dil|dp|ds|emuls|enema|er|film|gas|gran|gum|impl|inf|ins|irrig|jec|liq|lotn|loz|mdi|hfa|mis|nebu|oint|oph|pad|part|pas|past|pel|pen|pill|plst|powd|pwd|rinse|sat|shamp|soak|spg|spl|spray|stk|strip|subl|sup|swab|syr|sys|tab|tamp|tape|top|troche|twa|vag|wafer|xt|xr|xl|xd|sr|cr|dr|la|patch|puffs|drops|lozenge|spray|unit|units|ml|mcg|mg|g|solostar|actuation)\b/gi, '');
+    n = n.replace(/\b(?:tablet|tablets|tab|tabs|cap|caps|capsule|capsules|caplet|oral|po|subq|sc|im|iv|id|pr|sl|os|od|au|oin|oint|ophth|neb|inh|inj|inject|supp|sol|solution|susp|elix|syr|tr|tinct|lot|crm|crm.|ung|gel|aero|conc|dil|dp|ds|emuls|enema|er|film|gas|gran|gum|impl|inf|ins|irrig|jec|liq|lotn|loz|mdi|hfa|mis|nebu|oint|oph|pad|part|pas|past|pel|pen|pill|plst|powd|pwd|rinse|sat|shamp|soak|spg|spl|spray|stk|strip|subl|sup|swab|syr|sys|tab|tamp|tape|top|troche|twa|vag|wafer|xt|xr|xl|xd|sr|cr|dr|la|patch|puffs|drops|lozenge|spray|unit|units|ml|mcg|mg|g|solostar|actuation)\b/gi, '');
 
     /* 5. Final cleanup */
     n = n.replace(/[\/\-]/g, ' ')
