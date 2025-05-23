@@ -30,7 +30,7 @@ describe('getChangeReason', () => {
       route: ''
     };
     const result = ctx.getChangeReason(before, after);
-    expect(result).toBe('Frequency changed, Brand/Generic changed');
+    expect(result).toBe('Frequency changed');
   });
 
   test('Inhaler brand swap not flagged as frequency change', () => {

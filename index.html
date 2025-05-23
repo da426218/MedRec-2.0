@@ -1673,6 +1673,7 @@ function hasContra(orderObj, wholeList = []) {
       { generic: "ketorolac", brands: ["Toradol"] },
       { generic: "levothyroxine", brands: ["Synthroid", "Levoxyl"] },
       { generic: "lisinopril", brands: ["Prinivil", "Zestril"] },
+      { generic: "lisinopril-hydrochlorothiazide", brands: ["Zestoretic"] },
       { generic: "lorazepam", brands: ["Ativan"] },
       { generic: "losartan", brands: ["Cozaar"] },
       { generic: "melatonin", brands: [] },
@@ -2566,7 +2567,7 @@ function inhaled(parsedOrder) {
     return false;
 }
 
-const benignBrandSet = new Set(['k-dur']);
+const benignBrandSet = new Set(['k-dur', 'hctz']);
 
 const coreName = n => (n||'')
   .toLowerCase()
@@ -2619,16 +2620,23 @@ function getChangeReason(orig, updated) {
   const base1 = stripStrength(orig.drug);
   const base2 = stripStrength(updated.drug);
 
-  const leftHasBrand  = (orig.brandTokens || []).length > 0;
-  const rightHasBrand = (updated.brandTokens || []).length > 0;
+  const leftHasBrand =
+    (orig.brandTokens || []).some(t => !benignBrandSet.has(t.toLowerCase())) ||
+    Boolean(brandToGenericMap[coreName(base1)]);
+  const rightHasBrand =
+    (updated.brandTokens || []).some(t => !benignBrandSet.has(t.toLowerCase())) ||
+    Boolean(brandToGenericMap[coreName(base2)]);
 
 
   const generic1 = brandToGenericMap[base1] || coreDrugName(base1);
   const generic2 = brandToGenericMap[base2] || coreDrugName(base2);
 
-  if (generic1 === generic2 &&
-      base1 !== base2 &&
-      !changes.includes('Brand/Generic changed')) {
+  if (
+    generic1 === generic2 &&
+    base1 !== base2 &&
+    (leftHasBrand || rightHasBrand) &&
+    !changes.includes('Brand/Generic changed')
+  ) {
     changes.push('Brand/Generic changed');
   }
 
@@ -2637,6 +2645,7 @@ function getChangeReason(orig, updated) {
   if (
     sameDrugCore(orig.drug, updated.drug) &&
     gen1 !== gen2 &&
+    (leftHasBrand || rightHasBrand) &&
     !changes.includes('Brand/Generic changed')
   ) {
     changes.push('Brand/Generic changed');
@@ -2984,6 +2993,9 @@ function getChangeReason(orig, updated) {
     );
     if (!formulationMatch && saltSwap && !changes.includes('Formulation changed')) {
       changes.push('Formulation changed');
+    }
+    if (!leftHasBrand && !rightHasBrand) {
+      changes = changes.filter(c => c !== 'Brand/Generic changed');
     }
   }
 
