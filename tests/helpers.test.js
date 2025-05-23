@@ -206,3 +206,14 @@ describe('parseQuantity', () => {
     expect(ctx.parseQuantity('\u00bd tab')).toBe(0.5);
   });
 });
+
+describe('keepOrderLines + parseOrder', () => {
+  test('Timolol ophthalmic order retained and parsed', () => {
+    const ctx = loadAppContext();
+    const raw = 'Timolol 0.5% ophthalmic solution - instill 1 gtt OU BID for glaucoma';
+    const lines = ctx.keepOrderLines(raw);
+    expect(lines.length).toBe(1);
+    const order = ctx.parseOrder(lines[0]);
+    expect(order.drug.toLowerCase()).toMatch(/timolol/);
+  });
+});
