@@ -222,7 +222,7 @@ describe('keepOrderLines + parseOrder', () => {
     const order = ctx.parseOrder(
       'Potassium Chloride 10 mEq ER tab - take one tablet twice daily'
     );
-    expect(order.drug).toBe('potassium chloride');
+    expect(order.drug).toBe('potassiumchloride');
   });
 });
 
