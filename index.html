@@ -708,6 +708,7 @@ const criticalMeds = [
           'Concurrent use of Benzodiazepines and Opioids significantly increases the risk of profound sedation, respiratory depression, coma, and death. Please review necessity, consider alternatives, or ensure appropriate risk mitigation strategies and monitoring are in place.'
       }
     ];
+const qtProlongingDrugList = [];
 
 /* Drug Contraindications List */
 let drugContraindications = {
@@ -4875,6 +4876,33 @@ function findContraIndications(allOrders) {
   return warnings;          // array like [{key:'atorvastatin + gemfibrozil', a:'atorvastatin', b:'gemfibrozil'}]
 }
 
+
+// Detect concurrent use of multiple QT-prolonging drugs
+function findQtRiskAlerts(activeOrdersList) {
+  const qtFound = new Set();
+  activeOrdersList.forEach(o => {
+    const drug = coreDrugName(o.parsed.drug);
+    if (drug && qtProlongingDrugList.includes(drug)) {
+      qtFound.add(o.parsed.drug); // keep original string for display
+    }
+  });
+
+  if (qtFound.size >= 2) {
+    const uniqueFoundQtDrugs = Array.from(qtFound);
+    return [
+      {
+        type: 'QT_RISK',
+        label: 'Potential QT Prolongation Risk',
+        drugsInvolved: uniqueFoundQtDrugs,
+        message: `Caution: Concurrent use of multiple QT-prolonging drugs (${uniqueFoundQtDrugs
+          .map(d => `<em>${d}</em>`)
+          .join('; ')}) may increase the risk of serious cardiac arrhythmias (e.g., Torsades de Pointes). Clinical discretion advised; consider alternatives or ECG monitoring if appropriate.`
+      }
+    ];
+  }
+
+  return [];
+}
 // ===========================================================
 //  Detect therapeutic duplications across monitored classes
 // ===========================================================
@@ -4919,6 +4947,7 @@ function findTherapeuticDuplications(activeOrdersList) {
     }
   });
 
+  warnings.push(...findQtRiskAlerts(activeOrdersList));
   return warnings;
 }
 
@@ -5655,6 +5684,16 @@ const coreDrugName = n => {
   ];
   arbs.forEach(n => add(n, 'arb'));
 })();
+(() => {
+  const sampleQtDrugs = ["Amiodarone", "Sotalol", "Quinidine", "Procainamide", "Disopyramide", "Dofetilide", "Ibutilide", "Dronedarone", "Flecainide", "Haloperidol", "Thioridazine", "Ziprasidone", "Quetiapine", "Risperidone", "Olanzapine", "Pimozide", "Chlorpromazine", "Iloperidone", "Paliperidone", "Sertindole", "Citalopram", "Escitalopram", "Fluoxetine", "Sertraline", "Venlafaxine", "Amitriptyline", "Nortriptyline", "Imipramine", "Clomipramine", "Doxepin", "Trazodone", "Erythromycin", "Clarithromycin", "Azithromycin", "Levofloxacin", "Moxifloxacin", "Ciprofloxacin", "Gemifloxacin", "Fluconazole", "Ketoconazole", "Itraconazole", "Voriconazole", "Posaconazole", "Ondansetron", "Granisetron", "Dolasetron", "Promethazine", "Droperidol", "Domperidone", "Methadone", "Levorphanol", "Hydroxyzine", "Diphenhydramine", "Chloroquine", "Hydroxychloroquine", "Mefloquine", "Halofantrine", "Lumefantrine", "Arsenic Trioxide", "Sunitinib", "Nilotinib", "Dasatinib", "Vandetanib", "Lapatinib", "Crizotinib", "Pazopanib", "Sorafenib", "Toremifene", "Vemurafenib", "Donepezil", "Ranolazine", "Tacrolimus", "Sumatriptan", "Cilostazol", "Pentamidine", "Cisapride", "Bedaquiline", "Delamanid", "Fingolimod", "Ivabradine"];
+  const normalizedQtSet = new Set();
+  sampleQtDrugs.forEach(drugName => {
+    const normalized = coreDrugName(drugName);
+    if (normalized) normalizedQtSet.add(normalized);
+  });
+  qtProlongingDrugList.push(...normalizedQtSet);
+  if (DEBUG) console.log("Initialized qtProlongingDrugList:", qtProlongingDrugList);
+})();
 
 function compareAndShowResults() {
     let { unchanged, removed, added } = compareOrders(meds1, meds2);
@@ -6057,6 +6096,8 @@ if (!match) {
           const d2 = alert.drugsByClass[alert.classes[1]].map(d => `<em>${d}</em>`).join('; ');
           dupHtml +=
             `<li><strong>${alert.label}:</strong> ${alert.messageTemplate} Drugs involved: ${d1} and ${d2}.</li>`;
+          } else if (alert.type === "QT_RISK") {
+            dupHtml += `<li><strong>${alert.label}:</strong> ${alert.message}</li>`;
         }
       });
       dupHtml +=
@@ -6150,6 +6191,9 @@ if (!match) {
         const d1 = alert.drugsByClass[alert.classes[0]].join('; ');
         const d2 = alert.drugsByClass[alert.classes[1]].join('; ');
         textLine = `• ${alert.label}: ${alert.messageTemplate} Drugs involved: ${d1} and ${d2}.`;
+        } else if (alert.type === "QT_RISK") {
+          const plainTextMessage = alert.message.replace(/<\/?em>/g, '');
+          textLine = `• ${alert.label}: ${plainTextMessage}`;
       }
       const lines = pdf.splitTextToSize(
         textLine,
