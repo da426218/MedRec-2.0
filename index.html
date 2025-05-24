@@ -245,25 +245,28 @@
     }
 /* ========= New table styling ========== */
 table.changes-table {
-  width: auto;
-  margin: 1rem auto;    /* center horizontally */
+  width: 100%;
+  table-layout: fixed;
+  margin: 1rem 0;
   border-collapse: collapse;
   font-size: 0.9rem;
 }
-/* allow horizontal scroll on narrow viewports */
 #results-content {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow-x: hidden;
 }
 table.changes-table th,
 table.changes-table td {
   border: 1px solid #ddd;
   padding: 0.5rem;
-  text-align: left;
   line-height: 1.6;
+  word-wrap: break-word;
+}
+table.changes-table td {
+  text-align: left;
 }
 table.changes-table th {
   background-color: #f0f0f0;
+  text-align: center;
 }
 /* Prevent splitting rows across PDF pages */
 .changes-table,
@@ -369,35 +372,10 @@ table.changes-table th {
       max-width: 500px;
       margin: 0 auto;
     }
-    .tooltip {
-      position: relative;
-      display: inline-block;
-      cursor: pointer;
-      color: #007bff;
-      margin-left: 5px;
-      font-size: 0.9rem;
-    }
-    .tooltip .tooltip-text {
-      visibility: hidden;
-      width: 200px;
-      background-color: #333;
-      color: white;
-      text-align: center;
-      border-radius: 5px;
-      padding: 5px;
-      position: absolute;
-      z-index: 1;
-      bottom: 125%;
-      left: 50%;
-      transform: translateX(-50%);
-      white-space: normal;
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-    .tooltip:hover .tooltip-text,
-    .tooltip.active .tooltip-text {
-      visibility: visible;
-      opacity: 1;
+    .confidence-explainer {
+      text-align: left;
+      max-width: 650px;
+      margin: 0.5rem auto;
     }
     #medrec-logo {
       display: block;
@@ -611,6 +589,14 @@ footer a:hover {
     <div id="results-screen" class="screen">
       <h2>Comparison Results</h2>
       <p>Changes listed in <span class="critical">bold red</span> are critical medications and should be reconciled with the provider within <span class="critical">4 hours</span> of discovery.</p>
+      <div class="confidence-explainer">
+        <p><strong>Understanding Confidence Scores:</strong></p>
+        <ul>
+          <li><strong>High:</strong> The system is very confident in how it understood and compared the medication orders. These entries are likely accurate; standard review is appropriate.</li>
+          <li><strong>Medium:</strong> The system has some uncertainty about this comparison. This could be due to slightly unclear wording in the original orders, minor unparsed notes, or complex changes. <em>Please review these items carefully.</em></li>
+          <li><strong>Low:</strong> The system faced significant challenges in understanding or comparing these medication orders. The accuracy for this row may be limited. <em>Please verify these entries thoroughly against the original documents.</em></li>
+        </ul>
+      </div>
       <div class="card">
         <div id="results-content"></div>
       </div>
@@ -5770,7 +5756,7 @@ if (!match) {
                     <th>Original Order (Facility)</th>
                     <th>New Order (Hospital)</th>
                     <th>Suspected Change</th>
-                    <th title="System's confidence in parsing and comparison. High: Likely correct. Medium: Some uncertainty, review. Low: Parsing challenges detected, verify order details carefully.">Confidence <span class="tooltip">? <span class="tooltip-text">System's confidence in its parsing and comparison for this row. High: Likely correct. Medium: Some uncertainty or minor notes, review. Low: Parsing challenges or missing data likely, verify order details carefully.</span></span></th>
+                    <th>Confidence</th>
                 </tr>
             </thead>
             <tbody>`;
@@ -5936,23 +5922,6 @@ function printResults() {
       showScreen('disclaimer-screen');
     }
 
-    // Tooltip toggle for mobile
-    document.querySelectorAll('.tooltip').forEach(tooltip => {
-      tooltip.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isActive = tooltip.classList.contains('active');
-        document.querySelectorAll('.tooltip').forEach(t => t.classList.remove('active'));
-        if (!isActive) {
-          tooltip.classList.add('active');
-        }
-      });
-    });
-
-    document.addEventListener('click', () => {
-      document.querySelectorAll('.tooltip').forEach(tooltip => {
-        tooltip.classList.remove('active');
-      });
-    });
 
     document.addEventListener('DOMContentLoaded', () => {
       hideLoading();
