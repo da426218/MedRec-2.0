@@ -651,8 +651,8 @@ footer a:hover {
   </script>
 
   <script>
-    const DEBUG = false;
-    const criticalMeds = [
+const DEBUG = false;
+const criticalMeds = [
       'warfarin', 'coumadin', 'apixaban', 'rivaroxaban', 'dabigatran', 'edoxaban', 'heparin', 'enoxaparin',
       'clopidogrel', 'ticagrelor', 'prasugrel', 'insulin regular', 'insulin glargine', 'insulin detemir',
       'insulin lispro', 'insulin aspart', 'insulin degludec', 'glipizide', 'glyburide', 'glimepiride',
@@ -681,7 +681,22 @@ footer a:hover {
       'isosorbide', 'nicardipine', 'nitroprusside', 'ivabradine', 'sacubitril', 'valsartan',
       'atorvastatin', 'rosuvastatin', 'simvastatin', 'Norco', 'oxycodone/acetaminophen', 'hydrocodone/acetaminophen', 'codeine/acetaminophen', 'tramadol/acetaminophen', 'acetaminophen/caffeine/dihydrocodeine', 'aspirin/caffeine/dihydrocodeine', 'aspirin/codeine', 'ibuprofen/oxycodone', 'acetaminophen/butalbital/caffeine', 'aspirin/butalbital/caffeine', 'acetaminophen/butalbital', 'methylphenidate', 'amphetamine/dextroamphetamine', 'hydrocodone/pseudoephedrine', 'hydrocodone/chlorpheniramine', 'hydrocodone/homatropine', 'busulfan', 'doxorubicin', 'adalimumab', 'acetaminophen/isometheptene/dichloralphenazone', 'ultracet', 'percocet', 'roxicet', 'endocet', 'tylenol #3', 'zamicet', 'vicodin', 'lortab', 'panlor ss', 'trezix', 'synalgos-dc', 'empirin with codeine', 'combunox', 'fioricet', 'esgic', 'zebutal', 'fiorinal', 'bupap', 'rezira', 'tussionex', 'hycomine', 'hydromet', 'midrin','chlorpropamide', 'acarbose', 'miglitol', 'argatroban', 'bivalirudin', 'fondaparinux', 'methylergonovine', 'carboplatin', 'cyclophosphamide', 'promethazine', 'timolol'
 
-    ].map(med => med.toLowerCase());
+].map(med => med.toLowerCase());
+
+    // Map normalized drug names to their pharmacological class(es)
+    const drugToClassMap = {};
+
+    // Classes to monitor for potential therapeutic duplication
+    const classesToMonitorForDuplication = [
+      'benzodiazepine',
+      'opioid',
+      'nsaid',
+      'ssri',
+      'snri',
+      'statin',
+      'ace_inhibitor',
+      'arb'
+    ];
 
 /* Drug Contraindications List */
 let drugContraindications = {
@@ -4836,6 +4851,33 @@ function findContraIndications(allOrders) {
   return warnings;          // array like [{key:'atorvastatin + gemfibrozil', a:'atorvastatin', b:'gemfibrozil'}]
 }
 
+// ===========================================================
+//  Detect therapeutic duplications across monitored classes
+// ===========================================================
+function findTherapeuticDuplications(activeOrdersList) {
+  const classMap = {};
+
+  activeOrdersList.forEach(o => {
+    const drug = coreDrugName(o.parsed.drug);
+    if (!drug) return;
+    const classes = drugToClassMap[drug];
+    if (!classes) return;
+    classes.forEach(cls => {
+      if (!classesToMonitorForDuplication.includes(cls)) return;
+      if (!classMap[cls]) classMap[cls] = new Set();
+      classMap[cls].add(drug);
+    });
+  });
+
+  const warnings = [];
+  Object.entries(classMap).forEach(([cls, set]) => {
+    if (set.size > 1) {
+      warnings.push({ className: cls, drugs: Array.from(set) });
+    }
+  });
+  return warnings;
+}
+
     function ordersAreEqual(a, b) {
 	const norm = s => (s || '').toLowerCase().trim().replace(/\s+/g, ' ');
   // — NEW: orders with different startDates should _not_ be treated as equal
@@ -5474,6 +5516,102 @@ const coreDrugName = n => {
   drugContraindications = normalizedDrugContraindications;
 })();
 
+// Populate drugToClassMap using coreDrugName keys
+(() => {
+  const add = (name, cls) => {
+    const key = coreDrugName(name);
+    if (!key) return;
+    if (!drugToClassMap[key]) drugToClassMap[key] = [];
+    if (!drugToClassMap[key].includes(cls)) drugToClassMap[key].push(cls);
+  };
+
+  const benzodiazepines = [
+    'Alprazolam',
+    'Clonazepam',
+    'Diazepam',
+    'Lorazepam',
+    'Temazepam',
+    'Chlordiazepoxide',
+    'Oxazepam',
+    'Clobazam',
+    'Midazolam',
+    'Flurazepam',
+    'Triazolam',
+    'Estazolam'
+  ];
+  benzodiazepines.forEach(n => add(n, 'benzodiazepine'));
+
+  const opioids = [
+    'Morphine',
+    'Hydromorphone',
+    'Oxycodone',
+    'Hydrocodone',
+    'Fentanyl',
+    'Methadone',
+    'Tramadol',
+    'Codeine',
+    'Buprenorphine',
+    'Meperidine',
+    'Tapentadol',
+    'Oxymorphone',
+    'Hydrocodone/acetaminophen',
+    'Oxycodone/acetaminophen'
+  ];
+  opioids.forEach(n => add(n, 'opioid'));
+
+  const nsaids = [
+    'Ibuprofen',
+    'Naproxen',
+    'Diclofenac',
+    'Ketorolac',
+    'Celecoxib',
+    'Meloxicam'
+  ];
+  nsaids.forEach(n => add(n, 'nsaid'));
+
+  const ssris = [
+    'Fluoxetine',
+    'Sertraline',
+    'Paroxetine',
+    'Citalopram',
+    'Escitalopram',
+    'Fluvoxamine'
+  ];
+  ssris.forEach(n => add(n, 'ssri'));
+
+  const snris = ['Venlafaxine', 'Desvenlafaxine', 'Duloxetine'];
+  snris.forEach(n => add(n, 'snri'));
+
+  const statins = [
+    'Atorvastatin',
+    'Simvastatin',
+    'Rosuvastatin',
+    'Pravastatin',
+    'Lovastatin'
+  ];
+  statins.forEach(n => add(n, 'statin'));
+
+  const aceInhibitors = [
+    'Lisinopril',
+    'Enalapril',
+    'Ramipril',
+    'Benazepril',
+    'Quinapril',
+    'Trandolapril'
+  ];
+  aceInhibitors.forEach(n => add(n, 'ace_inhibitor'));
+
+  const arbs = [
+    'Losartan',
+    'Valsartan',
+    'Irbesartan',
+    'Candesartan',
+    'Olmesartan',
+    'Telmisartan'
+  ];
+  arbs.forEach(n => add(n, 'arb'));
+})();
+
 function compareAndShowResults() {
     let { unchanged, removed, added } = compareOrders(meds1, meds2);
         
@@ -5580,6 +5718,12 @@ const activeOrders =
       .concat( unchanged.map(p => p.new) );
 
 const ciAlerts = findContraIndications(activeOrders);
+
+  // Screen for therapeutic duplications in the active medication list
+const duplicationAlerts = findTherapeuticDuplications(activeOrders);
+if (duplicationAlerts.length) {
+  console.warn('Therapeutic duplications detected:', duplicationAlerts);
+}
 
 /* build a highlight-set containing BOTH
    the raw names *and* their stripped cores */
