@@ -226,6 +226,36 @@ describe('keepOrderLines + parseOrder', () => {
   });
 });
 
+describe('keepOrderLines discontinued handling', () => {
+  test('lines with discontinued text are excluded', () => {
+    const ctx = loadAppContext();
+    const raw = [
+      'Lisinopril 10 mg tablet daily',
+      'Metformin 500 mg tablet - discontinued',
+      'Amlodipine 5 mg tablet daily'
+    ].join('\n');
+    const lines = ctx.keepOrderLines(raw);
+    expect(lines.length).toBe(2);
+    expect(lines.some(l => /metformin/i.test(l))).toBe(false);
+  });
+
+  test('lines with D/C abbreviation are excluded', () => {
+    const ctx = loadAppContext();
+    const raw = 'Warfarin 5mg D/C\nLisinopril 10mg active';
+    const lines = ctx.keepOrderLines(raw);
+    expect(lines.length).toBe(1);
+    expect(lines.some(l => /warfarin/i.test(l))).toBe(false);
+  });
+
+  test("lines with dc'd abbreviation are excluded", () => {
+    const ctx = loadAppContext();
+    const raw = 'Aspirin 81mg dc\'d\nClopidogrel 75mg';
+    const linesDcEd = ctx.keepOrderLines(raw);
+    expect(linesDcEd.length).toBe(1);
+    expect(linesDcEd.some(l => /aspirin/i.test(l))).toBe(false);
+  });
+});
+
 describe('normalizeMedicationName', () => {
   test('strips dosage form words like caps', () => {
     const ctx = loadAppContext();
