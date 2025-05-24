@@ -2215,6 +2215,12 @@ function pruneLine(line) {
  }
 
     function isLikelyOrderLine(line) {
+      const discontinuationPattern = /\b(discontinued|d\s*\/?\s*c(?:(?:[\s.-]*ed|[\s.-]*'d))?|discont\.?)\b/i;
+      if (discontinuationPattern.test(line)) {
+        if (DEBUG) console.log('Filtered discontinued line:', line);
+        return false;
+      }
+
       //=== STEP 3  stricter test
 if (line.length < 5) return false;
 const good = (line.match(/[a-z0-9]/gi) || []).length;
