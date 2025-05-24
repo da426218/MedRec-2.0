@@ -684,7 +684,7 @@ footer a:hover {
     ].map(med => med.toLowerCase());
 
 /* Drug Contraindications List */
-const drugContraindications = {
+let drugContraindications = {
   /* 1 */ "atorvastatin": [
            "tipranavir", "ritonavir", "glecaprevir", "pibrentasvir",
            "cyclosporine", "gemfibrozil"
@@ -5445,6 +5445,28 @@ for (let i = removed.length - 1; i >= 0; i--) {
 const coreDrugName = n => {
   return normalizeMedicationName(n).name;
 };
+
+// Normalize all keys and values in the contraindications list
+(() => {
+  const normalizedDrugContraindications = {};
+  for (const [originalKey, originalValueArray] of Object.entries(drugContraindications)) {
+    const normalizedKey = coreDrugName(originalKey);
+    const normalizedValueArray = [
+      ...new Set(originalValueArray.map(drugName => coreDrugName(drugName)))
+    ];
+
+    if (normalizedDrugContraindications[normalizedKey]) {
+      const merged = new Set([
+        ...normalizedDrugContraindications[normalizedKey],
+        ...normalizedValueArray
+      ]);
+      normalizedDrugContraindications[normalizedKey] = [...merged];
+    } else {
+      normalizedDrugContraindications[normalizedKey] = normalizedValueArray;
+    }
+  }
+  drugContraindications = normalizedDrugContraindications;
+})();
 
 function compareAndShowResults() {
     let { unchanged, removed, added } = compareOrders(meds1, meds2);
