@@ -245,14 +245,14 @@
     }
 /* ========= New table styling ========== */
 table.changes-table {
-  width: 100%;
-  table-layout: fixed;
-  margin: 1rem 0;
+  width: auto;
+  table-layout: auto;
+  margin: 1rem auto;
   border-collapse: collapse;
   font-size: 0.9rem;
 }
 #results-content {
-  overflow-x: hidden;
+  overflow-x: auto;
 }
 table.changes-table th,
 table.changes-table td {
@@ -260,9 +260,7 @@ table.changes-table td {
   padding: 0.5rem;
   line-height: 1.6;
   word-wrap: break-word;
-}
-table.changes-table td {
-  text-align: left;
+  text-align: center;
 }
 table.changes-table th {
   background-color: #f0f0f0;
@@ -376,6 +374,7 @@ table.changes-table th {
       text-align: left;
       max-width: 650px;
       margin: 0.5rem auto;
+      font-size: 0.9em;
     }
     #medrec-logo {
       display: block;
@@ -592,9 +591,9 @@ footer a:hover {
       <div class="confidence-explainer">
         <p><strong>Understanding Confidence Scores:</strong></p>
         <ul>
-          <li><strong>High:</strong> The system is very confident in how it understood and compared the medication orders. These entries are likely accurate; standard review is appropriate.</li>
-          <li><strong>Medium:</strong> The system has some uncertainty about this comparison. This could be due to slightly unclear wording in the original orders, minor unparsed notes, or complex changes. <em>Please review these items carefully.</em></li>
-          <li><strong>Low:</strong> The system faced significant challenges in understanding or comparing these medication orders. The accuracy for this row may be limited. <em>Please verify these entries thoroughly against the original documents.</em></li>
+          <li><strong>High:</strong> Change detection &amp; description likely accurate. Standard review.</li>
+          <li><strong>Medium:</strong> Change likely detected. Description may have minor uncertainties (e.g., from order complexity or OCR). <em>Confirm nature of change.</em></li>
+          <li><strong>Low:</strong> Change likely detected. Description faced greater challenges (e.g., from order complexity or OCR). <em>Verify item fully with originals.</em></li>
         </ul>
       </div>
       <div class="card">
