@@ -698,6 +698,17 @@ const criticalMeds = [
       'arb'
     ];
 
+    // Pairs of classes where concurrent use warrants a cautionary alert
+    const problematicClassCombinations = [
+      {
+        type: 'INTERACTION',
+        classes: ['benzodiazepine', 'opioid'],
+        label: 'Caution: Benzodiazepine + Opioid Interaction',
+        messageTemplate:
+          'Concurrent use of Benzodiazepines and Opioids significantly increases the risk of profound sedation, respiratory depression, coma, and death. Please review necessity, consider alternatives, or ensure appropriate risk mitigation strategies and monitoring are in place.'
+      }
+    ];
+
 /* Drug Contraindications List */
 let drugContraindications = {
   /* 1 */ "atorvastatin": [
@@ -4885,9 +4896,29 @@ function findTherapeuticDuplications(activeOrdersList) {
   const warnings = [];
   Object.entries(classMap).forEach(([cls, set]) => {
     if (set.size > 1) {
-      warnings.push({ className: cls, drugs: Array.from(set) });
+      warnings.push({
+        type: 'DUPLICATION',
+        className: cls,
+        drugs: Array.from(set)
+      });
     }
   });
+
+  problematicClassCombinations.forEach(combo => {
+    const [c1, c2] = combo.classes;
+    const set1 = classMap[c1];
+    const set2 = classMap[c2];
+    if (set1 && set1.size > 0 && set2 && set2.size > 0) {
+      warnings.push({
+        type: combo.type,
+        classes: combo.classes,
+        label: combo.label,
+        messageTemplate: combo.messageTemplate,
+        drugsByClass: { [c1]: Array.from(set1), [c2]: Array.from(set2) }
+      });
+    }
+  });
+
   return warnings;
 }
 
@@ -6016,10 +6047,17 @@ if (!match) {
         '<h3 style="margin-top:1.5rem; color: orange; font-weight: bold;">' +
         'Potential Therapeutic Duplications</h3><ul>';
       duplicationAlerts.forEach(alert => {
-        const classLabel = alert.className.replace(/_/g, ' ');
-        const drugList = alert.drugs.map(d => `<em>${d}</em>`).join('; ');
-        dupHtml +=
-          `<li><strong>${classLabel}:</strong> The following medications may represent a therapeutic duplication: ${drugList}. Please review.</li>`;
+        if (alert.type === 'DUPLICATION') {
+          const classLabel = alert.className.replace(/_/g, ' ');
+          const drugList = alert.drugs.map(d => `<em>${d}</em>`).join('; ');
+          dupHtml +=
+            `<li><strong>${classLabel}:</strong> The following medications may represent a therapeutic duplication: ${drugList}. Please review.</li>`;
+        } else if (alert.type === 'INTERACTION') {
+          const d1 = alert.drugsByClass[alert.classes[0]].map(d => `<em>${d}</em>`).join('; ');
+          const d2 = alert.drugsByClass[alert.classes[1]].map(d => `<em>${d}</em>`).join('; ');
+          dupHtml +=
+            `<li><strong>${alert.label}:</strong> ${alert.messageTemplate} Drugs involved: ${d1} and ${d2}.</li>`;
+        }
       });
       dupHtml +=
         '</ul><p style="font-size:0.85rem;">This is a screen for common therapeutic duplications. Clinical judgment is required to determine appropriateness.</p>';
@@ -6103,9 +6141,16 @@ if (!match) {
 
     pdf.setFontSize(10);
     window.currentDuplicationAlerts.forEach(alert => {
-      const classLabel = alert.className.replace(/_/g, ' ');
-      const drugListString = alert.drugs.join('; ');
-      const textLine = `• ${classLabel}: Duplication with: ${drugListString}. Please review.`;
+      let textLine = '';
+      if (alert.type === 'DUPLICATION') {
+        const classLabel = alert.className.replace(/_/g, ' ');
+        const drugListString = alert.drugs.join('; ');
+        textLine = `• ${classLabel}: Duplication with: ${drugListString}. Please review.`;
+      } else if (alert.type === 'INTERACTION') {
+        const d1 = alert.drugsByClass[alert.classes[0]].join('; ');
+        const d2 = alert.drugsByClass[alert.classes[1]].join('; ');
+        textLine = `• ${alert.label}: ${alert.messageTemplate} Drugs involved: ${d1} and ${d2}.`;
+      }
       const lines = pdf.splitTextToSize(
         textLine,
         pdf.internal.pageSize.getWidth() - 80
