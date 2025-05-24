@@ -1890,7 +1890,7 @@ function hasContra(orderObj, wholeList = []) {
     /* 5. Final cleanup */
     n = n.replace(/[\/\-]/g, ' ')
          .replace(/[^a-z0-9 ]+/g, '')
-         .replace(/\s+/g, ' ')
+         .replace(/\s+/g, '')
          .trim();
 
     // 6. Drop trailing noise words like dosing instructions or route leftovers
@@ -4832,24 +4832,13 @@ function findContraIndications(allOrders) {
         .map(o => coreDrugName(o.parsed.drug))   // << one canonical key
         .filter(Boolean);                        // drop blanks / junk
   const uniqueMeds = [...new Set(medsFound)];
-  console.log(
-    "DEBUG CI: findContraIndications called. Normalized uniqueMeds on active list:",
-    JSON.stringify(uniqueMeds, null, 2)
-  );
   const warnings = [];
 
   uniqueMeds.forEach(med => {
-    console.log(
-      `DEBUG CI: Checking contraindications for active med: '${med}'. Listed CIs for this med:`,
-      JSON.stringify(drugContraindications[med])
-    );
     const badList = drugContraindications[med];
     if (!badList || badList.length === 0) return;
 
     badList.forEach(bad => {
-      console.log(
-        `DEBUG CI: Comparing CI list item '${bad}' (for active med '${med}') against uniqueMeds. Is '${bad}' included in uniqueMeds? ${uniqueMeds.includes(bad)}`
-      );
       if (uniqueMeds.includes(bad)) {
         const key = [med, bad].sort().join(' + ');   // avoid duplicates A+B / B+A
         if (!warnings.find(w => w.key === key)) {
@@ -5727,15 +5716,6 @@ added     = added    .filter(notBlank);
 const activeOrders =
       meds2
       .concat( unchanged.map(p => p.new) );
-
-console.log(
-  "DEBUG CI: Current state of drugContraindications object (should be normalized):",
-  JSON.stringify(drugContraindications, null, 2)
-);
-console.log(
-  "DEBUG CI: Active orders being passed to findContraIndications (normalized drug names):",
-  JSON.stringify(activeOrders.map(o => coreDrugName(o.parsed.drug)), null, 2)
-);
 
 const ciAlerts = findContraIndications(activeOrders);
 
