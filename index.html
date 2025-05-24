@@ -5933,6 +5933,8 @@ function printResults() {
     document.addEventListener('DOMContentLoaded', () => {
       hideLoading();
       updateProgress('disclaimer-screen');
+      const divider = document.querySelector('.header-divider');
+      if (divider) divider.style.display = 'block';
     });
   </script>
 
