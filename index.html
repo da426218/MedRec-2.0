@@ -5724,6 +5724,8 @@ const duplicationAlerts = findTherapeuticDuplications(activeOrders);
 if (duplicationAlerts.length) {
   console.warn('Therapeutic duplications detected:', duplicationAlerts);
 }
+// make duplication alerts available globally for exportToPDF()
+window.currentDuplicationAlerts = duplicationAlerts;
 
 /* build a highlight-set containing BOTH
    the raw names *and* their stripped cores */
@@ -6049,11 +6051,11 @@ if (!match) {
   });
 
   // ——— Draw the CI header & list below the table ———
-  const finalY = pdf.lastAutoTable.finalY + 20;
+  let currentY = pdf.lastAutoTable.finalY + 20;
   if (window.currentContraAlerts?.length) {
     // 1) Section title
     pdf.setFontSize(12);
-    pdf.text("Potential Contra-Indications", 40, finalY);
+    pdf.text("Potential Contra-Indications", 40, currentY);
 
     // 2) Each warning item
     pdf.setFontSize(10);
@@ -6061,7 +6063,7 @@ if (!match) {
       pdf.text(
         `• ${w.a} should NOT be used with ${w.b}`,
         40,
-        finalY + 15 + i * 12
+        currentY + 15 + i * 12
       );
     });
 
@@ -6070,8 +6072,45 @@ if (!match) {
     pdf.text(
       "These flags are a quick screen and do not replace clinical judgment.",
       40,
-      finalY + 15 + window.currentContraAlerts.length * 12 + 10
+      currentY + 15 + window.currentContraAlerts.length * 12 + 10
     );
+
+    currentY = currentY + 15 + window.currentContraAlerts.length * 12 + 20;
+  }
+
+  if (window.currentDuplicationAlerts && window.currentDuplicationAlerts.length > 0) {
+    currentY += 20;
+    pdf.setFontSize(12);
+    pdf.setTextColor(255, 165, 0);
+    pdf.setFont(undefined, 'bold');
+    pdf.text("Potential Therapeutic Duplications", 40, currentY);
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFont(undefined, 'normal');
+    currentY += 15;
+
+    pdf.setFontSize(10);
+    window.currentDuplicationAlerts.forEach(alert => {
+      const classLabel = alert.className.replace(/_/g, ' ');
+      const drugListString = alert.drugs.join('; ');
+      const textLine = `• ${classLabel}: Duplication with: ${drugListString}. Please review.`;
+      const lines = pdf.splitTextToSize(
+        textLine,
+        pdf.internal.pageSize.getWidth() - 80
+      );
+      pdf.text(lines, 40, currentY);
+      currentY += lines.length * 10 + 2;
+    });
+
+    pdf.setFontSize(9);
+    currentY += 10;
+    const disclaimer =
+      'This is a screen for common therapeutic duplications. Clinical judgment is required to determine appropriateness.';
+    const dLines = pdf.splitTextToSize(
+      disclaimer,
+      pdf.internal.pageSize.getWidth() - 80
+    );
+    pdf.text(dLines, 40, currentY);
+    currentY += dLines.length * 10;
   }
 
   // 5) save the PDF
