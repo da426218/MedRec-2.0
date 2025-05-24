@@ -40,6 +40,16 @@
       width: 100%;
     }
 
+    .header-gradient-line {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      top: calc(50% - 1px);
+      background: linear-gradient(to right, #0056b3, #007bff 50%, #0056b3);
+      z-index: 0;
+    }
+
     @media (max-width: 600px) {
       header {
         height: 110px;
@@ -284,6 +294,7 @@ table.changes-table th {
       width: 90%;
       max-width: 400px;
       position: relative;
+      z-index: 1;
     }
     .progress-step {
       width: 30px;
@@ -383,6 +394,8 @@ table.changes-table th {
       margin-left: auto;
       margin-right: auto;
       margin-bottom: 5px;
+      position: relative;
+      z-index: 1;
     }
 
     @media (max-width: 600px) {
@@ -495,6 +508,7 @@ footer a:hover {
 </head>
 <body>
   <header>
+    <div class="header-gradient-line"></div>
     <img src="MedRec%20Logo.png" alt="MedRec 2.0 Logo" id="medrec-logo">
     <div class="progress-bar">
       <div class="progress-line-container">
